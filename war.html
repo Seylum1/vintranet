@@ -104,6 +104,28 @@ header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-botto
 .trk-thr{display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:var(--ink-faint);}
 .trk-thr input{width:52px;background:var(--bg3);border:1px solid var(--line2);border-radius:3px;padding:.1rem .3rem;font-family:'Share Tech Mono',monospace;font-size:.75rem;text-align:center;}
 
+/* ── Objectives (each side's standing orders, derived from the last battle) ── */
+.trk-obj{display:flex;justify-content:space-between;align-items:center;gap:.8rem;margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line);flex-wrap:wrap;}
+.obj{display:flex;align-items:center;gap:.5rem;min-width:0;flex:1;}
+.obj.vin{justify-content:flex-start;}
+.obj.lech{justify-content:flex-end;text-align:right;}
+.obj-lbl{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;flex-shrink:0;}
+.obj.vin .obj-lbl{color:var(--vin-bright);opacity:.85;}
+.obj.lech .obj-lbl{color:var(--lech-bright);opacity:.85;}
+.obj-verb{font-family:'Share Tech Mono',monospace;font-size:.74rem;letter-spacing:.08em;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.obj-verb.attack{color:#ffb35c;}
+.obj-verb.defend{color:#8fb7d6;}
+.obj-verb.hold{color:var(--ink-dim);}
+.obj-verb.win{color:var(--contest);text-shadow:0 0 10px rgba(217,154,61,.5);}
+.obj-verb.lost{color:var(--danger);}
+.obj-verb.idle{color:var(--ink-faint);font-style:italic;font-weight:400;}
+.obj-tgt{font-family:'Playfair Display',Georgia,serif;font-size:.9rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.obj-tgt.none{font-family:'Crimson Text',serif;font-weight:400;font-style:italic;color:var(--ink-dim);font-size:.82rem;}
+.obj-world{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.1em;color:var(--ink-faint);border:1px solid var(--line2);border-radius:3px;padding:.05rem .3rem;flex-shrink:0;}
+.obj-note{font-style:italic;color:var(--ink-faint);font-size:.72rem;}
+@media(max-width:760px){ .trk-obj{flex-direction:column;align-items:stretch;gap:.35rem;} .obj.lech{justify-content:flex-start;text-align:left;} }
+@media(max-height:620px){ .trk-obj{margin-top:.3rem;padding-top:.3rem;} .obj-tgt{font-size:.8rem;} }
+
 /* ── Main layout ────────────────────────────────────── */
 main{flex:1;display:flex;min-height:0;}
 #sidebar{width:330px;min-width:330px;border-right:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;min-height:0;transition:margin-left .25s;}
@@ -240,6 +262,10 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
       <span id="trkStatusMain">THE GUNS ARE SILENT</span>
       <span id="trkMomentum"></span>
       <span class="trk-thr">victory at ±<input type="number" id="threshold" min="3" max="50" step="1" disabled/></span>
+    </div>
+    <div class="trk-obj">
+      <div class="obj vin" id="objVin"></div>
+      <div class="obj lech" id="objLech"></div>
     </div>
   </section>
 
@@ -722,6 +748,30 @@ function centroid(pts) {
   a *= 3;
   return [cx / a, cy / a];
 }
+// Distance from a point to a segment, and the minimum distance between two
+// polygon boundaries — used to decide which territories are adjacent (share, or
+// nearly share, a border) when working out each side's objective.
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function polyMinDist(pa, pb) {
+  let m = Infinity;
+  for (const p of pa) for (let i = 0; i < pb.length; i++) {
+    const a = pb[i], b = pb[(i + 1) % pb.length];
+    const d = segDist(p[0], p[1], a[0], a[1], b[0], b[1]);
+    if (d < m) m = d;
+    if (m === 0) return 0;
+  }
+  for (const p of pb) for (let i = 0; i < pa.length; i++) {
+    const a = pa[i], b = pa[(i + 1) % pa.length];
+    const d = segDist(p[0], p[1], a[0], a[1], b[0], b[1]);
+    if (d < m) m = d;
+  }
+  return m;
+}
 
 /* ══════════ RENDER: MAP OVERLAY ══════════ */
 const svgNS = 'http://www.w3.org/2000/svg';
@@ -913,6 +963,7 @@ function finishDraw() {
   drawPts = [];
   setMode('select');
   selectTerritory(t.id);
+  renderObjectives();
   persistTerritory(t);
   toast('Territory created — name it and set who holds it.');
   setTimeout(() => {
@@ -1009,7 +1060,7 @@ async function deleteTerritory(id) {
   if (!confirm(`Delete territory “${t.name}”?`)) return;
   territories = territories.filter(x => x.id !== id);
   if (selectedId === id) selectedId = null;
-  renderMap(); renderTerritories();
+  renderMap(); renderTerritories(); renderObjectives();
   noteSaving();
   const res = await deleteRecord('lvwar_territories', id);
   noteSaved(res.ok, res.error);
@@ -1062,7 +1113,7 @@ function renderTerritories() {
         ed.querySelectorAll('[data-f]').forEach(inp => {
           inp.addEventListener('input', () => {
             t[inp.dataset.f] = inp.value;
-            if (inp.dataset.f === 'status' || inp.dataset.f === 'world') { renderMap(); renderTerritories(); }
+            if (inp.dataset.f === 'status' || inp.dataset.f === 'world') { renderMap(); renderTerritories(); renderObjectives(); }
             else if (inp.dataset.f === 'name') {
               renderMap();
               const n = card.querySelector('.tcard-name');
@@ -1135,6 +1186,132 @@ function renderTracker() {
   const vw = battles.filter(b => b.victor === 'vindex').length;
   $('lechWins').textContent = lw + (lw === 1 ? ' victory' : ' victories');
   $('vinWins').textContent = vw + (vw === 1 ? ' victory' : ' victories');
+  renderObjectives();
+}
+
+/* ══════════ OBJECTIVES ══════════ */
+// Standing orders for each crown, read off the war record. Whoever won the most
+// recent decisive battle is on the offensive — they push from the ground they
+// hold into the adjacent enemy (or contested) zone. The other side is thrown
+// onto the defensive, guarding its most exposed holding. Because the attacker is
+// always simply "who won last", a defender that wins the next battle takes the
+// offensive in turn — exactly the swing the front should show.
+function sideOf(s) {
+  if (s === 'lech' || s === 'lech-occ') return 'lech';
+  if (s === 'vindex' || s === 'vindex-occ') return 'vindex';
+  if (s === 'wilden' || s === 'wilden-occ') return 'wilden';
+  return 'contested';
+}
+function terrsIn(world) {
+  return territories.filter(t => (t.world || '') === world && Array.isArray(t.points) && t.points.length >= 3);
+}
+function worldsWithTerr() {
+  const s = new Set(territories.filter(t => Array.isArray(t.points) && t.points.length >= 3).map(t => t.world || ''));
+  return meta.theatres.map(th => th.name).filter(n => s.has(n));
+}
+function focusWorld(last) {
+  const withT = worldsWithTerr();
+  if (!withT.length) return null;
+  if (last && last.world && withT.includes(last.world)) return last.world;   // the theatre the last battle was fought in
+  const act = activeTheatre();
+  if (act && withT.includes(act.name)) return act.name;
+  return withT[0];
+}
+// Territories are adjacent when their borders sit within ~12% of the theatre's
+// span of one another — enough to catch shared and near-shared frontiers.
+function adjThreshold(ts) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const t of ts) for (const p of t.points) {
+    if (p[0] < minX) minX = p[0]; if (p[1] < minY) minY = p[1];
+    if (p[0] > maxX) maxX = p[0]; if (p[1] > maxY) maxY = p[1];
+  }
+  return (Math.hypot(maxX - minX, maxY - minY) || 1) * 0.12;
+}
+function setCentroid(list) {
+  if (!list.length) return null;
+  let x = 0, y = 0;
+  for (const t of list) { const c = centroid(t.points); x += c[0]; y += c[1]; }
+  return [x / list.length, y / list.length];
+}
+function nearestName(pool, origin) {
+  if (!pool.length) return null;
+  if (!origin) return pool[0].name;
+  let best = pool[0], bd = Infinity;
+  for (const t of pool) {
+    const c = centroid(t.points), d = Math.hypot(c[0] - origin[0], c[1] - origin[1]);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best.name;
+}
+// Where the last battle was fought, if it names a territory we know — so the
+// objective points at the zone next to the actual fighting.
+function battleOrigin(b, world) {
+  if (!b) return null;
+  const hay = ((b.location || '') + ' ' + (b.name || '')).toLowerCase();
+  const hit = terrsIn(world).find(t => t.name && hay.includes(String(t.name).toLowerCase()));
+  return hit ? centroid(hit.points) : null;
+}
+function pickAttackTarget(side, world, origin) {
+  const ts = terrsIn(world), enemy = side === 'lech' ? 'vindex' : 'lech';
+  const mine = ts.filter(t => sideOf(t.status) === side);
+  const targets = ts.filter(t => { const s = sideOf(t.status); return s === 'contested' || s === enemy; });
+  if (!targets.length) return null;
+  const thrD = adjThreshold(ts);
+  const adj = targets.filter(t => mine.some(m => polyMinDist(m.points, t.points) <= thrD));
+  const enemyAdj = adj.filter(t => sideOf(t.status) === enemy);      // press into enemy ground first
+  const pool = enemyAdj.length ? enemyAdj : (adj.length ? adj : targets);
+  return nearestName(pool, origin || setCentroid(mine.length ? mine : targets));
+}
+function pickDefendTarget(side, world, origin) {
+  const ts = terrsIn(world), enemy = side === 'lech' ? 'vindex' : 'lech';
+  const mine = ts.filter(t => sideOf(t.status) === side);
+  if (!mine.length) return null;
+  const threats = ts.filter(t => { const s = sideOf(t.status); return s === enemy || s === 'contested'; });
+  const thrD = adjThreshold(ts);
+  const exposed = mine.filter(m => threats.some(t => polyMinDist(m.points, t.points) <= thrD));
+  const pool = exposed.length ? exposed : mine;
+  return nearestName(pool, origin || setCentroid(threats.length ? threats : mine));
+}
+function computeObjectives() {
+  const thr = meta.threshold, score = warScore();
+  const res = { lech: { mode: null, target: null, world: null }, vindex: { mode: null, target: null, world: null } };
+  if (battles.length && Math.abs(score) >= thr) {          // the war is decided
+    const win = score > 0 ? 'lech' : 'vindex', lose = win === 'lech' ? 'vindex' : 'lech';
+    res[win].mode = 'WON'; res[lose].mode = 'LOST';
+    return res;
+  }
+  const decisive = battles.filter(b => b.victor === 'lech' || b.victor === 'vindex');
+  if (!decisive.length) { res.lech.mode = 'HOLD'; res.vindex.mode = 'HOLD'; return res; }
+  const last = decisive[decisive.length - 1];
+  const attacker = last.victor, defender = attacker === 'lech' ? 'vindex' : 'lech';
+  const world = focusWorld(last);
+  res[attacker].mode = 'ATTACK'; res[attacker].world = world;
+  res[defender].mode = 'DEFEND'; res[defender].world = world;
+  if (world) {
+    const origin = battleOrigin(last, world);
+    res[attacker].target = pickAttackTarget(attacker, world, origin);
+    res[defender].target = pickDefendTarget(defender, world, origin);
+  }
+  return res;
+}
+function objLine(side, o, multiWorld) {
+  const lbl = (side === 'lech' ? 'LECH' : 'VINDEX') + ' OBJECTIVE';
+  const wrap = s => `<span class="obj-lbl">${lbl}</span>${s}`;
+  if (!o || !o.mode) return wrap(`<span class="obj-verb idle">standing by</span>`);
+  if (o.mode === 'WON') return wrap(`<span class="obj-verb win">⚑ VICTORIOUS</span>`);
+  if (o.mode === 'LOST') return wrap(`<span class="obj-verb lost">✖ DEFEATED</span>`);
+  if (o.mode === 'HOLD') return wrap(`<span class="obj-verb hold">HOLD THE LINE</span> <span class="obj-note">awaiting first battle</span>`);
+  const icon = o.mode === 'ATTACK' ? '⚔' : '🛡';
+  const tgt = o.target
+    ? `<span class="obj-tgt" title="${esc(o.target)}">${esc(o.target)}</span>`
+    : `<span class="obj-tgt none">${o.mode === 'ATTACK' ? 'press the advance' : 'hold the front'}</span>`;
+  const world = (o.world && multiWorld) ? `<span class="obj-world">${esc(o.world)}</span>` : '';
+  return wrap(`<span class="obj-verb ${o.mode === 'ATTACK' ? 'attack' : 'defend'}">${icon} ${o.mode}</span> ${tgt} ${world}`);
+}
+function renderObjectives() {
+  const o = computeObjectives(), multi = meta.theatres.length > 1;
+  $('objVin').innerHTML = objLine('vindex', o.vindex, multi);
+  $('objLech').innerHTML = objLine('lech', o.lech, multi);
 }
 
 function renderBattles() {
