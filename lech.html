@@ -66,6 +66,20 @@ header{
   position:relative;
 }
 
+/* Back to the intergovernmental landing — top-left of the sheet. */
+.back-vin{
+  position:absolute; top:1.5rem; left:2rem; z-index:3;
+  display:inline-flex; align-items:center; gap:0.5rem;
+  font-family:'Cinzel',serif; font-size:0.62rem; letter-spacing:0.28em;
+  text-transform:uppercase; color:var(--gold); text-decoration:none;
+  opacity:0.72; transition:opacity 0.2s ease, gap 0.2s ease;
+}
+.back-vin:hover{opacity:1; gap:0.72rem;}
+.back-vin .arr{font-size:0.85rem; line-height:1;}
+@media(max-width:640px){
+  .back-vin{top:1rem; left:1.25rem; font-size:0.56rem; letter-spacing:0.2em;}
+}
+
 .crest{
   display:flex;align-items:center;justify-content:center;gap:1.5rem;
   margin-bottom:2.5rem;
@@ -269,6 +283,10 @@ footer{
 <div class="bg-vignette"></div>
 
 <div class="wrapper">
+
+  <a class="back-vin" href="vintranet.html" aria-label="Back to the Vintranet">
+    <span class="arr" aria-hidden="true">&larr;</span> Vintranet
+  </a>
 
   <header>
     <div class="crest">
