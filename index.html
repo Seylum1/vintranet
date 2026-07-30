@@ -1,9 +1,4 @@
-if(!chan&&bk.chancellor&&low(bk.chancellor)!=="vacant"){
-        // The officials register may hold a bare username or a display name.
-        var cn=low(bk.chancellor);
-        if(accs[cn]){chan=cn;}
-        else{var c=list.filter(function(a){return low(a.displayName||"")===cn;})[0];chan=c?c.username:null;}
-      }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -124,43 +119,6 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
 .nation.soon .name{color:var(--ink2);}
 .nation.soon .divider{background:var(--rule);}
 
-/* ── the heads of state & government ─────────────────────────────────────────
-   The concert of nations, closing the sheet: each column under a rule tinted in
-   its nation's colour, the head of state in a ringed medallion, the head of
-   government beneath. Filled live from the shared register; hidden if the
-   register cannot be reached. */
-.leaders{margin:2.6rem 0 0;}
-.ld-head{text-align:center;font-size:.58rem;font-weight:600;letter-spacing:.34em;text-transform:uppercase;
-  color:var(--ink3);margin-bottom:1.15rem;text-indent:.34em;}
-.ld-grid{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule);}
-.ld-col{padding:1.35rem 1rem 1.25rem;text-align:center;border-right:1px solid var(--rule);border-top:3px solid var(--rule);}
-.ld-col:last-child{border-right:0;}
-.ld-col.lech{border-top-color:#a84d4d;}
-.ld-col.vindex{border-top-color:#5f8f1c;}
-.ld-col.wilden{border-top-color:#7a1c1c;}
-.ld-nation{font-size:.6rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:1rem;}
-.ld-col.lech .ld-nation{color:#a84d4d;}
-.ld-col.vindex .ld-nation{color:#5f8f1c;}
-.ld-col.wilden .ld-nation{color:#7a1c1c;}
-.ld-med{width:56px;height:56px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 38%, #fffdf8, var(--paperD));overflow:hidden;
-  box-shadow:0 0 0 1px var(--ruleD), 0 0 0 4px var(--paper), 0 0 0 5px var(--rule);}
-.ld-med img{width:36px;height:36px;image-rendering:pixelated;display:block;}
-.ld-role{font-size:.52rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--ink3);margin-top:.7rem;}
-.ld-name{font-size:1.02rem;font-weight:600;line-height:1.2;margin-top:.15rem;}
-.ld-name.vacant{color:var(--ink3);font-style:italic;font-weight:400;}
-.ld-div{width:26px;height:1px;background:var(--rule);margin:.85rem auto;}
-.ld-sec{display:flex;align-items:center;justify-content:center;gap:.55rem;}
-.ld-sec img{width:22px;height:22px;image-rendering:pixelated;border:1px solid var(--rule);display:block;}
-.ld-sec-t{text-align:left;}
-.ld-sec-r{font-size:.48rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);display:block;}
-.ld-sec-n{font-size:.84rem;font-weight:600;line-height:1.15;}
-.ld-sec-n.vacant{color:var(--ink3);font-style:italic;font-weight:400;}
-@media(max-width:760px){
-  .ld-grid{grid-template-columns:1fr;}
-  .ld-col{border-right:0;}
-}
-
 /* ── colophon ────────────────────────────────────────────────────────────── */
 .colophon{text-align:center;max-width:520px;margin:2.6rem auto 3rem;}
 .colophon .head{font-size:.58rem;font-weight:600;letter-spacing:.32em;text-transform:uppercase;
@@ -244,71 +202,6 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
     </a>
 
   </section>
-
-  <section class="leaders" id="ldLeaders" hidden aria-label="The heads of state and government of the three nations">
-    <div class="ld-head">The Heads of State &amp; Government</div>
-    <div class="ld-grid"></div>
-  </section>
-  <script>
-  /* The concert of nations, read live from the shared register. The Emperor is
-     recognised by his role; the Chancellor from the Bundeskongress' officials;
-     the rest by the office each nation's own portal conferred. A face follows
-     the estate's rule: custom picture, then the Minecraft override, then the
-     bare account. If the register is unreachable the section simply stays off
-     the sheet. */
-  (function(){
-    var API="https://lech-backend.onrender.com";
-    var low=function(s){return String(s||"").toLowerCase();};
-    var esc=function(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};
-    function face(accs,pfps,u){
-      u=low(u); var p=pfps[u]; if(p&&p.img)return p.img;
-      var a=accs[u]; var n=(a&&(a.mcName||a.username))||u;
-      return "https://mc-heads.net/avatar/"+encodeURIComponent(n)+"/64";
-    }
-    function nm(accs,u){var a=accs[low(u)];return a?(a.displayName||a.username):null;}
-    fetch(API+"/api/data").then(function(r){return r.json();}).then(function(d){
-      if(!d||!d.ok)return;
-      var raw=d.data||{}, accs=raw.mi_accounts||{}, pfps=raw.mi_pfp||{}, bk=raw.bk_officials||{};
-      var list=Object.keys(accs).map(function(k){return accs[k];});
-      var find=function(f){var a=list.filter(f)[0];return a?a.username:null;};
-      var emperor=find(function(a){return a.role==="emperor";});
-      var chan=bk.chancellor_username?low(bk.chancellor_username):null;
-      if(!chan&&bk.chancellor&&low(bk.chancellor)!=="vacant"){
-        var c=list.filter(function(a){return low(a.displayName||"")===low(bk.chancellor);})[0];
-        chan=c?c.username:null;
-      }
-      var cols=[
-        {cls:"lech",  nation:"Empire of Lech",           hsRole:"Emperor",  hs:emperor,
-         hgRole:"Chancellor",     hg:chan, hgRaw:bk.chancellor},
-        {cls:"vindex",nation:"Republic of Vindex Nation",hsRole:"President",hs:find(function(a){return String(a.vxRole||"")==="president";}),
-         hgRole:"Vice President", hg:find(function(a){return String(a.vxRole||"")==="vice_president";})},
-        {cls:"wilden",nation:"Wilden",                   hsRole:"King",     hs:find(function(a){return String(a.wxRole||"")==="sovereign";}),
-         hgRole:"Prime Minister", hg:find(function(a){return String(a.wxRole||"")==="pm";})},
-      ];
-      var h="";
-      cols.forEach(function(c){
-        var hsN=c.hs?nm(accs,c.hs):null;
-        // An office may be held by a name with no account on the network yet —
-        // the register still names them, so the sheet does too.
-        var hgN=c.hg?nm(accs,c.hg):(c.hgRaw&&low(c.hgRaw)!=="vacant"?String(c.hgRaw):null);
-        h+='<div class="ld-col '+c.cls+'">'
-          +'<div class="ld-nation">'+esc(c.nation)+'</div>'
-          +'<div class="ld-med">'+(c.hs?'<img src="'+esc(face(accs,pfps,c.hs))+'" alt="" onerror="this.style.display=\'none\'"/>':"")+'</div>'
-          +'<div class="ld-role">'+esc(c.hsRole)+'</div>'
-          +'<div class="ld-name'+(hsN?"":" vacant")+'">'+esc(hsN||"Vacant")+'</div>'
-          +'<div class="ld-div"></div>'
-          +'<div class="ld-sec">'
-            +(c.hg?'<img src="'+esc(face(accs,pfps,c.hg))+'" alt="" onerror="this.style.display=\'none\'"/>':"")
-            +'<span class="ld-sec-t"><span class="ld-sec-r">'+esc(c.hgRole)+'</span>'
-            +'<span class="ld-sec-n'+(hgN?"":" vacant")+'">'+esc(hgN||"Vacant")+'</span></span>'
-          +'</div>'
-        +'</div>';
-      });
-      var el=document.getElementById("ldLeaders");
-      if(el){el.querySelector(".ld-grid").innerHTML=h;el.hidden=false;}
-    }).catch(function(){});
-  })();
-  </script>
 
   <section class="colophon">
     <div class="head">One sign-in</div>
