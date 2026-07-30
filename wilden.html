@@ -845,10 +845,17 @@ function GovernmentTab({pm,cabinet,appointed,gov,lords,commons}){
       His behalf, by His Majesty's Government. The Government holds office for so long as it commands
       the confidence of the House of Commons. <Cite>s27</Cite> <Cite>s31(1)</Cite></p>
 
-    <div className="card" style={{maxWidth:520,marginBottom:8}}>
-      <h3 style={{marginTop:0}}><a href="wmfa.html">Ministry of Foreign Affairs ↗</a></h3>
-      <p style={{fontSize:15,marginBottom:0}}>Citizenship and passports. Citizenship is granted here and is
-        what makes a person eligible to hold office.</p>
+    <div className="grid g2" style={{marginBottom:8}}>
+      <div className="card">
+        <h3 style={{marginTop:0}}><a href="wmfa.html">Ministry of Foreign Affairs ↗</a></h3>
+        <p style={{fontSize:15,marginBottom:0}}>Citizenship and passports. Citizenship is granted here and is
+          what makes a person eligible to hold office.</p>
+      </div>
+      <div className="card">
+        <h3 style={{marginTop:0}}><a href="homeoffice.html">Home Office ↗</a></h3>
+        <p style={{fontSize:15,marginBottom:0}}>National identity cards, and the Royal Wilden Constabulary,
+          under the Secretary of State for Home Affairs.</p>
+      </div>
     </div>
 
     <h2>The Prime Minister</h2>
@@ -1099,9 +1106,12 @@ function OfficeForm({user,accounts,citizens,onAction,notify,setBusy}){
   </div>;
 }
 
+// The Secretary of State for Home Affairs administers the Home Office, which
+// runs the Royal Wilden Constabulary. The older "Minister of Home Affairs" is
+// kept so an existing assignment still resolves to the same department.
 const DEPARTMENTS=["Prime Minister's Office","Attorney-General","Solicitor-General","Minister of Defence",
-  "Minister of Finance","Minister of Home Affairs","Minister of Foreign Affairs","Minister of Justice",
-  "Minister of Health","Minister of Trade","Other"];
+  "Minister of Finance","Secretary of State for Home Affairs","Minister of Home Affairs",
+  "Minister of Foreign Affairs","Minister of Justice","Minister of Health","Minister of Trade","Other"];
 
 function DeptForm({gov,members,onAction,notify,setBusy}){
   const posts=gov.cabinet||{};
