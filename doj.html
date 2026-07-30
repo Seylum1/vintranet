@@ -525,6 +525,142 @@ function AgencyPersonnel({cfg,ag,accounts,citizens,onAction,notify,setProcessing
   </div>;
 }
 
+/* ══════════ IDENTITY CARDS — every nation's, drawn rather than described ══════
+   The Empire keeps no register of identity cards: a provincial card simply
+   exists for anyone with a province of residency, its number derived from the
+   account itself. So the terminal reconstructs it exactly as lech.html does,
+   and draws it in the issuing province's livery beside the others.            */
+const LECH_PROVINCES={
+  newport:   {name:"Newport",    code:"NP", c1:"#0e5c52", c2:"#0a3a34", foil:"#7fd8c4", ink:"#eaf6f3"},
+  cracov:    {name:"Cracov",     code:"CR", c1:"#5a1e2c", c2:"#33111a", foil:"#d8a84c", ink:"#f4e6d6"},
+  rome:      {name:"Rome",       code:"RM", c1:"#1f4a2a", c2:"#0f2817", foil:"#e0c060", ink:"#eef4ea"},
+  kingsland: {name:"Kingsland",  code:"KL", c1:"#26323f", c2:"#141c24", foil:"#c9a84c", ink:"#eaeef2"},
+  aquitaine: {name:"Aquitaine",  code:"AQ", c1:"#1f2c66", c2:"#0f1636", foil:"#d8b24c", ink:"#e8ecf8"},
+  monegasque:{name:"Monégasque", code:"MC", c1:"#8a0f28", c2:"#4a0716", foil:"#e8d288", ink:"#f8ecec"},
+  weststadt: {name:"Weststadt",  code:"WS", c1:"#39441f", c2:"#1e2610", foil:"#b8cc78", ink:"#f2f6e6"},
+};
+const VX_STATES_ID={
+  viridis:  {name:"Viridis",   code:"VI", c1:"#14532d", c2:"#08251a", foil:"#d7ecb4", ink:"#eff8ea"},
+  san_amaro:{name:"San Amaro", code:"SA", c1:"#0d6d68", c2:"#04373b", foil:"#ffdca4", ink:"#effaf6"},
+};
+const WX_CENTRAL={name:"Wilden",code:"WD",c1:"#14343a",c2:"#07181b",foil:"#dcc488",ink:"#eef5f4"};
+const ID_NATIONS={
+  lech:  {label:"EMPIRE OF LECH",kind:"PROVINCIAL IDENTITY CARD",crest:"lechcoa.png",
+          authority:"MINISTRY OF THE INTERIOR",sub:"PROVINCE OF",mrz:"LEC",regions:LECH_PROVINCES},
+  vindex:{label:"REPUBLIC OF VINDEX NATION",kind:"STATE IDENTITY CARD",crest:"vindexcoa.png",
+          authority:"DEPARTMENT OF JUSTICE",sub:"STATE OF",mrz:"VDX",regions:VX_STATES_ID},
+  wilden:{label:"WILDEN",kind:"NATIONAL IDENTITY CARD",crest:"wildencoa.png",
+          authority:"THE HOME OFFICE",sub:null,mrz:"WLD",regions:null},
+};
+// The Empire derives both the number and the issue date from the account, so the
+// terminal can reproduce a card it was never handed.
+function lechIdNo(username,code){return "LEC-"+code+"-"+((idHash("id:"+username)%900000)+100000);}
+function lechIdIssued(username){
+  const start=new Date(2022,0,1).getTime(),span=new Date(2026,0,1).getTime()-start;
+  return new Date(start+(idHash("date:"+username)%span)).toISOString().slice(0,10);
+}
+function idMrz(nat,card,region){
+  const l1=mrzPad("ID"+nat.mrz+(region?region.code:"")+"<<"+mrzClean(card.name||card.username),36);
+  const l2=mrzPad(mrzClean(card.number)+"<"+nat.mrz+"<"+mrzDate(card.issued)+"<"+mrzDate(card.expires),36);
+  return [l1,l2];
+}
+function mrzClean(s){return String(s||"").toUpperCase().replace(/[^A-Z0-9 ]/g,"").trim().replace(/ +/g,"<");}
+function mrzPad(s,n){return (s+"<".repeat(n)).slice(0,n);}
+function mrzDate(d){if(!d)return "<<<<<<";const t=new Date(d);if(isNaN(t.getTime()))return "<<<<<<";const p=x=>String(x).padStart(2,"0");return String(t.getFullYear()).slice(2)+p(t.getMonth()+1)+p(t.getDate());}
+// One card, three realms. Drawn in the livery of whichever province, State or
+// realm issued it — so a constable sees the document, not a description of it.
+function AnyIdCard({card,face,width=400}){
+  const nat=ID_NATIONS[card.nation]||ID_NATIONS.vindex;
+  const key=lc(card.state||card.province||"");
+  const region=nat.regions?(nat.regions[key]||Object.values(nat.regions)[0]):null;
+  const S=region||WX_CENTRAL;
+  const expired=card.expires&&new Date(String(card.expires)+"T23:59:59").getTime()<Date.now();
+  const revoked=String(card.status||"")==="revoked";
+  const [l1,l2]=idMrz(nat,card,region);
+  const fld=(k,v,big)=>(
+    <div key={k} style={{minWidth:0}}>
+      <div style={{fontSize:7.5,letterSpacing:"0.16em",color:S.foil,opacity:.85,marginBottom:1}}>{k}</div>
+      <div className={big?"pf":""} style={{fontSize:big?15:12.5,fontWeight:big?700:600,lineHeight:1.15,
+        color:S.ink,overflowWrap:"anywhere"}}>{v}</div>
+    </div>);
+  return <div style={{width:"100%",maxWidth:width}}>
+    <div style={{position:"relative",borderRadius:11,overflow:"hidden",color:S.ink,
+      background:`linear-gradient(150deg,${S.c1} 0%,${S.c2} 100%)`,
+      boxShadow:"0 12px 30px rgba(0,0,0,.45)",border:`1px solid ${S.foil}44`}}>
+      <svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice"
+        style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}
+        fill="none" stroke={S.foil} strokeWidth="0.4" opacity="0.26">
+        <path d={guillochePath(206,124,120,14,0.13,16)}/>
+        <path d={guillochePath(206,124,76,9,0.2,13)}/>
+        <circle cx="206" cy="124" r="122"/><circle cx="206" cy="124" r="72"/>
+      </svg>
+      <img src={nat.crest} alt="" draggable={false}
+        style={{position:"absolute",left:"50%",top:"52%",transform:"translate(-50%,-50%)",
+          height:165,width:"auto",opacity:.09,pointerEvents:"none"}}
+        onError={e=>{e.currentTarget.style.display="none";}}/>
+      <div style={{position:"absolute",inset:5,border:`1px solid ${S.foil}55`,borderRadius:8,pointerEvents:"none"}}/>
+      <div style={{position:"absolute",inset:8,border:`1px solid ${S.foil}22`,borderRadius:6,pointerEvents:"none"}}/>
+
+      <div style={{position:"relative",padding:"11px 15px 8px",display:"flex",alignItems:"center",gap:10,
+        borderBottom:`1px solid ${S.foil}44`}}>
+        <img src={nat.crest} alt="" draggable={false} style={{height:32,width:32,objectFit:"contain",flexShrink:0}}
+          onError={e=>{e.currentTarget.style.visibility="hidden";}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div className="pf" style={{fontWeight:900,fontSize:12,letterSpacing:"0.1em",color:S.foil}}>{nat.label}</div>
+          <div style={{fontSize:7,letterSpacing:"0.22em",opacity:.78}}>{nat.kind}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          {nat.sub&&region&&<>
+            <div style={{fontSize:6.5,letterSpacing:"0.24em",opacity:.7}}>{nat.sub}</div>
+            <div className="pf" style={{fontWeight:700,fontSize:10.5,letterSpacing:"0.09em",color:S.foil}}>{region.name.toUpperCase()}</div>
+          </>}
+          {!nat.sub&&<>
+            <div style={{fontSize:6.5,letterSpacing:"0.24em",opacity:.7}}>ISSUED BY</div>
+            <div className="pf" style={{fontWeight:700,fontSize:9.5,letterSpacing:"0.07em",color:S.foil}}>{nat.authority}</div>
+          </>}
+        </div>
+      </div>
+
+      <div style={{position:"relative",padding:"12px 15px 4px",display:"flex",gap:12,alignItems:"flex-start"}}>
+        <div style={{width:72,flexShrink:0}}>
+          <div style={{width:72,height:88,borderRadius:3,overflow:"hidden",border:`1px solid ${S.foil}77`,
+            boxShadow:`inset 0 0 0 2px ${S.c2}`,background:"linear-gradient(160deg,rgba(255,255,255,.10),rgba(0,0,0,.30))"}}>
+            {face&&<img src={face} alt="" draggable={false}
+              style={{width:"100%",height:"100%",objectFit:"cover",imageRendering:"pixelated"}}
+              onError={e=>{e.currentTarget.style.visibility="hidden";}}/>}
+          </div>
+          <div style={{fontStyle:"italic",fontSize:13,textAlign:"center",marginTop:5,
+            transform:"rotate(-2deg)",lineHeight:1,color:S.ink}}>{card.name||card.username}</div>
+          <div style={{fontSize:6.5,letterSpacing:"0.14em",opacity:.6,textAlign:"center",
+            borderTop:`1px solid ${S.foil}44`,marginTop:2,paddingTop:2}}>SIGNATURE OF BEARER</div>
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",gap:6,minWidth:0}}>
+          {fld("NAME",card.name||card.username,true)}
+          {fld("CARD NUMBER",card.number||"—")}
+          {fld("ACCOUNT",card.username||"—")}
+          <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+            {fld("ISSUED",fmtDate(card.issued))}
+            {fld("EXPIRES",card.expires?fmtDate(card.expires):"—")}
+          </div>
+        </div>
+      </div>
+
+      {(revoked||expired)&&<div style={{position:"absolute",top:"42%",left:"13%",padding:"5px 16px",
+        border:`3px double ${revoked?"#ff6b6b":"#ffb35c"}`,color:revoked?"#ff6b6b":"#ffb35c",
+        fontWeight:800,fontSize:19,letterSpacing:"0.26em",transform:"rotate(-11deg)",
+        background:"rgba(0,0,0,.35)"}}>{revoked?"REVOKED":"EXPIRED"}</div>}
+
+      <div style={{position:"relative",borderTop:`1px solid ${S.foil}44`,marginTop:6,
+        background:"rgba(0,0,0,.22)",padding:"6px 15px 8px"}}>
+        <div className="mono" style={{fontSize:10,letterSpacing:"0.04em",color:S.ink,opacity:.85,
+          whiteSpace:"nowrap",overflow:"hidden"}}>{l1}</div>
+        <div className="mono" style={{fontSize:10,letterSpacing:"0.04em",color:S.ink,opacity:.85,
+          whiteSpace:"nowrap",overflow:"hidden"}}>{l2}</div>
+      </div>
+    </div>
+  </div>;
+}
+
 /* ══════════ PASSPORTS — the flip-book, as each issuing service prints it ══════
    A constable checking a traveller sees the document itself, not a summary of
    it: the same cover, the same data page, the same visas, whichever nation
@@ -852,7 +988,7 @@ function MDT({cfg,accounts,citizens,ids,passports,records,warrants,dossier}){
               </div>
               {c.nation===HOME_NATION
                 ? <IDCard rec={c} pfp={mcFace(subject.mcName||subject.username)}/>
-                : <ForeignIdCard card={c}/>}
+                : <AnyIdCard card={c} face={mcFace(subject.mcName||subject.username)}/>}
             </div>))}
         </div>}
 
@@ -898,26 +1034,6 @@ function MDT({cfg,accounts,citizens,ids,passports,records,warrants,dossier}){
     </div>}
     {book&&<PassportBook passport={book.passport} nationKey={book.nationKey}
       visas={book.passport._visas} onClose={()=>setBook(null)}/>}
-  </div>;
-}
-// A foreign identity card, shown plainly — the terminal does not pretend to
-// reproduce another nation's artwork, only to read what it says.
-function ForeignIdCard({card}){
-  const exp=card.expires&&new Date(String(card.expires)+"T23:59:59").getTime()<Date.now();
-  const rev=String(card.status||"")==="revoked";
-  return <div style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`4px solid ${V.textD}`,
-    borderRadius:"0 4px 4px 0",padding:"0.85rem 1.1rem",maxWidth:430}}>
-    <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",alignItems:"baseline"}}>
-      <span className="pf" style={{fontWeight:700,fontSize:15,color:V.text}}>{card.name||card.username}</span>
-      <span className="mono" style={{fontSize:12,color:V.goldL}}>{card.number||"—"}</span>
-    </div>
-    <div className="mono" style={{fontSize:9.5,color:V.textDD,marginTop:4}}>
-      {card.nationLabel.toUpperCase()}{card.state?" · "+String(card.state).toUpperCase():""}
-      {" · "}ISSUED {fmtDate(card.issued)} · EXP {fmtDate(card.expires)}
-    </div>
-    <div style={{marginTop:6}}>
-      {rev?<Tag color={V.red}>REVOKED</Tag>:exp?<Tag color={V.red}>EXPIRED</Tag>:<Tag color={V.greenL}>VALID</Tag>}
-    </div>
   </div>;
 }
 const REC_META={arrest:{l:"Arrest",color:V.red},ticket:{l:"Citation",color:"#e08a3a"},warning:{l:"Warning",color:V.goldL}};
@@ -1049,6 +1165,15 @@ function App(){
         if(c&&c.username&&["citizen","naturalised"].includes(String(c.status||""))) out.citizenships.push(tag(c));
       });
       if(n.ids) Object.values(raw[n.ids]||{}).forEach(c=>{if(c&&c.username) out.ids.push(tag(c));});
+      // The Empire keeps no register: a provincial card exists for anyone with a
+      // province of residency, so reconstruct it from the account as lech.html does.
+      if(n.k==="lech") Object.values(raw["mi_accounts"]||{}).forEach(a=>{
+        const prov=lc(a&&a.stateOfResidency);
+        if(a&&a.username&&LECH_PROVINCES[prov]) out.ids.push(tag({
+          username:a.username,name:a.displayName||a.username,state:prov,
+          number:lechIdNo(a.username,LECH_PROVINCES[prov].code),issued:lechIdIssued(a.username),
+        }));
+      });
       // Each passport carries the visas of its own issuing service, so the book
       // shows exactly the endorsements that service stamped into it.
       const visaMap=raw[n.visas]||{};
