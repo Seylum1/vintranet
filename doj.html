@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Department of Justice — Republic of Vindex Nation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&family=Cinzel:wght@400;600;700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
@@ -616,7 +616,7 @@ function mdtCardLech(card,pfp){
   const issS=iss?mdtLechDate(iss):"—", expS=exp?mdtLechDate(exp):"—";
   const mrz1=mdtEsc(mdtPad("IDLEC"+P.code+"<<"+name.toUpperCase().replace(/[^A-Z]+/g,"<"),36));
   const mrz2=mdtEsc(mdtPad(idno.replace(/[^A-Z0-9]/g,"")+"<LEC<"+expS.replace(/[^0-9]/g,"").slice(0,6),36));
-  const field=(k,v,big)=>'<div style="min-width:0;"><div style="font-size:8px;letter-spacing:.15em;opacity:.7;margin-bottom:1px;">'+k+'</div><div style="font-family:\''+(big?"Playfair Display":"Crimson Text")+'\',Georgia,serif;font-size:'+(big?"16px":"13px")+';font-weight:'+(big?700:600)+';line-height:1.15;color:'+P.ink+';overflow-wrap:anywhere;">'+mdtEsc(v)+'</div></div>';
+  const field=(k,v,big)=>'<div style="min-width:0;"><div style="font-size:8px;letter-spacing:.15em;opacity:.7;margin-bottom:1px;">'+k+'</div><div style="font-family:\''+(big?"Cinzel":"Crimson Text")+'\',Georgia,serif;font-size:'+(big?"16px":"13px")+';font-weight:'+(big?700:600)+';line-height:1.15;color:'+P.ink+';overflow-wrap:anywhere;">'+mdtEsc(v)+'</div></div>';
   const coa='<img src="lechcoa.png" alt="" onerror="this.style.visibility=\'hidden\';"';
   return ''+
    '<div style="width:100%;max-width:400px;font-family:Georgia,serif;">'+
@@ -627,11 +627,11 @@ function mdtCardLech(card,pfp){
        '<div style="position:relative;padding:12px 16px 10px;border-bottom:1px solid '+P.foil+'55;display:flex;align-items:center;gap:10px;">'+
          coa+' style="height:34px;width:34px;object-fit:contain;display:block;"/>'+
          '<div style="flex:1;min-width:0;">'+
-           '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:13px;font-weight:700;letter-spacing:.16em;color:'+P.foil+';">EMPIRE OF LECH</div>'+
+           '<div style="font-family:\'Cinzel\',Georgia,serif;font-size:13px;font-weight:700;letter-spacing:.16em;color:'+P.foil+';">EMPIRE OF LECH</div>'+
            '<div style="font-size:8px;letter-spacing:.22em;opacity:.8;">PROVINCIAL IDENTITY CARD · PERSONALAUSWEIS</div>'+
          '</div>'+
          '<div style="text-align:right;">'+
-           '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:11px;font-weight:700;letter-spacing:.12em;color:'+P.foil+';">'+mdtEsc(P.name.toUpperCase())+'</div>'+
+           '<div style="font-family:\'Cinzel\',Georgia,serif;font-size:11px;font-weight:700;letter-spacing:.12em;color:'+P.foil+';">'+mdtEsc(P.name.toUpperCase())+'</div>'+
            '<div style="font-size:8px;letter-spacing:.18em;opacity:.75;">PROVINCE</div>'+
          '</div>'+
        '</div>'+
@@ -790,6 +790,7 @@ function IdentityCard({card,pfp}){
    issued it. One book, three liveries — each mirroring its own service.        */
 const PP_NATIONS={
   lech:{key:"mfa_passports",visaKey:"mfa_visas",label:"Empire of Lech",short:"LECH",mrz:"LEC",
+    fh:"'Cinzel',Georgia,serif",fb:"'Crimson Text',Georgia,serif",fm:"'Share Tech Mono',monospace",
     crest:"lechcoa.png",motto:"✦ GOTT MIT UNS ✦",authority:"MINISTRY OF FOREIGN AFFAIRS",
     head:"IN THE NAME OF HIS IMPERIAL MAJESTY THE EMPEROR OF LECH",
     request:"The Minister of Foreign Affairs requests and requires, in the Name of His Imperial Majesty, all those whom it may concern to allow the bearer to pass freely without let or hindrance, and to afford the bearer such assistance and protection as may be found necessary.",
@@ -800,6 +801,7 @@ const PP_NATIONS={
            {v:"official",l:"Official / Service",short:"OFFICIAL",code:"PS",cover:"#123322",coverDeep:"#081d12",trim:"#c9a84c"},
            {v:"imperial",l:"Imperial Household",short:"IMPERIAL",code:"PI",cover:"#131316",coverDeep:"#08080a",trim:"#e8cc70"}]},
   vindex:{key:"vx_state_passports",visaKey:"vx_state_visas",label:"Republic of Vindex Nation",short:"VINDEX",mrz:"VDX",
+    fh:"'Playfair Display',Georgia,serif",fb:"'Crimson Text',Georgia,serif",fm:"'Share Tech Mono',monospace",
     crest:"vindexcoa.png",motto:"★ E PLURIBUS UNUM ★",authority:"DEPARTMENT OF STATE",
     head:"THE SECRETARY OF STATE OF THE REPUBLIC OF VINDEX NATION",
     request:"The Secretary of State of the Republic of Vindex Nation requests all whom it may concern to permit the citizen of Vindex Nation named herein to pass without delay or hindrance and in case of need to give all lawful aid and protection.",
@@ -810,6 +812,7 @@ const PP_NATIONS={
            {v:"diplomatic",l:"Diplomatic Passport",short:"DIPLOMATIC",code:"PD",cover:"#9a1620",coverDeep:"#5e0d13",trim:"#e6c680"},
            {v:"service",l:"Service Passport",short:"SERVICE",code:"PT",cover:"#40454e",coverDeep:"#262a31",trim:"#c8ccd4"}]},
   wilden:{key:"wx_state_passports",visaKey:"wx_state_visas",label:"Wilden",short:"WILDEN",mrz:"WLD",
+    fh:"Inter,'Helvetica Neue',Arial,sans-serif",fb:"Inter,'Helvetica Neue',Arial,sans-serif",fm:"'Courier New',monospace",
     crest:"wildencoa.png",motto:"◈ DIEU ET MON DROIT ◈",authority:"MINISTRY OF FOREIGN AFFAIRS",
     head:"IN THE NAME OF HIS MAJESTY THE KING OF WILDEN",
     request:"His Majesty's Secretary of State requests and requires all those whom it may concern to allow the bearer to pass freely without let or hindrance, and to afford the bearer such assistance and protection as may be necessary.",
@@ -847,25 +850,34 @@ function BkCrest({file,size=104,opacity=1}){
 }
 // The book itself. Three leaves, six faces — cover, the request, the data page,
 // the visas, the observations, and the back cover.
+const BK_UI={line:V.line,text:V.text,dim:V.textD,faint:V.textDD};
+// The book itself. Three leaves, six faces — cover, the request, the data page,
+// the visas, the observations, and the back cover. Every face is typeset in the
+// ISSUING nation's own faces (PP_NATIONS.fh/fb/fm), so a Lech book reads Cinzel
+// on this terminal exactly as it does at the Ministry that printed it; only the
+// chrome around the book — close button, pager — belongs to the page (BK_UI).
 function PassportBook({passport:p,nationKey,visas,face,onClose}){
   const nat=ppNationOf(nationKey);
   const t=ppTypeOf(nat,p.type);
+  const FH=nat.fh||"'Playfair Display',Georgia,serif";
+  const FB=nat.fb||"'Crimson Text',Georgia,serif";
+  const FM=nat.fm||"'Share Tech Mono',monospace";
   const [flip,setFlip]=useState(0);
   const [l1,l2]=bkMRZ(nat,p);
   const fs=f=>`calc(var(--ppw) * ${f})`;
   const ink="#2e2618",label="#8a7550",red="#7a1f1f";
   const revoked=String(p.status||"")==="revoked";
   const uname=lc(p.username),pname=lc(p.name);
-  // Only endorsements actually granted to this bearer are stamped in.
-  const stamps=Object.values(visas||{}).filter(v=>v&&v.status==="approved"
+  const stamps=(Array.isArray(visas)?visas:Object.values(visas||{})).filter(v=>v&&v.status==="approved"
     &&((uname&&lc(v.username)===uname)||(pname&&lc(v.name)===pname)));
   const LabelVal=({k,v,color,big})=>(<div style={{minWidth:0}}>
-    <div className="mono" style={{fontSize:fs(.024),color:label,letterSpacing:"0.1em",marginBottom:1}}>{k}</div>
-    <div style={{fontFamily:big?"'Playfair Display',serif":"'Crimson Text',serif",fontSize:big?fs(.046):fs(.04),
-      color:color||ink,fontWeight:big?700:600,lineHeight:1.15,overflowWrap:"anywhere"}}>{v}</div></div>);
-  const PageNo=({n,side})=>(<div className="mono" style={{position:"absolute",bottom:8,[side]:14,fontSize:fs(.026),color:"#a89678"}}>{n}</div>);
-  const Watermark=()=>(<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-    pointerEvents:"none",color:"#8a7550"}}><BkCrest file={nat.crest} size={150} opacity={0.07}/></div>);
+    <div style={{fontFamily:FM,fontSize:fs(.024),color:label,letterSpacing:"0.1em",marginBottom:1}}>{k}</div>
+    <div style={{fontFamily:big?FH:FB,fontSize:big?fs(.046):fs(.04),color:color||ink,
+      fontWeight:big?700:600,lineHeight:1.15,overflowWrap:"anywhere"}}>{v}</div></div>);
+  const PageNo=({n,side})=>(<div style={{position:"absolute",bottom:8,[side]:14,fontSize:fs(.026),
+    color:"#a89678",fontFamily:FM}}>{n}</div>);
+  const Watermark=()=>(<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",
+    justifyContent:"center",pointerEvents:"none",color:"#8a7550"}}><BkCrest file={nat.crest} size={150} opacity={0.07}/></div>);
 
   const Cover=({back})=>(
     <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",color:t.trim,
@@ -875,15 +887,16 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
       <div style={{position:"absolute",inset:16,border:`1px solid ${t.trim}66`,borderRadius:5}}/>
       {!back?<>
         <div style={{marginTop:"13%",textAlign:"center",padding:"0 8%"}}>
-          <div className="pf" style={{fontWeight:900,fontSize:fs(.05),letterSpacing:"0.13em",color:t.trim,
+          <div style={{fontFamily:FH,fontWeight:900,fontSize:fs(.05),letterSpacing:"0.13em",color:t.trim,
             textShadow:"0 1px 1px rgba(0,0,0,.6)",lineHeight:1.15}}>{nat.label.toUpperCase()}</div>
-          <div className="mono" style={{fontSize:fs(.022),letterSpacing:"0.38em",color:t.trim,opacity:.75,marginTop:5}}>{nat.motto}</div>
+          <div style={{fontFamily:FM,fontSize:fs(.022),letterSpacing:"0.38em",color:t.trim,opacity:.75,marginTop:5}}>{nat.motto}</div>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center"}}><BkCrest file={nat.crest} size={104}/></div>
         <div style={{marginBottom:"12%",textAlign:"center"}}>
-          <div className="pf" style={{fontWeight:900,fontSize:fs(.062),letterSpacing:"0.36em",color:t.trim,textShadow:"0 1px 1px rgba(0,0,0,.6)"}}>PASSPORT</div>
+          <div style={{fontFamily:FH,fontWeight:900,fontSize:fs(.062),letterSpacing:"0.36em",color:t.trim,
+            textShadow:"0 1px 1px rgba(0,0,0,.6)"}}>PASSPORT</div>
           {t.v!==nat.types[0].v&&<div style={{marginTop:8,paddingTop:6,borderTop:`1px solid ${t.trim}55`}}>
-            <span className="pf" style={{fontSize:fs(.032),letterSpacing:"0.3em",color:t.trim}}>{t.short}</span></div>}
+            <span style={{fontFamily:FH,fontSize:fs(.032),letterSpacing:"0.3em",color:t.trim,fontWeight:600}}>{t.short}</span></div>}
           <svg width="26" height="18" viewBox="0 0 26 18" style={{marginTop:10,opacity:.8}}>
             <rect x="1" y="1" width="24" height="16" rx="3" stroke={t.trim} strokeWidth="1.4" fill="none"/>
             <circle cx="13" cy="9" r="4.2" stroke={t.trim} strokeWidth="1.4" fill="none"/>
@@ -891,34 +904,35 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
         </div>
       </>:<div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
         <BkCrest file={nat.crest} size={62} opacity={.85}/>
-        <div className="mono" style={{fontSize:fs(.024),letterSpacing:"0.38em",color:t.trim,opacity:.7}}>{nat.motto}</div>
+        <div style={{fontFamily:FM,fontSize:fs(.024),letterSpacing:"0.38em",color:t.trim,opacity:.7}}>{nat.motto}</div>
       </div>}
     </div>);
 
   const InsideCover=()=>(<div className="bk-paper">
     <Watermark/>
     <div style={{position:"absolute",inset:"26px 24px",display:"flex",flexDirection:"column",alignItems:"center",
-      textAlign:"center",justifyContent:"center"}}>
+      textAlign:"center",justifyContent:"center",fontFamily:FB}}>
       <div style={{color:"#8a6a30"}}><BkCrest file={nat.crest} size={54} opacity={.9}/></div>
-      <div className="pf" style={{fontWeight:700,fontSize:fs(.034),letterSpacing:"0.1em",color:"#5a4520",margin:"14px 0 10px",lineHeight:1.5}}>{nat.head}</div>
+      <div style={{fontFamily:FH,fontWeight:700,fontSize:fs(.034),letterSpacing:"0.1em",color:"#5a4520",
+        margin:"14px 0 10px",lineHeight:1.5}}>{nat.head}</div>
       <div style={{width:"46%",height:1,background:"#b09a68",marginBottom:10}}/>
       <div style={{fontSize:fs(.037),color:"#4a3c24",fontStyle:"italic",lineHeight:1.7}}>{nat.request}</div>
-      <div className="mono" style={{fontSize:fs(.023),letterSpacing:"0.32em",color:"#8a7550",marginTop:16}}>{nat.motto}</div>
+      <div style={{fontFamily:FM,fontSize:fs(.023),letterSpacing:"0.32em",color:"#8a7550",marginTop:16}}>{nat.motto}</div>
     </div></div>);
 
   const DataPage=()=>(<div className="bk-paper">
     <Watermark/>
-    <div style={{position:"absolute",inset:"14px 16px",display:"flex",flexDirection:"column"}}>
+    <div style={{position:"absolute",inset:"14px 16px",display:"flex",flexDirection:"column",fontFamily:FB}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:"1.5px solid #b09a68",paddingBottom:6,marginBottom:10}}>
         <div>
-          <div className="pf" style={{fontWeight:700,fontSize:fs(.04),letterSpacing:"0.12em",color:"#5a4520"}}>{nat.label.toUpperCase()}</div>
-          <div className="mono" style={{fontSize:fs(.021),letterSpacing:"0.18em",color:label}}>PASSPORT · {nat.authority}</div>
+          <div style={{fontFamily:FH,fontWeight:700,fontSize:fs(.04),letterSpacing:"0.12em",color:"#5a4520"}}>{nat.label.toUpperCase()}</div>
+          <div style={{fontFamily:FM,fontSize:fs(.021),letterSpacing:"0.18em",color:label}}>PASSPORT · {nat.authority}</div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
             <LabelVal k="TYPE" v={t.code.replace("<","")}/><LabelVal k="CODE" v={nat.mrz}/>
           </div>
-          <div className="mono" style={{fontSize:fs(.04),color:red,letterSpacing:"0.12em",marginTop:2,fontWeight:700}}>{p.number}</div>
+          <div style={{fontFamily:FM,fontSize:fs(.04),color:red,letterSpacing:"0.12em",marginTop:2,fontWeight:700}}>{p.number}</div>
         </div>
       </div>
       <div style={{display:"flex",gap:12,flex:1,minHeight:0}}>
@@ -930,9 +944,9 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
               onError={e=>{e.currentTarget.style.visibility="hidden";}}/>
           </div>
           <div style={{marginTop:12,borderTop:"1px solid #b09a68",paddingTop:3}}>
-            <div style={{fontFamily:"'Crimson Text',serif",fontStyle:"italic",fontSize:fs(.042),color:"#3a3226",
-              transform:"rotate(-2deg)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</div>
-            <div className="mono" style={{fontSize:fs(.02),color:label,letterSpacing:"0.08em"}}>SIGNATURE OF BEARER</div>
+            <div style={{fontFamily:FB,fontStyle:"italic",fontSize:fs(.042),color:"#3a3226",transform:"rotate(-2deg)",
+              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</div>
+            <div style={{fontFamily:FM,fontSize:fs(.02),color:label,letterSpacing:"0.08em"}}>SIGNATURE OF BEARER</div>
           </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",gap:7,minWidth:0}}>
@@ -951,20 +965,20 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
         </div>
       </div>
       {revoked&&<div className="bk-revoked" style={{position:"absolute",top:"36%",left:"12%",padding:"6px 18px",
-        border:"3px double #a01818",color:"#a01818",fontFamily:"'Playfair Display',serif",fontWeight:700,
+        border:"3px double #a01818",color:"#a01818",fontFamily:FH,fontWeight:700,
         fontSize:fs(.075),letterSpacing:"0.3em",background:"rgba(230,215,190,.5)"}}>REVOKED</div>}
       <div style={{borderTop:"2px solid #b09a68",background:"linear-gradient(#f2ecd9,#ece4cc)",margin:"8px -6px -4px",padding:"7px 6px 4px"}}>
-        <div className="mono" style={{fontSize:fs(.031),color:"#2c2c38",whiteSpace:"nowrap"}}>{l1}</div>
-        <div className="mono" style={{fontSize:fs(.031),color:"#2c2c38",whiteSpace:"nowrap"}}>{l2}</div>
+        <div style={{fontFamily:FM,fontSize:fs(.031),color:"#2c2c38",whiteSpace:"nowrap"}}>{l1}</div>
+        <div style={{fontFamily:FM,fontSize:fs(.031),color:"#2c2c38",whiteSpace:"nowrap"}}>{l2}</div>
       </div>
     </div>
     <PageNo n="2" side="right"/></div>);
 
   const VisaPage=()=>(<div className="bk-paper">
     <Watermark/>
-    <div style={{position:"absolute",inset:"18px 20px",display:"flex",flexDirection:"column"}}>
+    <div style={{position:"absolute",inset:"18px 20px",display:"flex",flexDirection:"column",fontFamily:FB}}>
       <div style={{textAlign:"center",borderBottom:"1px solid #b09a68",paddingBottom:6,marginBottom:12}}>
-        <div className="pf" style={{fontWeight:700,fontSize:fs(.036),letterSpacing:"0.2em",color:"#5a4520"}}>VISAS · ENDORSEMENTS</div>
+        <div style={{fontFamily:FH,fontWeight:700,fontSize:fs(.036),letterSpacing:"0.2em",color:"#5a4520"}}>VISAS · ENDORSEMENTS</div>
       </div>
       {stamps.length===0
         ?<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",
@@ -975,18 +989,18 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
             const cols=["#28506a","#5a2a5a","#2a5a3a"];const col=cols[i%3];
             return <div key={v.id||i} style={{border:`2px solid ${col}aa`,borderRadius:3,padding:"6px 10px",
               transform:`rotate(${i%2===0?-2.4:1.8}deg)`,background:"rgba(255,255,255,.22)",boxShadow:"0 1px 3px rgba(80,60,30,.2)"}}>
-              <div className="mono" style={{fontSize:fs(.023),letterSpacing:"0.14em",color:col,fontWeight:700}}>
+              <div style={{fontFamily:FM,fontSize:fs(.023),letterSpacing:"0.14em",color:col,fontWeight:700}}>
                 {(v._nation||"").toUpperCase()} · VISA</div>
               <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
-                <span className="pf" style={{fontSize:fs(.033),color:"#3a3226"}}>{v.type||"Visa"}</span>
-                <span className="mono" style={{fontSize:fs(.023),color:col}}>{v.ref}</span>
+                <span style={{fontFamily:FH,fontSize:fs(.033),color:"#3a3226"}}>{v.type||"Visa"}</span>
+                <span style={{fontFamily:FM,fontSize:fs(.023),color:col}}>{v.ref}</span>
               </div>
-              <div className="mono" style={{fontSize:fs(.021),color:"#6a5c40"}}>
+              <div style={{fontFamily:FM,fontSize:fs(.021),color:"#6a5c40"}}>
                 {v.issuedAt?"ISSUED "+fmtDate(v.issuedAt).toUpperCase():""}
                 {v.validUntil?"  ·  UNTIL "+(v.validUntil==="permanent"?"PERMANENT":fmtDate(v.validUntil).toUpperCase()):""}
               </div>
             </div>;})}
-          {stamps.length>3&&<div className="mono" style={{fontSize:fs(.023),color:label,textAlign:"center"}}>
+          {stamps.length>3&&<div style={{fontFamily:FM,fontSize:fs(.023),color:label,textAlign:"center"}}>
             + {stamps.length-3} further endorsement{stamps.length-3!==1?"s":""} on file</div>}
         </div>}
     </div>
@@ -994,13 +1008,13 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
 
   const ObsPage=()=>(<div className="bk-paper">
     <Watermark/>
-    <div style={{position:"absolute",inset:"18px 22px",display:"flex",flexDirection:"column"}}>
+    <div style={{position:"absolute",inset:"18px 22px",display:"flex",flexDirection:"column",fontFamily:FB}}>
       <div style={{textAlign:"center",borderBottom:"1px solid #b09a68",paddingBottom:6,marginBottom:14}}>
-        <div className="pf" style={{fontWeight:700,fontSize:fs(.036),letterSpacing:"0.22em",color:"#5a4520"}}>OBSERVATIONS</div>
+        <div style={{fontFamily:FH,fontWeight:700,fontSize:fs(.036),letterSpacing:"0.22em",color:"#5a4520"}}>OBSERVATIONS</div>
       </div>
       <div style={{fontSize:fs(.036),color:"#4a3c24",fontStyle:"italic",lineHeight:1.75}}>{nat.observation}</div>
       <div style={{marginTop:"auto",borderTop:"1px solid #b09a68",paddingTop:8}}>
-        <div className="mono" style={{fontSize:fs(.023),color:label,lineHeight:1.9,letterSpacing:"0.05em"}}>
+        <div style={{fontFamily:FM,fontSize:fs(.023),color:label,lineHeight:1.9,letterSpacing:"0.05em"}}>
           DOCUMENT NO — {p.number}<br/>ISSUED BY THE {nat.authority}<br/>
           {p.issued?"DATE OF ISSUE — "+fmtDate(p.issued).toUpperCase():""}
         </div>
@@ -1009,9 +1023,11 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
     <PageNo n="4" side="right"/></div>);
 
   const sheets=[{f:<Cover/>,b:<InsideCover/>},{f:<DataPage/>,b:<VisaPage/>},{f:<ObsPage/>,b:<Cover back/>}];
+  const navBtn=(dis)=>({font:"inherit",fontSize:13,padding:"5px 13px",borderRadius:3,cursor:dis?"default":"pointer",
+    background:"transparent",border:`1px solid ${BK_UI.line}`,color:dis?BK_UI.faint:BK_UI.dim,opacity:dis?.5:1});
   return <div className="bk-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
     <button onClick={onClose} style={{position:"absolute",top:16,right:20,background:"transparent",
-      border:`1px solid ${V.line}`,color:V.textD,width:34,height:34,borderRadius:2,cursor:"pointer",fontSize:15}}>✕</button>
+      border:`1px solid ${BK_UI.line}`,color:BK_UI.dim,width:34,height:34,borderRadius:2,cursor:"pointer",fontSize:15}}>✕</button>
     <div className={"bk-stage"+(flip===0?" closed":flip===3?" closed-end":"")}>
       {sheets.map((s,i)=>(
         <div key={i} className={"bk-sheet"+(i<flip?" flipped":"")} style={{zIndex:i<flip?i+1:20-i}}
@@ -1021,14 +1037,14 @@ function PassportBook({passport:p,nationKey,visas,face,onClose}){
         </div>))}
     </div>
     <div style={{marginTop:24,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",justifyContent:"center"}}>
-      <Btn small variant="ghost" disabled={flip===0} onClick={()=>setFlip(f=>Math.max(0,f-1))}>‹ Previous</Btn>
+      <button disabled={flip===0} style={navBtn(flip===0)} onClick={()=>setFlip(f=>Math.max(0,f-1))}>‹ Previous</button>
       <div style={{textAlign:"center"}}>
-        <div className="pf" style={{fontSize:13,color:V.text}}>{p.name||p.username}</div>
-        <div className="mono" style={{fontSize:9,color:V.textDD,letterSpacing:"0.14em"}}>{nat.short} · {t.short} · {p.number}</div>
+        <div style={{fontFamily:FH,fontSize:13,color:BK_UI.text}}>{p.name||p.username}</div>
+        <div style={{fontFamily:FM,fontSize:9,color:BK_UI.faint,letterSpacing:"0.14em"}}>{nat.short} · {t.short} · {p.number}</div>
       </div>
-      <Btn small variant="ghost" disabled={flip===3} onClick={()=>setFlip(f=>Math.min(3,f+1))}>Next ›</Btn>
+      <button disabled={flip===3} style={navBtn(flip===3)} onClick={()=>setFlip(f=>Math.min(3,f+1))}>Next ›</button>
     </div>
-    <div className="mono" style={{fontSize:9,color:V.textDD,marginTop:10,letterSpacing:"0.12em"}}>CLICK THE PAGES TO LEAF THROUGH</div>
+    <div style={{fontFamily:FM,fontSize:9,color:BK_UI.faint,marginTop:10,letterSpacing:"0.12em"}}>CLICK THE PAGES TO LEAF THROUGH</div>
   </div>;
 }
 

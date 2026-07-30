@@ -581,220 +581,6 @@ function MyStanding({user,office,citizen,passport,visa,honours,idCard,warrant,ve
     </div>
   </div>;
 }
-/* ── the Citizen Portal ───────────────────────────────────────────────────────
-   Everything the Republic holds on one national, in one place: the identity
-   cards and passports issued to them, and the judicial record that would appear
-   against their name on the Department of Justice's terminal — enforcement
-   actions, warrants, and the proceedings they are party to. A case in which the
-   viewer sits as judge is deliberately excluded: the bench does not read its own
-   docket here. Everything is read from the registers; nothing new is stored. */
-const VX_STATES={
-  viridis:{name:"Viridis",code:"VI",c1:"#14532d",c2:"#08251a",foil:"#d7ecb4",ink:"#eff8ea"},
-  san_amaro:{name:"San Amaro",code:"SA",c1:"#0d6d68",c2:"#04373b",foil:"#ffdca4",ink:"#effaf6"},
-};
-const VX_PP_TYPES={
-  regular:   {l:"Regular Passport",   short:"REGULAR",    cover:"#16234a",coverDeep:"#0b142e",trim:"#c9a05a"},
-  official:  {l:"Official Passport",  short:"OFFICIAL",   cover:"#7a323e",coverDeep:"#521f28",trim:"#e0bd78"},
-  diplomatic:{l:"Diplomatic Passport",short:"DIPLOMATIC", cover:"#9a1620",coverDeep:"#5e0d13",trim:"#e6c680"},
-  service:   {l:"Service Passport",   short:"SERVICE",    cover:"#40454e",coverDeep:"#262a31",trim:"#c8ccd4"},
-};
-const vxPpType=v=>VX_PP_TYPES[v]||VX_PP_TYPES.regular;
-function vxDocValidity(d){
-  if(!d) return {label:"—",color:V.textD};
-  if(String(d.status||"")==="revoked") return {label:"Revoked",color:V.red};
-  if(!d.expires) return {label:"Valid",color:V.greenL};
-  const end=new Date(String(d.expires)+"T23:59:59").getTime();
-  if(isNaN(end)) return {label:"Valid",color:V.greenL};
-  return end<Date.now()?{label:"Expired",color:V.red}:{label:"Valid",color:V.greenL};
-}
-// The passport's own front cover, exactly as the Department of State prints it.
-function VxPassportCover({passport,width=210}){
-  const t=vxPpType(passport.type);
-  const fs=f=>(width*f).toFixed(1)+"px";
-  return <div style={{position:"relative",width,height:width*1.4,borderRadius:9,overflow:"hidden",
-    boxShadow:"0 10px 26px rgba(0,0,0,.5)",flexShrink:0,
-    background:`radial-gradient(ellipse 130% 70% at 50% -10%, rgba(255,255,255,.09), transparent 55%), repeating-linear-gradient(48deg, rgba(0,0,0,.10) 0 2px, transparent 2px 5px), linear-gradient(165deg, ${t.cover} 0%, ${t.coverDeep} 100%)`}}>
-    <div style={{position:"absolute",inset:8,border:`2px solid ${t.trim}cc`,borderRadius:7,pointerEvents:"none"}}/>
-    <div style={{position:"absolute",inset:13,border:`1px solid ${t.trim}66`,borderRadius:4,pointerEvents:"none"}}/>
-    <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <div style={{marginTop:"13%",textAlign:"center",padding:"0 8%"}}>
-        <div className="pf" style={{fontWeight:900,fontSize:fs(.05),letterSpacing:"0.14em",color:t.trim,textShadow:"0 1px 1px rgba(0,0,0,.6)",lineHeight:1.15}}>REPUBLIC OF VINDEX NATION</div>
-        <div className="mono" style={{fontSize:fs(.022),letterSpacing:"0.4em",color:t.trim,opacity:.75,marginTop:5}}>★ E PLURIBUS UNUM ★</div>
-      </div>
-      <div style={{flex:1,display:"flex",alignItems:"center"}}><Seal file="vindexcoa.png" size={Math.round(width*0.42)}/></div>
-      <div style={{marginBottom:"12%",textAlign:"center"}}>
-        <div className="pf" style={{fontWeight:900,fontSize:fs(.062),letterSpacing:"0.36em",color:t.trim,textShadow:"0 1px 1px rgba(0,0,0,.6)"}}>PASSPORT</div>
-        {passport.type&&passport.type!=="regular"&&<div style={{marginTop:8,paddingTop:6,borderTop:`1px solid ${t.trim}55`}}>
-          <span className="pf" style={{fontSize:fs(.032),letterSpacing:"0.3em",color:t.trim}}>{t.short}</span></div>}
-        <svg width="24" height="17" viewBox="0 0 26 18" style={{marginTop:9,opacity:.8}}>
-          <rect x="1" y="1" width="24" height="16" rx="3" stroke={t.trim} strokeWidth="1.4" fill="none"/>
-          <circle cx="13" cy="9" r="4.2" stroke={t.trim} strokeWidth="1.4" fill="none"/>
-          <path d="M4 9 h4 M18 9 h4" stroke={t.trim} strokeWidth="1.4"/></svg>
-      </div>
-    </div>
-  </div>;
-}
-function VxIdCard({card,width=300}){
-  const S=VX_STATES[card.state]||VX_STATES.viridis;
-  return <div style={{position:"relative",width,borderRadius:9,overflow:"hidden",flexShrink:0,
-    color:S.ink,background:`linear-gradient(150deg,${S.c1} 0%,${S.c2} 100%)`,
-    border:`1px solid ${S.foil}44`,boxShadow:"0 8px 22px rgba(0,0,0,.45)",padding:"0.85rem 1rem"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,
-      borderBottom:`1px solid ${S.foil}44`,paddingBottom:6,marginBottom:8}}>
-      <div style={{minWidth:0}}>
-        <div className="pf" style={{fontWeight:900,fontSize:11.5,letterSpacing:"0.1em",color:S.foil}}>REPUBLIC OF VINDEX NATION</div>
-        <div style={{fontSize:7.5,letterSpacing:"0.24em",opacity:.78}}>STATE IDENTITY CARD</div>
-      </div>
-      <div style={{textAlign:"right",flexShrink:0}}>
-        <div style={{fontSize:7,letterSpacing:"0.26em",opacity:.7}}>STATE OF</div>
-        <div className="pf" style={{fontWeight:700,fontSize:10.5,letterSpacing:"0.1em",color:S.foil}}>{S.name.toUpperCase()}</div>
-      </div>
-    </div>
-    <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-      <div style={{minWidth:0,flex:1}}>
-        <div style={{fontSize:7.5,letterSpacing:"0.16em",color:S.foil,opacity:.85}}>NAME</div>
-        <div className="pf" style={{fontWeight:700,fontSize:14,lineHeight:1.15,overflowWrap:"anywhere"}}>{card.name||card.username||"—"}</div>
-      </div>
-      <div style={{flexShrink:0}}>
-        <div style={{fontSize:7.5,letterSpacing:"0.16em",color:S.foil,opacity:.85}}>CARD NO.</div>
-        <div className="mono" style={{fontSize:12,letterSpacing:"0.05em"}}>{card.number||"—"}</div>
-      </div>
-    </div>
-  </div>;
-}
-const VX_REC_META={arrest:{l:"Arrest",color:V.red},ticket:{l:"Citation",color:"#e08a3a"},warning:{l:"Warning",color:V.goldL}};
-function PortalSection({title,note,children}){
-  return <div style={{marginBottom:"1.7rem"}}>
-    <STitle>{title}</STitle>
-    {note&&<div style={{fontSize:13,color:V.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:10}}>{note}</div>}
-    {children}
-  </div>;
-}
-function CitizenPortalTab({user,citizen,office,ids,passports,records,warrants,cases}){
-  if(!user) return <Empty>Sign in to view your citizen portal.</Empty>;
-  const activeWarrants=warrants.filter(w=>String(w.status||"")==="active");
-  const clearRecord=!records.length&&!activeWarrants.length&&!cases.length;
-  return <div className="fadeIn">
-    <div style={{background:`linear-gradient(180deg,${V.bg2},${V.panel})`,border:`1px solid ${V.line}`,
-      borderRadius:6,padding:"1.1rem 1.2rem",marginBottom:"1.6rem",display:"flex",alignItems:"center",gap:13,flexWrap:"wrap"}}>
-      <McFace account={user} size={42}/>
-      <div style={{flex:1,minWidth:170}}>
-        <div className="pf" style={{fontWeight:900,fontSize:18,color:V.text,lineHeight:1.1}}>{user.displayName||user.username}</div>
-        <div className="mono" style={{fontSize:8.5,letterSpacing:"0.14em",color:V.textDD,marginTop:3}}>CITIZEN PORTAL · REPUBLIC OF VINDEX NATION</div>
-      </div>
-      <div style={{textAlign:"right"}}>
-        <div className="mono" style={{fontSize:8,letterSpacing:"0.16em",color:V.textDD}}>STANDING</div>
-        <div className="pf" style={{fontWeight:700,fontSize:13,color:citizen?V.greenL:V.textD}}>
-          {citizen?(VX_CIT_LABEL[citizen.status]||citizen.status):"Not a citizen"}</div>
-        {office&&office!=="No office"&&<div style={{fontSize:11.5,color:V.goldL,marginTop:2}}>{office}</div>}
-      </div>
-    </div>
-
-    <PortalSection title="Identity Cards"
-      note="State identity cards issued to you by the Department of Justice.">
-      {ids.length===0
-        ?<Empty>No State identity card has been issued to you.</Empty>
-        :<div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-          {ids.map((c,i)=>{const v=vxDocValidity(c);
-            return <a key={c.id||c.number||i} href="doj.html" style={{textDecoration:"none"}}>
-              <VxIdCard card={c}/>
-              <div className="mono" style={{fontSize:9,color:v.color,letterSpacing:"0.1em",marginTop:6,textAlign:"center"}}>{v.label.toUpperCase()}</div>
-            </a>;})}
-        </div>}
-    </PortalSection>
-
-    <PortalSection title="Passports"
-      note="Issued by the Department of State. Open one to view it in full.">
-      {passports.length===0
-        ?<Empty>No passport has been issued to you.</Empty>
-        :passports.length===1
-        ?(()=>{const p=passports[0],v=vxDocValidity(p);
-          return <a href="state.html" title="Open your passport at the Department of State"
-            style={{textDecoration:"none",display:"block",textAlign:"center"}}>
-            <div style={{display:"flex",justifyContent:"center"}}><VxPassportCover passport={p}/></div>
-            <div style={{fontSize:12.5,color:V.textD,marginTop:9}}>
-              {vxPpType(p.type).l} · <span className="mono">{p.number||"—"}</span> · <span style={{color:v.color}}>{v.label}</span></div>
-            <div className="mono" style={{fontSize:8.5,letterSpacing:"0.22em",color:V.goldL,marginTop:5}}>OPEN AT THE DEPARTMENT OF STATE →</div>
-          </a>;})()
-        :<div style={{display:"flex",flexDirection:"column",gap:8,maxWidth:620}}>
-          {passports.map((p,i)=>{const t=vxPpType(p.type),v=vxDocValidity(p);
-            return <a key={p.id||p.number||i} href="state.html" title="Open at the Department of State"
-              style={{textDecoration:"none",display:"flex",alignItems:"center",gap:12,background:V.panel,
-                border:`1px solid ${V.line}`,borderLeft:`3px solid ${t.trim}`,borderRadius:"0 4px 4px 0",padding:"0.75rem 1rem"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div className="pf" style={{fontWeight:700,fontSize:14.5,color:V.text}}>{t.l}</div>
-                <div className="mono" style={{fontSize:10.5,color:V.textDD,letterSpacing:"0.06em",marginTop:2}}>{p.number||"—"}</div>
-              </div>
-              <span className="mono" style={{fontSize:9,color:v.color,border:`1px solid ${v.color}55`,
-                borderRadius:2,padding:"3px 9px",whiteSpace:"nowrap"}}>{v.label.toUpperCase()}</span>
-            </a>;})}
-        </div>}
-    </PortalSection>
-
-    <PortalSection title="Judicial Record"
-      note="Everything held against your name on the Department of Justice's terminal.">
-      {clearRecord&&<div style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${V.greenL}`,
-        borderRadius:"0 4px 4px 0",padding:"0.9rem 1.1rem",marginBottom:10}}>
-        <div className="pf" style={{fontWeight:700,fontSize:14,color:V.greenL}}>No record</div>
-        <div style={{fontSize:13,color:V.textD,marginTop:3,lineHeight:1.6}}>
-          You have no enforcement actions, warrants or proceedings on file.</div>
-      </div>}
-
-      {activeWarrants.length>0&&<div style={{marginBottom:12}}>
-        {activeWarrants.map((w,i)=>(
-          <div key={w.id||i} style={{background:"rgba(180,40,40,0.08)",border:`1px solid ${V.red}66`,
-            borderLeft:`3px solid ${V.red}`,borderRadius:"0 4px 4px 0",padding:"0.85rem 1.1rem",marginBottom:6}}>
-            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-              <span className="mono" style={{fontSize:9,color:V.red,letterSpacing:"0.14em"}}>ACTIVE WARRANT</span>
-              <span className="pf" style={{fontWeight:700,fontSize:14,color:V.text,flex:1,minWidth:140}}>{w.reason||"Warrant in force"}</span>
-              <span className="mono" style={{fontSize:9,color:V.textDD}}>{w.at?fmtDate(w.at).toUpperCase():""}</span>
-            </div>
-            {w.issuedByName&&<div style={{fontSize:12,color:V.textDD,fontStyle:"italic",marginTop:4}}>Issued by {w.issuedByName}</div>}
-          </div>))}
-      </div>}
-
-      {records.length>0&&<div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
-        {records.map((r,i)=>{const m=VX_REC_META[r.type]||{l:r.type||"Record",color:V.textD};
-          return <div key={r.id||i} style={{background:V.panel,border:`1px solid ${V.line}`,
-            borderLeft:`3px solid ${m.color}`,borderRadius:"0 4px 4px 0",padding:"0.8rem 1rem"}}>
-            <div style={{display:"flex",gap:10,alignItems:"baseline",flexWrap:"wrap"}}>
-              <span className="mono" style={{fontSize:9,color:m.color,letterSpacing:"0.12em"}}>{m.l.toUpperCase()}</span>
-              <span className="pf" style={{fontWeight:700,fontSize:14,color:V.text,flex:1,minWidth:140}}>{r.charge||"—"}</span>
-              <span className="mono" style={{fontSize:9,color:V.textDD}}>{r.at?fmtDate(r.at).toUpperCase():""}</span>
-            </div>
-            <div style={{fontSize:12,color:V.textDD,marginTop:4,lineHeight:1.6}}>
-              {[r.location,r.fine?("Fine "+r.fine):null,r.officerName?("Officer "+r.officerName):null].filter(Boolean).join(" · ")}
-            </div>
-            {r.notes&&<div style={{fontSize:12.5,color:V.textD,fontStyle:"italic",marginTop:4,lineHeight:1.6}}>{r.notes}</div>}
-          </div>;})}
-      </div>}
-    </PortalSection>
-
-    <PortalSection title="Proceedings"
-      note="Cases in which you are a party — as complainant, prosecuting, or defendant. Cases over which you preside are not shown here.">
-      {cases.length===0
-        ?<Empty>You are not party to any proceedings on record.</Empty>
-        :<div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {cases.map((c,i)=>(
-            <div key={c.id||c.number||i} style={{background:V.panel,border:`1px solid ${V.line}`,
-              borderLeft:`3px solid ${V.goldL}`,borderRadius:"0 4px 4px 0",padding:"0.85rem 1.1rem"}}>
-              <div style={{display:"flex",gap:10,alignItems:"baseline",flexWrap:"wrap"}}>
-                <span className="mono" style={{fontSize:9.5,color:V.goldL,letterSpacing:"0.1em"}}>{c.number||"CASE"}</span>
-                <span className="pf" style={{fontWeight:700,fontSize:14.5,color:V.text,flex:1,minWidth:150}}>{c.title||c.parties||"Proceeding"}</span>
-                {c._role&&<span className="mono" style={{fontSize:8.5,color:V.textD,border:`1px solid ${V.line}`,
-                  borderRadius:2,padding:"2px 7px"}}>{String(c._role).toUpperCase()}</span>}
-                {c.status&&<span className="mono" style={{fontSize:9,color:V.textDD}}>{String(c.status).toUpperCase()}</span>}
-              </div>
-              <div style={{fontSize:12,color:V.textDD,marginTop:4}}>
-                {[c._courtLabel,c.parties&&c.parties!==c.title?c.parties:null,c.filed?fmtDate(c.filed):null].filter(Boolean).join(" · ")}
-              </div>
-              {c.summary&&<div style={{fontSize:12.5,color:V.textD,fontStyle:"italic",marginTop:5,lineHeight:1.65}}>{c.summary}</div>}
-            </div>))}
-        </div>}
-    </PortalSection>
-  </div>;
-}
-
 function HomeTab({president,speaker,reps,bills,onGo,me}){
   const laws=Object.values(bills||{}).filter(b=>b.status==="law").length;
   const onFloor=Object.values(bills||{}).filter(b=>b.status==="floor"||b.status==="override").length;
@@ -1449,37 +1235,6 @@ function App(){
   const myId=useMemo(()=>findMine("vx_state_ids"),[findMine]);
   const myWarrant=useMemo(()=>meUser?Object.values(raw["vx_warrants"]||{}).find(w=>String(w.username||"").toLowerCase()===meUser&&w.status==="active"):null,[raw,meUser]);
   const myVessel=useMemo(()=>findMine("vx_vessels"),[findMine]);
-  // ── Citizen Portal: every document and record standing against this national.
-  const findAllMine=useCallback(key=>meUser?Object.values(raw[key]||{}).filter(r=>r&&String(r.username||"").toLowerCase()===meUser):[],[raw,meUser]);
-  const myIds=useMemo(()=>findAllMine("vx_state_ids"),[findAllMine]);
-  const myPassports=useMemo(()=>findAllMine("vx_state_passports"),[findAllMine]);
-  // Enforcement actions are filed against a `subject`, not a `username`.
-  const myRecords=useMemo(()=>meUser?Object.values(raw["vx_doj_records"]||{})
-    .filter(r=>r&&String(r.subject||"").toLowerCase()===meUser).sort((a,b)=>(b.at||0)-(a.at||0)):[],[raw,meUser]);
-  const myWarrants=useMemo(()=>findAllMine("vx_warrants").sort((a,b)=>(b.at||0)-(a.at||0)),[findAllMine]);
-  // Proceedings you are party to. A case you preside over is excluded — the
-  // bench does not read its own docket from the citizen's side of the portal.
-  const myCases=useMemo(()=>{
-    if(!meUser) return [];
-    const meName=String(user?.displayName||"").toLowerCase();
-    const hit=v=>{const s=String(v||"").toLowerCase();return !!s&&(s.includes(meUser)||(!!meName&&s.includes(meName)));};
-    const presiding=c=>{
-      const ids=[].concat(c.presiding||[],c.presidingIds||[],c.presidingNames||[],c.judge||[]);
-      return ids.some(x=>hit(x));
-    };
-    const partyTo=c=>hit(c.parties)||hit(c.complainant)||hit(c.defendant)||hit(c.prosecution)
-      ||[].concat(c.prosecutors||[]).some(x=>hit(x));
-    const roleOf=c=>hit(c.complainant)?"complainant":hit(c.defendant)?"defendant"
-      :(hit(c.prosecution)||[].concat(c.prosecutors||[]).some(x=>hit(x)))?"prosecuting":"party";
-    const out=[];
-    Object.values(raw["vx_cases"]||{}).forEach(c=>{
-      if(c&&partyTo(c)&&!presiding(c)) out.push({...c,_courtLabel:"Courts of the Republic",_role:roleOf(c)});
-    });
-    Object.values(raw["ij_cases"]||{}).forEach(c=>{
-      if(c&&partyTo(c)&&!presiding(c)) out.push({...c,_courtLabel:"Imperial Judiciary",_role:roleOf(c)});
-    });
-    return out.sort((a,b)=>(b.filed||0)-(a.filed||0));
-  },[raw,meUser,user]);
   // The standing sheet is for citizens of the Republic alone.
   const iAmCitizen=!!myCitizen&&["citizen","naturalised"].includes(String(myCitizen.status||""));
 
@@ -1591,23 +1346,12 @@ function App(){
           <div className="mono" style={{fontSize:8,letterSpacing:"0.3em",color:V.gold,marginTop:2}}>REPUBLIC OF VINDEX NATION · E PLURIBUS UNUM</div>
         </div>
         {user?<div style={{display:"flex",alignItems:"center",gap:10}}>
-          {/* The citizen's own portal — reached from the masthead, as on the
-              Empire's network, rather than sitting among the government tabs. */}
-          <button onClick={()=>setTab(tab==="portal"?"home":"portal")} className="mono"
-            title="Your identity documents and record"
-            style={{fontSize:8.5,letterSpacing:"0.16em",textTransform:"uppercase",cursor:"pointer",
-              padding:"6px 12px",borderRadius:2,whiteSpace:"nowrap",
-              background:tab==="portal"?V.gold:"transparent",
-              border:`1px solid ${tab==="portal"?V.gold:V.gold+"66"}`,
-              color:tab==="portal"?"#1a1200":V.goldL}}>
-            ⬡ Citizen Portal
-          </button>
           <McFace account={user} size={30}/>
           <div style={{textAlign:"right",lineHeight:1.25}}>
             <div className="pf" style={{fontWeight:700,fontSize:12.5,color:V.text}}>{user.displayName||user.username}</div>
             <div className="mono" style={{fontSize:7.5,letterSpacing:"0.14em",color:hasPanel?V.goldL:V.textDD}}>{standing.toUpperCase()}</div>
           </div>
-          <Btn small variant="ghost" onClick={()=>{forgetSession();setUser(null);if(tab==="panel"||tab==="portal")setTab("home");notify("Signed out.",V.textD);}}>Sign out</Btn>
+          <Btn small variant="ghost" onClick={()=>{forgetSession();setUser(null);if(tab==="panel")setTab("home");notify("Signed out.",V.textD);}}>Sign out</Btn>
         </div>:<Btn small variant="gold" onClick={()=>setAuthOpen(true)}>Sign In</Btn>}
       </div>
       <div style={{maxWidth:1080,margin:"0 auto",padding:"0 1.2rem",display:"flex",overflowX:"auto"}}>
@@ -1623,9 +1367,6 @@ function App(){
       {loaded&&tab==="legislature"&&<LegislatureTab speaker={speaker} reps={reps} bills={bills} votes={votes}
         user={user} accounts={accounts} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
       {loaded&&tab==="judiciary"&&<JudiciaryTab/>}
-      {loaded&&tab==="portal"&&<CitizenPortalTab user={user} citizen={myCitizen}
-        office={user?(isEmperor(user)?"System Administrator":officeOf(vxRole(user)).l):""}
-        ids={myIds} passports={myPassports} records={myRecords} warrants={myWarrants} cases={myCases}/>}
       {loaded&&tab==="panel"&&hasPanel&&<PanelTab user={user} bills={bills} gov={gov} orders={orders}
         cabinet={cabinet} accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
     </div>
