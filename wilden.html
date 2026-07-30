@@ -334,6 +334,9 @@ const officeOf=v=>OFFICES.find(o=>o.v===String(v||""))||OFFICES[0];
 
 const wxRole=u=>String((u&&u.wxRole)||"");
 const isOwner=u=>!!u&&u.role==="emperor";     // the site owner, outside the constitution
+// The network administrator — the owner, or anyone granted sysAdmin on the
+// Vintranet. Not a Wildenian office: a moderation power over the estate.
+const isSysAdminU=u=>!!u&&(u.role==="emperor"||u.sysAdmin===true);
 const isSovereign=u=>wxRole(u)==="sovereign";
 const isPM=u=>wxRole(u)==="pm";
 const isSpeaker=u=>wxRole(u)==="speaker";
@@ -737,8 +740,14 @@ function BillItem({bill,votes,commons,lords,speaker,user,accounts,onAction,notif
     {open&&<div style={{marginTop:16,borderTop:"1px solid var(--grey3)",paddingTop:16}}>
       <Inset><p style={{marginBottom:0}}>{k.rule}</p></Inset>
       {bill.summary&&<p>{bill.summary}</p>}
-      {bill.text&&<div style={{border:"1px solid var(--grey3)",padding:"14px 16px",background:"#fafafa",
-        whiteSpace:"pre-wrap",fontSize:15,lineHeight:1.7,maxHeight:280,overflowY:"auto",marginBottom:16}}>{bill.text}</div>}
+      {/* The bill itself is kept in a Google Doc, as in the Bundeskongress. */}
+      {bill.gdoc_url&&<div style={{marginBottom:16}}>
+        <a href={bill.gdoc_url} target="_blank" rel="noopener noreferrer"
+          style={{display:"inline-block",border:"1px solid var(--grey3)",padding:"7px 15px",background:"#fafafa",
+            fontSize:14,textDecoration:"none",color:"inherit"}}>
+          📄 View the bill document →
+        </a>
+      </div>}
 
       <div className="sl">
         <div className="row"><div className="k">Stage</div><div className="v">{st.l} — {st.desc}</div></div>
@@ -806,6 +815,14 @@ function BillItem({bill,votes,commons,lords,speaker,user,accounts,onAction,notif
             setBusy("Withdrawing");
             const res=await onAction("withdraw",{bill});
             setBusy(null);notify(res.ok?"The bill has been withdrawn.":res.error,res.ok);
+          }}/>}
+
+        {/* The service administrator's expunge — bill and divisions erased outright. */}
+        {isSysAdminU(user)&&
+          <ArmBtn small label="Expunge" confirmLabel="Erase entirely — no trace?" onConfirm={async()=>{
+            setBusy("Expunging");
+            const res=await onAction("expunge",{bill});
+            setBusy(null);notify(res.ok?"Expunged — no record remains.":res.error,res.ok);
           }}/>}
       </div>
     </div>}
@@ -979,7 +996,7 @@ function PanelTab({user,bills,gov,accounts,citizens,cabinetish,onAction,notify,s
 function BillForm({bills,user,onAction,notify,setBusy}){
   const [title,setTitle]=useState("");const [kind,setKind]=useState("public");
   const [number,setNumber]=useState("");const [summary,setSummary]=useState("");
-  const [text,setText]=useState("");const [saving,setSaving]=useState(false);
+  const [gdoc,setGdoc]=useState("");const [saving,setSaving]=useState(false);
   const suggested=useMemo(()=>"Bill "+String(Object.values(bills||{}).length+1).padStart(3,"0"),[bills]);
   const k=kindOf(kind);
   const lordsOnly=inLords(user)&&!inCommons(user);
@@ -996,16 +1013,16 @@ function BillForm({bills,user,onAction,notify,setBusy}){
     <Field label="Number"><input type="text" value={number} onChange={e=>setNumber(e.target.value)} placeholder={suggested}/></Field>
     <Field label="Short title"><input type="text" value={title} onChange={e=>setTitle(e.target.value)}/></Field>
     <Field label="Summary" hint="One line on what the bill does."><input type="text" value={summary} onChange={e=>setSummary(e.target.value)}/></Field>
-    <Field label="Text of the bill">
-      <textarea rows={9} value={text} onChange={e=>setText(e.target.value)}
-        placeholder="Be it enacted by the King's most excellent majesty, by and with the advice and consent of the Commons in this present Parliament assembled…"/>
+    <Field label="Bill document" hint="The text of the bill is kept in a Google Doc. Paste its link here, shared so the House may read it.">
+      <input type="text" value={gdoc} onChange={e=>setGdoc(e.target.value)}
+        placeholder="https://docs.google.com/document/d/…"/>
     </Field>
     <Btn disabled={!title.trim()||saving||(k.commonsOnly&&lordsOnly)} onClick={async()=>{
       setSaving(true);setBusy("Introducing the bill");
       const res=await onAction("introduce",{title:title.trim(),kind,number:(number.trim()||suggested),
-        summary:summary.trim(),text:text.trim()});
+        summary:summary.trim(),gdoc_url:gdoc.trim()});
       setBusy(null);setSaving(false);
-      if(res.ok){setTitle("");setNumber("");setSummary("");setText("");notify("The bill has been introduced.",true);}
+      if(res.ok){setTitle("");setNumber("");setSummary("");setGdoc("");notify("The bill has been introduced.",true);}
       else notify(res.error,false);
     }}>{saving?"Introducing…":"Introduce the bill"}</Btn>
     <p className="hint" style={{marginTop:12}}>The bill is introduced but does not go before a House until it is read.</p>
@@ -1269,6 +1286,21 @@ function App(){
       if(res.ok) setRaw(r=>{const n={...(r.wx_bills||{})};delete n[p.bill.id];return {...r,wx_bills:n};});
       return res;
     }
+    // Expunge: the administrator's erasure. Divisions on the bill go first, then
+    // the bill, so no vote is left pointing at a bill that no longer exists.
+    if(type==="expunge"){
+      if(!isSysAdminU(user)) return {ok:false,error:"Only a network administrator may expunge a bill."};
+      const billId=p.bill.id;
+      const doomed=Object.values(raw["wx_votes"]||{}).filter(v=>v&&v.billId===billId);
+      for(const v of doomed) await deleteRecord("wx_votes",v.id);
+      const res=await deleteRecord("wx_bills",billId);
+      if(res.ok) setRaw(r=>{
+        const nb={...(r.wx_bills||{})};delete nb[billId];
+        const nv={...(r.wx_votes||{})};doomed.forEach(v=>delete nv[v.id]);
+        return {...r,wx_bills:nb,wx_votes:nv};
+      });
+      return res;
+    }
     if(type==="vote"){
       // Keyed to the voter, the bill, the House and the round, so a second passage
       // under s25(3) is a fresh division rather than the old one carried over.
@@ -1296,7 +1328,7 @@ function App(){
       return res;
     }
     return {ok:false,error:"Unknown action."};
-  },[gov,me]);
+  },[gov,me,user,raw]);
 
   const hasPanel=canIntroduce(user)||canAppoint(user);
   const TABS=[["home","Home"],["parliament","Parliament"],["government","Government"],["judicature","Judicature"],

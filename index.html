@@ -55,33 +55,6 @@ body{
 .lede{text-align:center;max-width:440px;margin:2.3rem auto 2.5rem;
   font-size:1.06rem;font-style:italic;font-weight:300;color:var(--ink2);line-height:1.75;}
 
-/* ── the war notice ──────────────────────────────────────────────────────────
-   The one notice that outranks the nations below it: the network is carrying a
-   war. Printed in the red of a wartime proclamation — nothing else on this page
-   is red, so nothing else on this page competes — and set above the gateway
-   columns. It leads to the shared War Room (war.html). */
-.wardesk{--war:#8e1f1f;
-  display:flex;align-items:center;gap:1.15rem;
-  margin:0 0 2.3rem;padding:1.05rem 1.6rem;
-  border-top:3px double var(--war);border-bottom:3px double var(--war);
-  background:linear-gradient(180deg, rgba(142,31,31,.055), rgba(142,31,31,.105));
-  text-decoration:none;transition:background .18s;}
-.wardesk:hover{background:rgba(142,31,31,.17);}
-.wd-glyph{font-size:1.75rem;line-height:1;color:var(--war);flex-shrink:0;}
-.wd-text{display:flex;flex-direction:column;gap:.32rem;min-width:0;}
-.wd-head{font-size:.92rem;font-weight:700;letter-spacing:.3em;text-transform:uppercase;
-  color:var(--war);line-height:1.2;}
-.wd-sub{font-size:.88rem;font-weight:300;font-style:italic;color:var(--ink2);line-height:1.5;}
-.wd-enter{margin-left:auto;flex-shrink:0;white-space:nowrap;
-  font-size:.66rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;
-  color:var(--war);border-top:1px solid var(--war);border-bottom:1px solid var(--war);
-  padding:7px 18px;text-indent:.26em;transition:background .18s,color .18s;}
-.wardesk:hover .wd-enter{background:var(--war);color:var(--paper);}
-@media(max-width:640px){
-  .wardesk{flex-direction:column;text-align:center;gap:.8rem;padding:1rem 1.1rem;}
-  .wd-enter{margin-left:0;}
-}
-
 /* ── the three nations ───────────────────────────────────────────────────── */
 .nations{display:grid;grid-template-columns:repeat(3,1fr);
   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
@@ -156,15 +129,6 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
 <main class="sheet">
 
   <p class="lede">The way in to three national networks. Select a government below to enter its own.</p>
-
-  <a class="wardesk" href="war.html" aria-label="Enter the War Room — the war between the Empire of Lech and the Republic of Vindex Nation">
-    <span class="wd-glyph" aria-hidden="true">⚔</span>
-    <span class="wd-text">
-      <span class="wd-head">State of War</span>
-      <span class="wd-sub">The Empire of Lech and the Republic of Vindex Nation are at war. Follow the front lines and the record of battle.</span>
-    </span>
-    <span class="wd-enter">War Room</span>
-  </a>
 
   <section class="nations">
 
@@ -513,7 +477,8 @@ function Row({acc,raw,user,notify,reload,onProfile}){
       <div style={{minWidth:150}}>
         <div style={{...serif,fontSize:15,fontWeight:600,color:INK}}>{acc.displayName||acc.username}
           {acc.sysAdmin&&<span style={{marginLeft:8}}><Tag color={SEAL}>ADMIN</Tag></span>}
-          {acc.role==="emperor"&&<span style={{marginLeft:6}}><Tag color="#b8902f">OWNER</Tag></span>}</div>
+          {acc.role==="emperor"&&<span style={{marginLeft:6}}><Tag color="#b8902f">OWNER</Tag></span>}
+          {acc.banned&&<span style={{marginLeft:6}}><Tag color={SEAL}>SUSPENDED</Tag></span>}</div>
         <div style={{...serif,fontSize:12,color:INK3}}>{acc.username}</div>
       </div>
       <span style={{flex:1}}/>
@@ -582,6 +547,9 @@ function Row({acc,raw,user,notify,reload,onProfile}){
             {acc.sysAdmin?"Revoke administrator":"Grant administrator"}</Btn>
         </Field>}
 
+        {/* suspension — locks the account out and ends every session it holds */}
+        {!isMe&&acc.role!=="emperor"&&<BanControl acc={acc} busy={busy} run={run} base={base}/>}
+
         {/* delete */}
         {!isMe&&acc.role!=="emperor"&&<div style={{borderTop:`1px solid ${RULE}`,paddingTop:14,marginTop:6}}>
           <DeleteControl acc={acc} notify={notify} reload={reload}/>
@@ -589,6 +557,38 @@ function Row({acc,raw,user,notify,reload,onProfile}){
       </>}
     </div>}
   </div>;
+}
+
+// Suspension. A banned account cannot sign in, and every session it holds is
+// destroyed the moment the ban is written — so the lockout is immediate rather
+// than waiting for them to sign out. Reversible: lifting it restores the account
+// untouched. The owner's account, and your own, are never offered.
+function BanControl({acc,busy,run,base}){
+  const [armed,setArmed]=useState(false);
+  const [reason,setReason]=useState(acc.banReason||"");
+  useEffect(()=>{if(!armed)return;const t=setTimeout(()=>setArmed(false),5000);return()=>clearTimeout(t);},[armed]);
+  const banned=!!acc.banned;
+  return <Field label="Account suspension"
+    hint={banned
+      ?"This account is suspended: it cannot sign in, and holds no active session."
+      :"Locks the account out of the whole network and signs it out everywhere at once."}>
+    {banned
+      ?<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <Tag color={SEAL}>SUSPENDED</Tag>
+        {acc.banReason&&<span style={{...serif,fontSize:13,color:INK2,fontStyle:"italic"}}>{acc.banReason}</span>}
+        <Btn small disabled={busy==="ban"}
+          onClick={()=>run("ban",{...base(),banned:false,banReason:"",bannedAt:null,bannedBy:null},"Suspension lifted — the account may sign in again.")}>
+          Lift suspension</Btn>
+      </div>
+      :<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <Inp value={reason} onChange={e=>setReason(e.target.value)} placeholder="Reason (shown to them at sign-in)" style={{maxWidth:300}}/>
+        {armed
+          ?<Btn small kind="danger" disabled={busy==="ban"}
+            onClick={()=>{setArmed(false);run("ban",{...base(),banned:true,banReason:reason.trim(),bannedAt:Date.now()},"Account suspended and signed out everywhere.");}}>
+            Confirm suspension</Btn>
+          :<Btn small kind="danger" onClick={()=>setArmed(true)}>Suspend account</Btn>}
+      </div>}
+  </Field>;
 }
 
 function DeleteControl({acc,notify,reload}){
