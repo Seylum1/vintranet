@@ -869,11 +869,15 @@ function GovernmentTab({pm,cabinet,appointed,gov,lords,commons}){
     {members.length===0?<Empty>No Ministers have been appointed.</Empty>
       :<table>
         <caption>Ministers of the Crown</caption>
-        <thead><tr><th>Minister</th><th>Department</th><th>Seat</th></tr></thead>
-        <tbody>{members.map(m=><tr key={m.username}>
-          <td><Person account={m} size={32}/></td>
-          <td>{posts[String(m.username||"").toLowerCase()]||<span className="vacant">Not assigned</span>}</td>
-          <td>{seatOf(m)}</td></tr>)}</tbody>
+        <thead><tr><th>Minister</th><th>Office</th><th>Department</th><th>Seat</th></tr></thead>
+        <tbody>{members.map(m=>{
+          const post=posts[String(m.username||"").toLowerCase()];
+          const dept=post?deptFor(post):null, href=post?hrefFor(post):null;
+          return <tr key={m.username}>
+            <td><Person account={m} size={32}/></td>
+            <td>{post||<span className="vacant">Not assigned</span>}</td>
+            <td>{dept?(href?<a href={href}>{dept} ↗</a>:dept):<span className="vacant">—</span>}</td>
+            <td>{seatOf(m)}</td></tr>;})}</tbody>
       </table>}
 
     <h2>Confidence</h2>
@@ -886,12 +890,15 @@ function GovernmentTab({pm,cabinet,appointed,gov,lords,commons}){
     </Inset>
 
     <h2>The Law Officers</h2>
-    <p>The Attorney-General and the Solicitor-General are the principal legal advisers to the Government.
-      Any function of the Attorney-General may be exercised by the Solicitor-General. <Cite>s33</Cite></p>
+    <p>The Lord Advocate is the principal legal adviser to the Government and head of the Crown Office.
+      The older title of Attorney-General is shown where it is still held. <Cite>s33</Cite></p>
     <div className="sl">
-      {["Attorney-General","Solicitor-General"].map(post=>{
+      {["Lord Advocate","Attorney-General","Solicitor-General"].map(post=>{
         const holder=members.find(m=>posts[String(m.username||"").toLowerCase()]===post);
-        return <div className="row" key={post}><div className="k">{post}</div>
+        // Retired titles are listed only while someone still holds them.
+        if(!holder&&post!=="Lord Advocate")return null;
+        return <div className="row" key={post}>
+          <div className="k">{post}{post==="Lord Advocate"?<span className="hint" style={{marginBottom:0,fontWeight:400}}>Crown Office</span>:null}</div>
           <div className="v">{holder?<Person account={holder} size={32}/>:<span className="vacant">Vacant</span>}</div></div>;
       })}
     </div>
@@ -1106,12 +1113,26 @@ function OfficeForm({user,accounts,citizens,onAction,notify,setBusy}){
   </div>;
 }
 
-// The Secretary of State for Home Affairs administers the Home Office, which
-// runs the Royal Wilden Constabulary. The older "Minister of Home Affairs" is
-// kept so an existing assignment still resolves to the same department.
-const DEPARTMENTS=["Prime Minister's Office","Attorney-General","Solicitor-General","Minister of Defence",
-  "Minister of Finance","Secretary of State for Home Affairs","Minister of Home Affairs",
-  "Minister of Foreign Affairs","Minister of Justice","Minister of Health","Minister of Trade","Other"];
+// His Majesty's Government. Each office and the department it answers for; the
+// Prime Minister and their deputy hold no department of their own. Where a
+// department has a service on the network, it is linked from the Cabinet table.
+const CABINET_OFFICES=[
+  {post:"Prime Minister",                            dept:null,                      href:null},
+  {post:"Deputy Prime Minister",                     dept:null,                      href:null},
+  {post:"Chancellor of the Exchequer",               dept:"His Majesty's Treasury",  href:null},
+  {post:"Secretary of State for Home Affairs",       dept:"Home Office",             href:"homeoffice.html"},
+  {post:"Secretary of State for Foreign Affairs",    dept:"Foreign Office",          href:"wmfa.html"},
+  {post:"Secretary of State for Defence",            dept:"Ministry of Defence",     href:null},
+  {post:"Secretary of State for Health",             dept:"Department for Health",   href:null},
+  {post:"Lord Advocate",                             dept:"Crown Office",            href:null},
+];
+const deptFor=post=>{const o=CABINET_OFFICES.find(x=>x.post===post);return o?o.dept:null;};
+const hrefFor=post=>{const o=CABINET_OFFICES.find(x=>x.post===post);return o?o.href:null;};
+// "Other" keeps a Minister assignable to something not on the list; the retired
+// titles below still resolve so an existing assignment is not silently lost.
+const DEPARTMENTS=[...CABINET_OFFICES.map(o=>o.post),"Other",
+  "Minister of Home Affairs","Minister of Foreign Affairs","Minister of Defence",
+  "Minister of Finance","Minister of Health","Attorney-General"];
 
 function DeptForm({gov,members,onAction,notify,setBusy}){
   const posts=gov.cabinet||{};
@@ -1372,7 +1393,7 @@ function App(){
 
     <div className="phase">
       <div className="w">
-        <Tag t="blue">Constitution 2024</Tag>
+        <Tag t="blue">Constitution 2026</Tag>
         <p>The official record of the Government of Wilden. <a href="index.html">Other national networks</a>.</p>
       </div>
     </div>

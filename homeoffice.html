@@ -447,6 +447,20 @@ function IdCard({card,face}){
   </div>;
 }
 
+/* ── the bearer's likeness ────────────────────────────────────────────────────
+   Resolved the one way the whole estate resolves it: a custom profile picture if
+   the account has one, otherwise the Minecraft face of the account's `mcName`
+   override, and only then the bare username. A document record carries neither
+   the override nor the picture, so the likeness must always be looked up from
+   the account — reading it off a passport or a card silently loses both.       */
+function faceFor(username,accountsByName,pfps){
+  const u=lc(username);
+  const rec=(pfps||{})[u];
+  if(rec&&rec.img) return rec.img;
+  const a=(accountsByName||{})[u];
+  return mcFaceUrl((a&&(a.mcName||a.username))||username);
+}
+
 /* ══════════ IDENTITY CARDS — reproduced exactly as each nation prints them ════
    A terminal that redraws another nation's card in its own house style is
    showing a description, not a document. These are direct ports of the issuing
@@ -749,7 +763,7 @@ function BkCrest({file,size=104,opacity=1}){
   return <img src={file} alt="" draggable={false} onError={()=>setOk(false)}
     style={{width:size,height:size,objectFit:"contain",opacity,pointerEvents:"none",userSelect:"none"}}/>;
 }
-function PassportBook({passport:p,nationKey,visas,onClose}){
+function PassportBook({passport:p,nationKey,visas,face,onClose}){
   const nat=ppNationOf(nationKey);
   const t=ppTypeOf(nat,p.type);
   const [flip,setFlip]=useState(0);
@@ -827,7 +841,7 @@ function PassportBook({passport:p,nationKey,visas,onClose}){
         <div style={{width:"27%",flexShrink:0}}>
           <div style={{width:"100%",aspectRatio:"3.4/4.4",border:"1px solid #b0a481",borderRadius:2,overflow:"hidden",
             background:"linear-gradient(160deg,#d9cfb2,#c6ba9a)",boxShadow:"inset 0 0 8px rgba(90,70,40,.3)"}}>
-            <img src={mcFaceUrl(p.mcName||p.username)} alt="" draggable={false}
+            <img src={face||mcFaceUrl(p.username)} alt="" draggable={false}
               style={{width:"100%",height:"100%",objectFit:"cover",imageRendering:"pixelated",filter:"grayscale(.25) contrast(1.05)"}}
               onError={e=>{e.currentTarget.style.visibility="hidden";}}/>
           </div>
@@ -1114,7 +1128,7 @@ function IssueId({accounts,citizens,ids,onAction,notify,setBusy}){
 }
 
 /* ══════════ the Constabulary ══════════ */
-function ConstabularyView({user,gov,home,accounts,citizens,ids,records,warrants,dossier,onAction,notify,setBusy,onBack}){
+function ConstabularyView({user,gov,home,accounts,citizens,ids,records,warrants,dossier,pfps,onAction,notify,setBusy,onBack}){
   const [sub,setSub]=useState("overview");
   const ag=agencyOf(home);
   const manage=canManage(user,gov,home);
@@ -1136,7 +1150,7 @@ function ConstabularyView({user,gov,home,accounts,citizens,ids,records,warrants,
     {sub==="overview"&&<Overview ag={ag} accounts={accounts}/>}
     {sub==="personnel"&&manage&&<Officers ag={ag} accounts={accounts} citizens={citizens}
       onAction={onAction} notify={notify} setBusy={setBusy}/>}
-    {sub==="mdt"&&<Lookup accounts={accounts} dossier={dossier}/>}
+    {sub==="mdt"&&<Lookup accounts={accounts} dossier={dossier} pfps={pfps}/>}
     {sub==="enforcement"&&<Enforcement user={user} accounts={accounts} records={records} warrants={warrants}
       onAction={onAction} notify={notify} setBusy={setBusy}/>}
   </div>;
@@ -1271,7 +1285,7 @@ function RecordTable({rows,foreign}){
       </tr>;})}</tbody>
   </table>;
 }
-function Lookup({accounts,dossier}){
+function Lookup({accounts,dossier,pfps}){
   const [q,setQ]=useState("");
   const [sel,setSel]=useState(null);
   const [book,setBook]=useState(null);
@@ -1280,6 +1294,9 @@ function Lookup({accounts,dossier}){
   const person=sel?acctByName(accounts,sel):null;
   const u=person?lc(person.username):"";
   const D=dossier||{};
+  // The bearer's likeness, resolved once from the account (never from a document).
+  const byName={};accounts.forEach(a=>{if(a&&a.username)byName[lc(a.username)]=a;});
+  const personFace=person?faceFor(person.username,byName,pfps):null;
   const citizenships=person?(D.citizenships||[]).filter(c=>lc(c.username)===u):[];
   const cards=person?(D.ids||[]).filter(c=>lc(c.username)===u)
     .sort((a,b)=>(a.nation===HOME_NATION?-1:0)-(b.nation===HOME_NATION?-1:0)):[];
@@ -1332,7 +1349,7 @@ function Lookup({accounts,dossier}){
           </div>
           {/* One renderer for every nation, so a card looks the same here as it
               does on the service that issued it. */}
-          <IdentityCard card={c} pfp={mcFaceUrl(person.mcName||person.username)}/>
+          <IdentityCard card={c} pfp={personFace}/>
         </div>)}
 
       <h2>Travel documents</h2>
@@ -1364,7 +1381,7 @@ function Lookup({accounts,dossier}){
         </>}
     </div>}
     {book&&<PassportBook passport={book.passport} nationKey={book.nationKey}
-      visas={book.visas} onClose={()=>setBook(null)}/>}
+      visas={book.visas} face={personFace} onClose={()=>setBook(null)}/>}
   </div>;
 }
 
@@ -1477,6 +1494,8 @@ function App(){
   },[raw]);
   const gov=useMemo(()=>raw["wx_gov"]||{},[raw]);
   const home=useMemo(()=>raw["wx_home"]||{},[raw]);
+  // Custom profile pictures, keyed by username — these outrank the Minecraft face.
+  const pfps=useMemo(()=>raw["mi_pfp"]||{},[raw]);
   const ids=useMemo(()=>raw["wx_state_ids"]||{},[raw]);
   const records=useMemo(()=>raw["wx_home_records"]||{},[raw]);
   const warrants=useMemo(()=>raw["wx_warrants"]||{},[raw]);
@@ -1599,7 +1618,7 @@ function App(){
             </Notif>)}
           {view==="constabulary"&&(enter
             ?<ConstabularyView user={user} gov={gov} home={home} accounts={accounts} citizens={citizens} ids={ids}
-              records={records} warrants={warrants} dossier={dossier} onAction={onAction} notify={notify} setBusy={setBusy}
+              records={records} warrants={warrants} dossier={dossier} pfps={pfps} onAction={onAction} notify={notify} setBusy={setBusy}
               onBack={()=>setView("home")}/>
             :<Notif title="You cannot use this service" kind="warn">
               <p style={{marginBottom:0}}>The Royal Wilden Constabulary's records are open to its warranted officers
