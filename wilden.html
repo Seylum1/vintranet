@@ -421,7 +421,7 @@ function Field({label,hint,children}){
 function Inset({children,blue}){return <div className={"inset"+(blue?" blue":"")}>{children}</div>;}
 function Stat({n,l}){return <div className="stat"><div className="n">{n}</div><div className="l">{l}</div></div>;}
 function Empty({children}){return <p className="hint" style={{marginTop:12}}>{children}</p>;}
-function Cite({children}){return <span className="tag grey" title="Constitution of Wilden">{children}</span>;}
+function Cite(){return null;}  /* Constitutional citations removed — kept as a no-op so existing <Cite> usages render nothing. */
 function Person({account,size=40,office}){
   if(!account) return <span className="vacant">Vacant</span>;
   const n=account.mcName||account.username;

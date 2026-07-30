@@ -737,7 +737,7 @@ function VisasTab({relations,visas,user,gov,onAction,notify,setBusy,foreignPassp
       <p style={{marginBottom:0}}>Sign in with your shared account to apply — your applications and
         their outcomes then appear here automatically.</p>
     </Notif>}
-    {user&&(!exempt||exempt.kind==="voa")&&<VisaApply user={user} visas={visas} onAction={onAction} notify={notify} setBusy={setBusy}/>}
+    {user&&(!exempt||exempt.kind==="voa")&&<VisaApply user={user} visas={visas} onAction={onAction} notify={notify} setBusy={setBusy} foreignPassports={foreignPassports}/>}
     {user&&<>
       <h2>Your applications</h2>
       {mine.length===0?<p className="hint">No applications on file for @{user.username}.</p>
@@ -757,15 +757,18 @@ function VisasTab({relations,visas,user,gov,onAction,notify,setBusy,foreignPassp
     {manage&&<VisaQueue visas={visas} onAction={onAction} notify={notify} setBusy={setBusy}/>}
   </div>;
 }
-function VisaApply({user,visas,onAction,notify,setBusy}){
-  const [nationality,setNationality]=useState("");
-  const [other,setOther]=useState("");
+function VisaApply({user,visas,onAction,notify,setBusy,foreignPassports}){
+  // Citizenship is read from the nations whose passports the applicant holds, not chosen.
+  const NAT_LABEL={lech:"Empire of Lech",vindex:"Republic of Vindex Nation",wilden:"Wilden"};
+  const myCitizenships=user?Object.keys(foreignPassports||{})
+    .filter(nation=>nation!=="wilden"&&ownActivePassports(foreignPassports[nation],user).length>0)
+    .map(nation=>NAT_LABEL[nation]||nation):[];
   const [type,setType]=useState("tourist");
   const [purpose,setPurpose]=useState("");
   const [duration,setDuration]=useState("");
   const [saving,setSaving]=useState(false);
   const [done,setDone]=useState(null);
-  const effNat=nationality==="__other"?other.trim():nationality;
+  const effNat=myCitizenships.join(", ");
   if(done)return <Notif title="Application submitted" kind="ok">
     <p>Reference <b>{done}</b>. It appears under "Your applications" below and updates there automatically.</p>
     <Btn small kind="sec" onClick={()=>{setDone(null);setPurpose("");setDuration("");}}>Submit another</Btn>
@@ -774,20 +777,14 @@ function VisaApply({user,visas,onAction,notify,setBusy}){
     <h2 style={{marginTop:0}}>Apply for a visa</h2>
     <p className="hint">Applying as <b>{user.displayName||user.username}</b> (@{user.username}).</p>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:"0 16px"}}>
-      <Field label="Nationality" hint="The passport you would travel on.">
-        <select value={nationality} onChange={e=>setNationality(e.target.value)}>
-          <option value="">— Select —</option>
-          <option value="Empire of Lech">Empire of Lech</option>
-          <option value="Republic of Vindex Nation">Republic of Vindex Nation</option>
-          <option value="__other">Other / not listed</option>
-        </select>
-        {nationality==="__other"&&<input style={{marginTop:6}} value={other} onChange={e=>setOther(e.target.value)} placeholder="Country of citizenship"/>}
+      <Field label="Citizenship" hint="Taken from the passports on your account.">
+        <div className={myCitizenships.length?"":"hint"} style={{border:"1px solid var(--grey3)",padding:"8px 11px",margin:0}}>{myCitizenships.length?myCitizenships.join(" · "):"None on record"}</div>
       </Field>
       <Field label="Visa type"><select value={type} onChange={e=>setType(e.target.value)}>{WX_VISA_TYPES.map(t=><option key={t.v} value={t.v}>{t.l}</option>)}</select></Field>
     </div>
     <Field label="Purpose of visit"><textarea rows={3} value={purpose} onChange={e=>setPurpose(e.target.value)}/></Field>
     <Field label="Intended duration" hint="For example: 30 days, permanent."><input value={duration} onChange={e=>setDuration(e.target.value)}/></Field>
-    <Btn disabled={!effNat||!purpose.trim()||saving} onClick={async()=>{
+    <Btn disabled={!purpose.trim()||saving} onClick={async()=>{
       setSaving(true);setBusy("Submitting");
       const ref="WDN-"+new Date().getFullYear()+"-"+Math.random().toString().slice(2,8);
       const res=await onAction("visaSubmit",{name:user.displayName||user.username,username:user.username,

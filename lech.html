@@ -284,7 +284,7 @@ footer{
 
 <div class="wrapper">
 
-  <a class="back-vin" href="vintranet.html" aria-label="Back to the Vintranet">
+  <a class="back-vin" href="index.html" aria-label="Back to the Vintranet">
     <span class="arr" aria-hidden="true">&larr;</span> Vintranet
   </a>
 
@@ -817,7 +817,46 @@ function loadForeignPolicy(){
   }
   // Every record id this citizen has ever voted under, across both chambers and
   // the former-members roll — the same resolution the chamber itself uses.
-  function bkMyIds(bk){
+  // ── Passport rendering — the identical front cover of the MFA passport, and a
+// small helper for its type and validity. The cover art matches mfa.html exactly
+// (same livery, same crest); clicking it takes the bearer to Foreign Affairs.
+var PP_TYPES=[
+  {v:"standard",  l:"Standard Passport",   short:"ORDINARY",   cover:"#12244e", coverDeep:"#0a1530", trim:"#c9a84c"},
+  {v:"diplomatic",l:"Diplomatic Passport", short:"DIPLOMATIC", cover:"#48111a", coverDeep:"#2a080e", trim:"#e0c060"},
+  {v:"official",  l:"Official / Service",  short:"OFFICIAL",   cover:"#123322", coverDeep:"#081d12", trim:"#c9a84c"},
+  {v:"imperial",  l:"Imperial Household",  short:"IMPERIAL",   cover:"#131316", coverDeep:"#08080a", trim:"#e8cc70"}
+];
+function ppType(v){for(var i=0;i<PP_TYPES.length;i++){if(PP_TYPES[i].v===v)return PP_TYPES[i];}return PP_TYPES[0];}
+function ppValidity(p){
+  if(!p)return {label:"—",color:"#8a93a8"};
+  if(p.status==="revoked")return {label:"Revoked",color:"#cc2222"};
+  if(!p.expires)return {label:"Valid",color:"#2a9a4a"};
+  var end=new Date(p.expires+"T23:59:59").getTime();
+  if(isNaN(end))return {label:"Valid",color:"#2a9a4a"};
+  return end<Date.now()?{label:"Expired",color:"#cc2222"}:{label:"Valid",color:"#2a9a4a"};
+}
+function ppCoverHTML(p){
+  var t=ppType(p.type), tr=t.trim, W=232, H=Math.round(W*1.4), fs=function(f){return (W*f).toFixed(1)+"px";};
+  var s='<div style="position:relative;width:'+W+'px;height:'+H+'px;border-radius:9px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.5);'
+    +'background:radial-gradient(ellipse 130% 70% at 50% -10%, rgba(255,255,255,.10), transparent 55%), repeating-linear-gradient(48deg, rgba(0,0,0,.10) 0 2px, transparent 2px 5px), linear-gradient(165deg, '+t.cover+' 0%, '+t.coverDeep+' 100%);">';
+  s+='<div style="position:absolute;inset:8px;border:2px solid '+tr+'cc;border-radius:7px;pointer-events:none;"></div>';
+  s+='<div style="position:absolute;inset:13px;border:1px solid '+tr+'66;border-radius:4px;pointer-events:none;"></div>';
+  s+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;">';
+  s+='<div style="margin-top:13%;text-align:center;">'
+    +'<div style="font-family:\'Cinzel\',serif;font-size:'+fs(.052)+';font-weight:700;letter-spacing:0.3em;color:'+tr+';text-shadow:0 1px 1px rgba(0,0,0,.6);">EMPIRE OF LECH</div>'
+    +'<div style="font-family:monospace;font-size:'+fs(.024)+';letter-spacing:0.4em;color:'+tr+';opacity:.75;margin-top:5px;">✦ GOTT MIT UNS ✦</div>'
+    +'</div>';
+  s+='<div style="flex:1;display:flex;align-items:center;"><img src="'+COA_B64+'" alt="" style="width:'+Math.round(W*0.44)+'px;height:auto;object-fit:contain;"/></div>';
+  s+='<div style="margin-bottom:12%;text-align:center;">'
+    +'<div style="font-family:\'Cinzel\',serif;font-size:'+fs(.062)+';font-weight:700;letter-spacing:0.38em;color:'+tr+';text-shadow:0 1px 1px rgba(0,0,0,.6);">PASSPORT</div>'
+    +'<div style="font-family:\'Cinzel\',serif;font-size:'+fs(.032)+';letter-spacing:0.32em;color:'+tr+';opacity:.8;margin-top:3px;">REISEPASS</div>'
+    +(p.type&&p.type!=="standard"?'<div style="margin-top:8px;padding-top:6px;border-top:1px solid '+tr+'55;"><span style="font-family:\'Cinzel\',serif;font-size:'+fs(.034)+';letter-spacing:0.28em;color:'+tr+';">'+t.short+'</span></div>':'')
+    +'<svg width="24" height="17" viewBox="0 0 26 18" style="margin-top:8px;opacity:.8;"><rect x="1" y="1" width="24" height="16" rx="3" stroke="'+tr+'" stroke-width="1.4" fill="none"/><circle cx="13" cy="9" r="4.2" stroke="'+tr+'" stroke-width="1.4" fill="none"/><path d="M4 9 h4 M18 9 h4" stroke="'+tr+'" stroke-width="1.4"/></svg>'
+    +'</div>';
+  s+='</div></div>';
+  return s;
+}
+function bkMyIds(bk){
     var ids={};
     ["bk_members","bk_bh","bk_former_members"].forEach(function(key){
       var roster=bk[key]||{};
@@ -1187,7 +1226,7 @@ function loadForeignPolicy(){
     var personnel=raw.mow_personnel||{}, honours=raw.ih_honours||{}, ships=raw.imc_ships||{},
         ports=raw.imc_ports||{}, shipReqs=raw.imc_ship_reqs||{}, cases=raw.ij_cases||{},
         businesses=raw.mof_businesses||{}, debts=raw.mof_debts||{},
-        citizens=raw.mfa_citizens||{}, visas=raw.mfa_visas||{};
+        citizens=raw.mfa_citizens||{}, visas=raw.mfa_visas||{}, passports=raw.mfa_passports||{};
 
     var myService=Object.keys(personnel).map(function(k){return personnel[k];}).filter(function(p){return p&&eqMe(p.name);});
     var milMedals=[];myService.forEach(function(p){(p.medals||[]).forEach(function(m){milMedals.push({code:m.type,citation:m.citation,awarded:m.awarded,kind:"Military"});});});
@@ -1235,6 +1274,8 @@ function loadForeignPolicy(){
     var myDebts=Object.keys(debts).map(function(k){return debts[k];}).filter(function(d){return d&&hasMe(d.counterparty);});
     var myCitizenship=Object.keys(citizens).map(function(k){return citizens[k];}).filter(function(c){return c&&eqUser(c.username);});
     var myVisas=Object.keys(visas).map(function(k){return visas[k];}).filter(function(v){return v&&eqUser(v.username);});
+    // Only Lech passports live in mfa_passports; show the bearer's own.
+    var myPassports=Object.keys(passports).map(function(k){return passports[k];}).filter(function(p){return p&&eqUser(p.username);});
 
     var cl=CL(acc.clearance||0);
     var html="";
@@ -1327,6 +1368,34 @@ function loadForeignPolicy(){
       html+='<div class="ch-empty">No provincial identity card on file. An ID is issued automatically once a state of residency is assigned by the Ministry of the Interior.</div>';
     }
     html+='</div>';
+
+    // ── Passport (Ministry of Foreign Affairs) ──
+    if(myPassports.length){
+      html+='<div class="ch-panel full" style="--pa:#C9A84C">';
+      html+='<div class="ch-title">📕 Passport <a class="ch-link" href="mfa.html" style="margin-left:auto;">Foreign Affairs →</a></div>';
+      if(myPassports.length===1){
+        var p0=myPassports[0], v0=ppValidity(p0);
+        html+='<a href="mfa.html" title="Open your passport at the Ministry of Foreign Affairs" style="display:block;text-decoration:none;text-align:center;padding:0.4rem 0 0.2rem;">'
+          +'<div style="display:flex;justify-content:center;">'+ppCoverHTML(p0)+'</div>'
+          +'<div class="ch-k" style="margin-top:9px;">'+esc(ppType(p0.type).l)+' · '+esc(p0.number||"—")+' · <span style="color:'+v0.color+';">'+v0.label+'</span></div>'
+          +'<div style="font-family:\'Cinzel\',serif;font-size:0.55rem;color:#C9A84C;letter-spacing:0.22em;margin-top:5px;">OPEN AT THE MINISTRY OF FOREIGN AFFAIRS →</div>'
+          +'</a>';
+      } else {
+        html+='<div style="display:flex;flex-direction:column;gap:8px;padding-top:0.3rem;">';
+        myPassports.forEach(function(p){
+          var t=ppType(p.type), vv=ppValidity(p);
+          html+='<a href="mfa.html" title="Open at the Ministry of Foreign Affairs" style="display:flex;align-items:center;gap:12px;text-decoration:none;border:1px solid #C9A84C33;border-left:3px solid '+t.trim+';border-radius:0 4px 4px 0;padding:0.7rem 0.9rem;background:rgba(201,168,76,0.04);">'
+            +'<div style="flex:1;min-width:0;">'
+            +'<div style="font-family:\'Cinzel\',serif;font-size:0.9rem;color:#e8d8c8;">'+esc(t.l)+'</div>'
+            +'<div style="font-family:monospace;font-size:0.72rem;color:#9a8a70;letter-spacing:0.06em;margin-top:2px;">'+esc(p.number||"—")+'</div>'
+            +'</div>'
+            +'<span style="font-family:monospace;font-size:0.68rem;color:'+vv.color+';border:1px solid '+vv.color+'55;border-radius:2px;padding:2px 8px;white-space:nowrap;">'+vv.label.toUpperCase()+'</span>'
+            +'</a>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    }
 
     // ── Military Service ──
     html+='<div class="ch-panel" style="--pa:#6a8a4a">';

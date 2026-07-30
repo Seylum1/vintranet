@@ -643,7 +643,7 @@ function VisaTab({countries,visas,user,myCitizenship,onAction,notify,foreignPass
       <span className="mono" style={{fontSize:9,color:V.goldL,marginRight:8}}>VISA ON ARRIVAL</span>
       Your {exempt.nation} passport <span className="mono" style={{color:V.goldL}}>{exempt.passport.number}</span> is granted a visa on arrival at the border — an advance application is optional.
     </div>}
-    {(!exempt||exempt.kind==="voa")&&<VisaForm countries={countries} onSubmit={d=>onAction("submitVisa",d)} notify={notify} user={user} myCitizenship={myCitizenship}/>}
+    {(!exempt||exempt.kind==="voa")&&<VisaForm countries={countries} onSubmit={d=>onAction("submitVisa",d)} notify={notify} user={user} myCitizenship={myCitizenship} foreignPassports={foreignPassports}/>}
     <div style={{marginTop:"2rem"}}>
       <STitle>My Applications</STitle>
       {!user&&<div style={{fontSize:13,color:V.textDD,fontStyle:"italic"}}>Sign in and your applications appear here automatically.</div>}
@@ -675,37 +675,42 @@ function VisaTab({countries,visas,user,myCitizenship,onAction,notify,foreignPass
     </div>
   </div>;
 }
-function VisaForm({countries,onSubmit,notify,user,myCitizenship}){
+function VisaForm({countries,onSubmit,notify,user,myCitizenship,foreignPassports}){
+  // Citizenship is read from the nations whose passports the applicant holds, not chosen.
+  const NAT_LABEL={lech:"Empire of Lech",vindex:"Republic of Vindex Nation",wilden:"Wilden"};
+  const myCitizenships=user?Object.keys(foreignPassports||{})
+    .filter(nation=>nation!=="vindex"&&ownActivePassports(foreignPassports[nation],user).length>0)
+    .map(nation=>NAT_LABEL[nation]||nation):[];
   const [name,setName]=useState(user?((myCitizenship&&myCitizenship.name)||user.displayName||""):"");
-  const [username,setUsername]=useState(user?user.username:"");
-  const [nationality,setNationality]=useState(user&&myCitizenship?(myCitizenship.nationality||""):"");
-  const [otherCountry,setOtherCountry]=useState("");const [type,setType]=useState("tourist");const [purpose,setPurpose]=useState("");const [duration,setDuration]=useState("");const [notes,setNotes]=useState("");const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);
-  const recognised=Object.values(countries||{}).filter(c=>(c.relation==="full"||c.relation==="limited")&&(c.entityType==="state"||c.entityType==="territory")).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  const effNat=nationality==="__other"?otherCountry:nationality;
+  const [type,setType]=useState("tourist");const [purpose,setPurpose]=useState("");const [duration,setDuration]=useState("");const [notes,setNotes]=useState("");const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);
+  const username=user?user.username:"";
+  const effNat=myCitizenships.join(", ");
   if(done)return <div style={{maxWidth:480}}>
     <div style={{background:V.panel,border:"1px solid #2a5a2a",borderLeft:`4px solid ${V.greenL}`,borderRadius:"0 3px 3px 0",padding:"1.25rem",marginBottom:"1rem"}}>
       <div className="pf" style={{fontWeight:700,fontSize:14,color:V.greenL,marginBottom:6}}>Application Submitted</div>
       <div style={{fontSize:14,color:V.textD,lineHeight:1.7,marginBottom:"0.5rem"}}>Your reference number is:</div>
       <div className="mono" style={{fontSize:14,color:V.goldL,marginBottom:"0.75rem"}}>{done}</div>
       <div style={{fontSize:13,color:V.textD,fontStyle:"italic"}}>Your application appears under My Applications below, and updates there automatically.</div></div>
-    <Btn variant="ghost" onClick={()=>{setDone(null);setName("");setUsername("");setNationality("");setOtherCountry("");setPurpose("");setDuration("");setNotes("");}}>Submit Another</Btn></div>;
+    <Btn variant="ghost" onClick={()=>{setDone(null);setName(user?((myCitizenship&&myCitizenship.name)||user.displayName||""):"");setPurpose("");setDuration("");setNotes("");}}>Submit Another</Btn></div>;
   return <div style={{maxWidth:560}}>
     <div style={{fontSize:14,color:V.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:user?"0.75rem":"1.1rem"}}>Complete all required fields. A reference number will be issued upon submission.</div>
-    {user&&<div style={{background:V.bg2,border:`1px solid ${V.gold}44`,borderLeft:`3px solid ${V.gold}`,borderRadius:"0 2px 2px 0",padding:"7px 12px",marginBottom:"1.1rem",fontSize:12,color:V.textD}}><span className="mono" style={{fontSize:9,color:V.goldL,marginRight:8}}>PRE-FILLED</span>This application is linked to your account (@{user.username}).</div>}
+    {user&&<div style={{background:V.bg2,border:`1px solid ${V.gold}44`,borderLeft:`3px solid ${V.gold}`,borderRadius:"0 2px 2px 0",padding:"7px 12px",marginBottom:"1.1rem",fontSize:12,color:V.textD}}><span className="mono" style={{fontSize:9,color:V.goldL,marginRight:8}}>PRE-FILLED</span>Your username and citizenship are taken from your account (@{user.username}) and cannot be changed here.</div>}
     <div style={{display:"flex",flexDirection:"column",gap:"0.85rem"}}>
-      <div><FL>Full name *</FL><Inp value={name} onChange={setName} placeholder="Applicant's name"/></div>
       <div style={{display:"flex",gap:"0.75rem",flexWrap:"wrap"}}>
-        <div style={{flex:1,minWidth:180}}><FL>Country of citizenship *</FL>
-          {recognised.length>0?<Sel value={nationality} onChange={setNationality} options={[{v:"",l:"— Select —"},...recognised.map(c=>({v:c.name,l:c.name})),{v:"__other",l:"Other / Not Listed"}]}/>:<Inp value={nationality} onChange={setNationality} placeholder="Country"/>}
-          {nationality==="__other"&&<div style={{marginTop:4}}><Inp value={otherCountry} onChange={setOtherCountry} placeholder="Enter country name"/></div>}</div>
+        <div style={{flex:2,minWidth:180}}><FL>Full name *</FL><Inp value={name} onChange={setName} placeholder="Applicant's name"/></div>
+        <div style={{flex:1,minWidth:140}}><FL>Username</FL><div className="mono" style={{background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"9px 12px",color:V.text,fontSize:13}}>{username||"—"}</div></div>
+      </div>
+      <div style={{display:"flex",gap:"0.75rem",flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:180}}><FL>Citizenship</FL>
+          <div style={{background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"9px 12px",color:myCitizenships.length?V.text:V.textDD,fontSize:13,fontStyle:myCitizenships.length?"normal":"italic"}}>{myCitizenships.length?myCitizenships.join(" · "):"None on record"}</div></div>
         <div style={{flex:1,minWidth:160}}><FL>Visa type *</FL><Sel value={type} onChange={setType} options={VISA_TYPES.map(t=>({v:t.v,l:t.l}))}/></div>
       </div>
       <div><FL>Purpose of visit *</FL><TA value={purpose} onChange={setPurpose} rows={3} placeholder="Describe the purpose of your application…"/></div>
       <div><FL>Intended duration</FL><Inp value={duration} onChange={setDuration} placeholder="e.g. 30 days, Permanent"/></div>
       <div><FL>Additional information</FL><TA value={notes} onChange={setNotes} rows={2} placeholder="Anything else relevant…"/></div>
-      <Btn variant="gold" disabled={!name.trim()||!purpose.trim()||!effNat.trim()||saving} onClick={async()=>{
+      <Btn variant="gold" disabled={!name.trim()||!username||!purpose.trim()||saving} onClick={async()=>{
         setSaving(true);const ref="VDX-"+new Date().getFullYear()+"-"+Math.random().toString().slice(2,8).toUpperCase();
-        const ok=await onSubmit({name:name.trim(),username:username.trim(),nationality:effNat.trim(),type,purpose:purpose.trim(),duration:duration.trim(),notes:notes.trim(),ref,status:"pending",submitted:Date.now()});
+        const ok=await onSubmit({name:name.trim(),username,nationality:effNat,type,purpose:purpose.trim(),duration:duration.trim(),notes:notes.trim(),ref,status:"pending",submitted:Date.now()});
         setSaving(false);if(ok!==false)setDone(ref);else notify("Submission failed.",V.redL);
       }}>{saving?"Submitting…":"Submit Application"}</Btn>
     </div>

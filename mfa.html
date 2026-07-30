@@ -683,7 +683,7 @@ function VisaTab({countries,onSubmitVisa,notify,visas,user,myCitizenship,foreign
       <span className="mono" style={{fontSize:9,color:C.gold,marginRight:8}}>VISA ON ARRIVAL</span>
       Your {exempt.nation} passport <span className="mono" style={{color:C.gold}}>{exempt.passport.number}</span> is granted a visa on arrival at the Imperial border — an advance application is optional.
     </div>}
-    {(!exempt||exempt.kind==="voa")&&<VisaForm countries={countries} onSubmit={onSubmitVisa} notify={notify} user={user} myCitizenship={myCitizenship}/>}
+    {(!exempt||exempt.kind==="voa")&&<VisaForm countries={countries} onSubmit={onSubmitVisa} notify={notify} user={user} myCitizenship={myCitizenship} foreignPassports={foreignPassports}/>}
     <div style={{marginTop:"2rem"}}>
       <STitle>My Applications</STitle>
       {!user&&<div style={{fontSize:13,color:C.textDD,fontStyle:"italic"}}>Sign in and your applications appear here automatically.</div>}
@@ -716,13 +716,17 @@ function VisaTab({countries,onSubmitVisa,notify,visas,user,myCitizenship,foreign
   </div>;
 }
 
-function VisaForm({countries,onSubmit,notify,user,myCitizenship}){
+function VisaForm({countries,onSubmit,notify,user,myCitizenship,foreignPassports}){
+  // Citizenship is not chosen — it is read from the nations whose passports the
+  // applicant holds (a person travels as a national of their passport's state).
+  const NAT_LABEL={lech:"Empire of Lech",vindex:"Republic of Vindex Nation",wilden:"Wilden"};
+  const myCitizenships=user?Object.keys(foreignPassports||{})
+    .filter(nation=>nation!=="lech"&&ownActivePassports(foreignPassports[nation],user).length>0)
+    .map(nation=>NAT_LABEL[nation]||nation):[];
   const [name,setName]=useState(user?(myCitizenship&&myCitizenship.name)||user.displayName||"":"");
-  const [username,setUsername]=useState(user?user.username:"");
-  const [nationality,setNationality]=useState(user&&myCitizenship?(myCitizenship.nationality||""):"");
-  const [otherCountry,setOtherCountry]=useState("");const [type,setType]=useState("tourist");const [purpose,setPurpose]=useState("");const [duration,setDuration]=useState("");const [notes,setNotes]=useState("");const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);
-  const recognisedCountries=Object.values(countries||{}).filter(c=>(c.relation==="full"||c.relation==="limited")&&(c.entityType==="state"||c.entityType==="territory")).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
-  const effectiveNat=nationality==="__other"?otherCountry:nationality;
+  const [type,setType]=useState("tourist");const [purpose,setPurpose]=useState("");const [duration,setDuration]=useState("");const [notes,setNotes]=useState("");const [saving,setSaving]=useState(false);const [done,setDone]=useState(null);
+  const username=user?user.username:"";
+  const effectiveNat=myCitizenships.join(", ");
   if(done) return <div style={{maxWidth:480}}>
     <div style={{background:C.s1,border:"1px solid #2a5a2a",borderLeft:"4px solid #2a9a4a",borderRadius:"0 3px 3px 0",padding:"1.25rem",marginBottom:"1rem"}}>
       <div style={{fontFamily:"'Cinzel',serif",fontSize:14,color:"#5ad47a",marginBottom:6}}>Application Submitted</div>
@@ -730,33 +734,29 @@ function VisaForm({countries,onSubmit,notify,user,myCitizenship}){
       <div className="mono" style={{fontSize:14,color:C.gold,marginBottom:"0.75rem"}}>{done}</div>
       <div style={{fontSize:13,color:C.textD,fontStyle:"italic"}}>Your application appears under My Applications below, and updates there automatically.</div>
     </div>
-    <Btn variant="ghost" onClick={()=>{setDone(null);setName("");setUsername("");setNationality("");setOtherCountry("");setPurpose("");setDuration("");setNotes("");}}>Submit Another Application</Btn>
+    <Btn variant="ghost" onClick={()=>{setDone(null);setName(user?(myCitizenship&&myCitizenship.name)||user.displayName||"":"");setPurpose("");setDuration("");setNotes("");}}>Submit Another Application</Btn>
   </div>;
   return <div style={{maxWidth:560}}>
     <STitle>Visa Application Form</STitle>
     <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:user?"0.75rem":"1.25rem"}}>Complete all required fields. A reference number will be issued upon submission.</div>
     {user&&<div style={{background:C.s2,border:`1px solid ${C.accentD}44`,borderLeft:`3px solid ${C.accent}`,borderRadius:"0 2px 2px 0",padding:"7px 12px",marginBottom:"1.25rem",fontSize:12,color:C.textD}}>
-      <span className="mono" style={{fontSize:9,color:C.accent,marginRight:8}}>PRE-FILLED</span>Details filled from your account ({user.username}). Edit any field if you're applying on someone else's behalf.</div>}
+      <span className="mono" style={{fontSize:9,color:C.accent,marginRight:8}}>PRE-FILLED</span>Your username and citizenship are taken from your account ({user.username}) and cannot be changed here.</div>}
     <div style={{display:"flex",flexDirection:"column",gap:"0.85rem"}}>
       <div style={{display:"flex",gap:"0.75rem",flexWrap:"wrap"}}>
         <div style={{flex:2,minWidth:180}}><FL>FULL NAME (IN-GAME) *</FL><Inp value={name} onChange={setName} placeholder="Your in-game name"/></div>
-        <div style={{flex:1,minWidth:140}}><FL>USERNAME *</FL><Inp value={username} onChange={setUsername} placeholder="Username"/></div>
+        <div style={{flex:1,minWidth:140}}><FL>USERNAME</FL><div className="mono" style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"9px 12px",color:C.text,fontSize:13}}>{username||"—"}</div></div>
       </div>
       <div style={{display:"flex",gap:"0.75rem",flexWrap:"wrap"}}>
         <div style={{flex:1,minWidth:180}}>
-          <FL>HOME COUNTRY *</FL>
-          {recognisedCountries.length>0
-            ?<DD value={nationality} onChange={setNationality} options={[{v:"",l:"-- Select your country --"},...recognisedCountries.map(c=>({v:c.name,l:c.name})),{v:"__other",l:"Other / Not Listed"}]}/>
-            :<Inp value={nationality} onChange={setNationality} placeholder="Country of citizenship"/>
-          }
-          {nationality==="__other"&&<Inp value={otherCountry} onChange={setOtherCountry} placeholder="Enter country name" style={{marginTop:4}}/>}
+          <FL>CITIZENSHIP</FL>
+          <div style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"9px 12px",color:myCitizenships.length?C.text:C.textDD,fontSize:13,fontStyle:myCitizenships.length?"normal":"italic"}}>{myCitizenships.length?myCitizenships.join(" · "):"None on record"}</div>
         </div>
         <div style={{flex:1,minWidth:160}}><FL>VISA TYPE *</FL><DD value={type} onChange={setType} options={VISA_TYPES.map(t=>({v:t.v,l:t.l}))}/></div>
       </div>
       <div><FL>PURPOSE OF VISIT *</FL><TA value={purpose} onChange={setPurpose} placeholder="Describe the purpose of your application..." rows={3}/></div>
       <div><FL>INTENDED DURATION</FL><Inp value={duration} onChange={setDuration} placeholder="e.g. 30 days, Permanent"/></div>
       <div><FL>ADDITIONAL INFORMATION (optional)</FL><TA value={notes} onChange={setNotes} placeholder="Any other relevant information..." rows={2}/></div>
-      <Btn full disabled={!name.trim()||!username.trim()||!purpose.trim()||!effectiveNat.trim()||saving} onClick={async()=>{setSaving(true);const ref="VISA-"+new Date().getFullYear()+"-"+Math.random().toString().slice(2,8).toUpperCase();const ok=await onSubmit({name:name.trim(),username:username.trim(),nationality:effectiveNat.trim(),type,purpose:purpose.trim(),duration:duration.trim(),notes:notes.trim(),ref,status:"pending",submitted:Date.now()});setSaving(false);if(ok)setDone(ref);else notify("Submission failed.",C.redL);}}>{saving?"Submitting...":"Submit Application"}</Btn>
+      <Btn full disabled={!name.trim()||!username||!purpose.trim()||saving} onClick={async()=>{setSaving(true);const ref="VISA-"+new Date().getFullYear()+"-"+Math.random().toString().slice(2,8).toUpperCase();const ok=await onSubmit({name:name.trim(),username,nationality:effectiveNat,type,purpose:purpose.trim(),duration:duration.trim(),notes:notes.trim(),ref,status:"pending",submitted:Date.now()});setSaving(false);if(ok)setDone(ref);else notify("Submission failed.",C.redL);}}>{saving?"Submitting...":"Submit Application"}</Btn>
     </div>
   </div>;
 }

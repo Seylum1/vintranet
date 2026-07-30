@@ -148,10 +148,13 @@ const statusOf=s=>STATUSES[s]||STATUSES.docket;
 
 // TEA Sec. 9 — the line of succession to the presidency, in order.
 const SUCCESSION=["Vice President","Speaker of the House","Secretary of State","Secretary of Treasury",
-  "Secretary of Defense","Attorney General","Secretary of Interior","Secretary of Commerce",
-  "Secretary of Health and Human Services"];
-const CABINET_POSTS=["Secretary of State","Secretary of Treasury","Secretary of Defense","Attorney General",
-  "Secretary of Interior","Secretary of Commerce","Secretary of Health and Human Services","Other"];
+  "Secretary of Defense","Attorney General","Secretary of Health and Human Services"];
+// Cabinet Secretaries head the executive departments and stand in the line of
+// succession; cabinet-level officials serve at that rank but head no department
+// and are not in the line of succession.
+const SECRETARY_POSTS=["Secretary of State","Secretary of Treasury","Secretary of Defense","Attorney General","Secretary of Health and Human Services"];
+const CABINET_LEVEL_POSTS=["Chief of Staff","Director of the Vindex Intelligence Agency","National Security Advisor"];
+const CABINET_POSTS=[...SECRETARY_POSTS,...CABINET_LEVEL_POSTS,"Other"];
 
 /* ── standing ────────────────────────────────────────────────────────────────
    Vinish office is a field on the shared account, granted from the Empire's
@@ -238,7 +241,9 @@ function TA({value,onChange,placeholder,rows=5}){
 function Sel({value,onChange,options,style:ex={}}){
   return <select value={value} onChange={e=>onChange(e.target.value)}
     style={{width:"100%",background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"8px 12px",color:V.text,fontSize:14,outline:"none",fontFamily:"'Crimson Text',serif",...ex}}>
-    {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+    {options.map(o=>o.group
+      ? <optgroup key={o.l} label={o.l}>{o.group.map(g=><option key={g.v} value={g.v}>{g.l}</option>)}</optgroup>
+      : <option key={o.v} value={o.v}>{o.l}</option>)}
   </select>;
 }
 function FL({children}){return <div className="mono" style={{fontSize:9,color:V.textD,letterSpacing:"0.18em",marginBottom:4,textTransform:"uppercase"}}>{children}</div>;}
@@ -259,8 +264,9 @@ function Seal({file,size=64,style:ex={}}){
 const OFFICE_SEAL={president:"povn.png",vice_president:"vpovn.png"};
 const DEPT_SEAL={"Secretary of State":"statedept.png","Secretary of Treasury":"treasury.png",
   "Secretary of Defense":"defense.png","Attorney General":"justice.png",
-  "Secretary of Interior":"interior.png","Secretary of Commerce":"commerce.png",
-  "Secretary of Health and Human Services":"hhs.png"};
+  "Secretary of Health and Human Services":"hhs.png",
+  "Chief of Staff":"whitehouse.png","National Security Advisor":"natsec.png",
+  "Director of the Vindex Intelligence Agency":"via.png"};
 function PoweredBy(){
   const [ok,setOk]=useState(true);
   return <div style={{display:"inline-flex",alignItems:"center",gap:9}}>
@@ -838,7 +844,7 @@ function PanelTab({user,bills,gov,orders,cabinet,accounts,citizens,onAction,noti
   const SECS=[
     ...(canIntroduce(user)?[["introduce","Introduce a Bill"]]:[]),
     ...(canAppoint(user)?[["appointments","Appointments"]]:[]),
-    ...(isPresident(user)||isEmperor(user)?[["orders","Executive Orders"],["cabinet","Cabinet Posts"]]:[]),
+    ...(isPresident(user)||isEmperor(user)?[["orders","Executive Orders"]]:[]),
   ];
   return <div className="fadeIn">
     <div style={{background:V.bg2,border:`1px solid ${V.gold}44`,borderLeft:`3px solid ${V.gold}`,
@@ -857,14 +863,14 @@ function PanelTab({user,bills,gov,orders,cabinet,accounts,citizens,onAction,noti
       ))}
     </div>
     {sec==="introduce"&&<IntroduceForm bills={bills} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
-    {sec==="appointments"&&<AppointmentsForm user={user} accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+    {sec==="appointments"&&<AppointmentsForm user={user} gov={gov} accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
     {sec==="orders"&&<OrdersForm orders={orders} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
-    {sec==="cabinet"&&<CabinetForm gov={gov} cabinet={cabinet} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+    {/* Cabinet posts are now assigned inline in Appointments, below each Cabinet appointee. */}
   </div>;
 }
 
 /* ── APPOINTMENTS — where every Vinish office is conferred ────────────────── */
-function AppointmentsForm({user,accounts,citizens,onAction,notify,setProcessing}){
+function AppointmentsForm({user,gov,accounts,citizens,onAction,notify,setProcessing}){
   const [search,setSearch]=useState("");
   const isCit=a=>citizens.has(String(a.username||"").toLowerCase());
   const grants=grantableBy(user);
@@ -921,13 +927,13 @@ function AppointmentsForm({user,accounts,citizens,onAction,notify,setProcessing}
     {list.length===0
       ?<Empty>{q?"No account by that name.":"No citizens to appoint yet. Grant citizenship in the Department of State first."}</Empty>
       :<div style={{display:"flex",flexDirection:"column",gap:5}}>
-        {list.map(a=><AppointRow key={a.username} account={a} user={user} grants={grants} citizen={isCit(a)}
+        {list.map(a=><AppointRow key={a.username} account={a} user={user} gov={gov} grants={grants} citizen={isCit(a)}
           onAction={onAction} notify={notify} setProcessing={setProcessing}/>)}
       </div>}
   </div>;
 }
 
-function AppointRow({account,user,grants,citizen,onAction,notify,setProcessing}){
+function AppointRow({account,user,gov,grants,citizen,onAction,notify,setProcessing}){
   const cur=String(account.vxRole||"");
   const o=officeOf(cur);
   const isMe=String(account.username||"").toLowerCase()===String(user.username||"").toLowerCase();
@@ -961,6 +967,20 @@ function AppointRow({account,user,grants,citizen,onAction,notify,setProcessing})
         }}/>
         {!citizen&&<div style={{fontSize:11,color:V.textDD,fontStyle:"italic",marginTop:4,lineHeight:1.5}}>
           Grant citizenship in the Department of State to appoint them to office.
+        </div>}
+        {cur==="cabinet"&&<div style={{marginTop:7,borderTop:`1px solid ${V.line}`,paddingTop:7}}>
+          <FL>Cabinet post</FL>
+          <Sel value={(gov&&gov.cabinet&&gov.cabinet[String(account.username||"").toLowerCase()])||""}
+            options={[{v:"",l:"— No post assigned —"},
+              {l:"Cabinet Secretaries",group:SECRETARY_POSTS.map(p=>({v:p,l:p}))},
+              {l:"Cabinet-level",group:CABINET_LEVEL_POSTS.map(p=>({v:p,l:p}))},
+              {v:"Other",l:"Other"}]}
+            onChange={async v=>{
+              setProcessing("Assigning post…");
+              const res=await onAction("setCabinetPost",{username:String(account.username||"").toLowerCase(),post:v});
+              setProcessing(null);
+              notify(res.ok?((account.displayName||account.username)+(v?" — "+v:" — post cleared")):res.error,res.ok?V.goldL:V.redL);
+            }}/>
         </div>}
       </div>
       :<div style={{minWidth:250,display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8}}>

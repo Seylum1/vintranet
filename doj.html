@@ -63,12 +63,10 @@ async function slogin(username,password){try{const r=await fetch(API+"/api/login
    and seal, exactly as the Empire's provincial cards do. San Amaro is an island
    State; Viridis is the great metropolitan State. */
 const STATES={
-  viridis:{name:"Viridis",code:"VI",c1:"#14532d",c2:"#08251a",foil:"#d7ecb4",ink:"#eff8ea",gp:[16,10],motto:"EXCELSIOR",kind:"Metropolitan State",
-    seal:'<rect x="5" y="15" width="3.4" height="13"/><rect x="9.5" y="10" width="3.4" height="18"/><rect x="14.2" y="5.5" width="3.6" height="22.5"/><rect x="19.2" y="12" width="3.4" height="16"/><rect x="23.7" y="17" width="3" height="11"/><path d="M16 5.5 V2.5"/><path d="M3.5 28 H29"/>'},
-  san_amaro:{name:"San Amaro",code:"SA",c1:"#0d6d68",c2:"#04373b",foil:"#ffdca4",ink:"#effaf6",gp:[11,7],motto:"SUN · SEA · AND · LIBERTY",kind:"Island State",
-    seal:'<circle cx="16" cy="7.5" r="3"/><path d="M16 7.5 l-4 -1.5 M16 7.5 l4 -1.5 M16 7.5 l-1.5 -4 M16 7.5 l1.5 -4"/><path d="M16 13 C13.5 17 13.5 23 15 28"/><path d="M16 13 C11 11 8 13 6 16 M16 13 C11.5 14 9.5 17 8.5 21 M16 13 C21 11 24 13 26 16 M16 13 C20.5 14 22.5 17 23.5 21"/><path d="M3.5 27 q3 -2 6 0 t6 0 t6 0 t6 0"/>'},
+  viridis:{name:"Viridis",code:"VI",c1:"#14532d",c2:"#08251a",foil:"#d7ecb4",ink:"#eff8ea",gp:[16,10],motto:"EXCELSIOR",img:"viridis.png"},
+  san_amaro:{name:"San Amaro",code:"SA",c1:"#0d6d68",c2:"#04373b",foil:"#ffdca4",ink:"#effaf6",gp:[11,7],motto:"SUN · SEA · AND · LIBERTY",img:"sanamaro.png"},
 };
-const STATE_OPTS=Object.keys(STATES).map(k=>({v:k,l:STATES[k].name+" — "+STATES[k].kind}));
+const STATE_OPTS=Object.keys(STATES).map(k=>({v:k,l:STATES[k].name}));
 function idHash(s){s=lc(s);let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;}return h>>>0;}
 function genIdNo(username,code){const six=(idHash("vid:"+username)%900000)+100000;return "VDX-"+code+"-"+six;}
 function guillochePath(cx,cy,rad,petals,depth,copies){var d="",TAU=Math.PI*2,S=100;for(var j=0;j<copies;j++){var ph=j*TAU/(petals*copies);for(var i=0;i<=S;i++){var t=i/S*TAU,rr=rad*(1-depth+depth*Math.cos(petals*t)),a=t+ph;d+=(i?"L":"M")+(cx+rr*Math.cos(a)).toFixed(1)+" "+(cy+rr*Math.sin(a)).toFixed(1)+" ";}}return d;}
@@ -81,27 +79,27 @@ function idCardHTML(rec,pfp){
   var pad=function(s,n){return (s+"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<").slice(0,n);};
   var mrz1=e(pad("IDVDX"+S.code+"<<"+name.toUpperCase().replace(/[^A-Z]+/g,"<"),36));
   var mrz2=e(pad(idno.replace(/[^A-Z0-9]/g,"")+"<VDX<"+String(rec.expires||"").replace(/[^0-9]/g,"").slice(0,8),36));
-  var ticks="";for(var k=0;k<48;k++){var ta=k/48*Math.PI*2;ticks+='<line x1="'+(32+25.5*Math.cos(ta)).toFixed(1)+'" y1="'+(32+25.5*Math.sin(ta)).toFixed(1)+'" x2="'+(32+23.5*Math.cos(ta)).toFixed(1)+'" y2="'+(32+23.5*Math.sin(ta)).toFixed(1)+'"/>';}
-  var seal='<g transform="translate(16 16)" stroke-width="1.3">'+S.seal+'</g>';
-  var sealSVG='<svg width="60" height="60" viewBox="0 0 64 64" fill="none" stroke="'+S.foil+'" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"><circle cx="32" cy="32" r="30" fill="'+S.foil+'" fill-opacity="0.05" stroke="none"/><circle cx="32" cy="32" r="30"/><circle cx="32" cy="32" r="27.5"/><circle cx="32" cy="32" r="23"/>'+ticks+seal+'</svg>';
   var field=function(k,v,big){return '<div style="min-width:0;"><div style="font-size:7.5px;letter-spacing:.16em;color:'+S.foil+';opacity:.85;margin-bottom:1px;">'+k+'</div><div style="font-family:\''+(big?'Playfair Display':'Crimson Text')+'\',Georgia,serif;font-size:'+(big?'15px':'12.5px')+';font-weight:'+(big?700:600)+';line-height:1.12;color:'+S.ink+';overflow-wrap:anywhere;">'+e(v)+'</div></div>';};
   var guil='<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;" fill="none" stroke="'+S.foil+'" stroke-width="0.4" opacity="0.26"><path d="'+guillochePath(206,124,120,S.gp[0],0.13,16)+'"/><path d="'+guillochePath(206,124,76,S.gp[1],0.2,13)+'"/><circle cx="206" cy="124" r="122"/><circle cx="206" cy="124" r="72"/></svg>';
-  var starWM='<svg viewBox="0 0 100 100" style="position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);height:150px;width:auto;opacity:.05;pointer-events:none;" fill="'+S.ink+'"><path d="M50 6 L61 39 L96 39 L68 60 L79 94 L50 73 L21 94 L32 60 L4 39 L39 39 Z"/></svg>';
+  // The State seal, from the uploaded artwork: a faint central watermark and the
+  // header emblem. Hidden gracefully if the file is missing.
+  var sealWM='<img src="'+S.img+'" alt="" style="position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);height:150px;width:auto;opacity:.06;pointer-events:none;" onerror="this.style.display=\'none\';"/>';
+  var emblem='<img src="'+S.img+'" alt="" style="height:34px;width:34px;object-fit:contain;flex:none;" onerror="this.style.visibility=\'hidden\';"/>';
   return ''+
    '<div style="width:100%;max-width:400px;margin:0 auto;font-family:Georgia,serif;">'+
      '<div style="position:relative;border-radius:11px;overflow:hidden;color:'+S.ink+';background:linear-gradient(150deg,'+S.c1+' 0%,'+S.c2+' 100%);box-shadow:0 12px 34px rgba(0,0,0,.5);border:1px solid '+S.foil+'44;">'+
-       guil+starWM+
+       guil+sealWM+
        '<div style="position:absolute;inset:5px;border:1px solid '+S.foil+'55;border-radius:8px;pointer-events:none;"></div>'+
        '<div style="position:absolute;inset:8px;border:1px solid '+S.foil+'22;border-radius:6px;pointer-events:none;"></div>'+
        '<div style="position:relative;padding:11px 15px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid '+S.foil+'44;">'+
-         '<div style="flex:none;">'+sealSVG.replace('width="60" height="60"','width="34" height="34"')+'</div>'+
+         emblem+
          '<div style="flex:1;min-width:0;">'+
            '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:12.5px;font-weight:900;letter-spacing:.11em;color:'+S.foil+';">REPUBLIC OF VINDEX NATION</div>'+
-           '<div style="font-size:7.5px;letter-spacing:.24em;opacity:.78;">STATE IDENTITY CARD · DEPARTMENT OF JUSTICE</div>'+
+           '<div style="font-size:7.5px;letter-spacing:.24em;opacity:.78;">STATE IDENTITY CARD</div>'+
          '</div>'+
          '<div style="text-align:right;">'+
            '<div style="font-family:\'Playfair Display\',Georgia,serif;font-size:11px;font-weight:700;letter-spacing:.1em;color:'+S.foil+';">'+e(S.name.toUpperCase())+'</div>'+
-           '<div style="font-size:7px;letter-spacing:.26em;opacity:.7;">'+e(S.kind.toUpperCase())+'</div>'+
+           '<div style="font-size:7px;letter-spacing:.26em;opacity:.7;">STATE OF '+e(S.name.toUpperCase())+'</div>'+
          '</div>'+
        '</div>'+
        '<div style="position:relative;padding:12px 15px 4px;display:flex;gap:12px;align-items:flex-start;">'+
@@ -173,7 +171,7 @@ function AuthModal({onClose,onAuth}){
   return <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:9000,background:"rgba(5,10,22,.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
     <div style={{maxWidth:400,width:"100%",background:V.panel,border:`1px solid ${V.line}`,borderTop:`3px solid ${V.gold}`,borderRadius:"0 0 5px 5px",padding:"1.7rem"}} onKeyDown={e=>{if(e.key==="Enter")go();}}>
       <div style={{textAlign:"center",marginBottom:"1.2rem"}}>
-        <Seal glyph="§" size={54} style={{margin:"0 auto 10px"}}/>
+        <Seal file="justice.png" glyph="§" size={54} style={{margin:"0 auto 10px"}}/>
         <div className="mono" style={{fontSize:9,letterSpacing:"0.4em",color:V.gold}}>DEPARTMENT OF JUSTICE</div>
         <div className="pf" style={{fontWeight:900,fontSize:20,color:V.text,marginTop:4}}>Sign In</div>
         <div style={{fontSize:13,color:V.textD,fontStyle:"italic",marginTop:6,lineHeight:1.6}}>Use your Republic of Vindex Nation account. This portal is for authorized personnel.</div>
@@ -191,10 +189,10 @@ function AuthModal({onClose,onAuth}){
 
 /* ── agencies and permissions ──────────────────────────────────────────────── */
 const AGENCIES=[
-  {id:"vpd",name:"Viridis Police Department",short:"VPD",logo:"VPD.png",glyph:"★",accent:"#3a78c2",
+  {id:"vpd",name:"Viridis Police Department",short:"VPD",logo:"vpd.png",glyph:"★",accent:"#3a78c2",
    headTitle:"Chief of Police",deputyTitle:"Deputy Chief",maxDeputies:2,
    blurb:"Municipal and State policing across Viridis — patrol, investigation and public order."},
-  {id:"fbi",name:"Federal Bureau of Investigation",short:"FBI",logo:"FBI.png",glyph:"⚖",accent:"#4a6aa0",
+  {id:"fbi",name:"Federal Bureau of Investigation",short:"FBI",logo:"fbi.png",glyph:"⚖",accent:"#4a6aa0",
    headTitle:"Director",deputyTitle:"Deputy Director",maxDeputies:2,
    blurb:"The Republic's principal federal law-enforcement and domestic-intelligence service."},
   {id:"vss",name:"Vindex Secret Service",short:"VSS",logo:"vss.png",glyph:"✦",accent:"#8a6a34",
@@ -218,19 +216,46 @@ function ranksOf(agency,id){
 const isEmperor=u=>!!u&&u.role==="emperor";
 const vxRole=u=>String((u&&u.vxRole)||"");
 const isPresident=u=>vxRole(u)==="president";
+// The Attorney General is a Cabinet Secretary, appointed on vindex.html — the one
+// whose Cabinet post is "Attorney General". This portal only reads that; it never
+// appoints one of its own.
+const AG_POST="Attorney General";
+function attorneyGeneral(gov){const posts=(gov&&gov.cabinet)||{};const k=Object.keys(posts).find(u=>posts[u]===AG_POST);return k?lc(k):"";}
+function isAG(u,gov){return !!u&&!!attorneyGeneral(gov)&&lc(u.username)===attorneyGeneral(gov);}
+function dojAdmin(u,gov){return isEmperor(u)||isPresident(u)||isAG(u,gov);}
 function agencyOf(doj,id){return (doj&&doj.agencies&&doj.agencies[id])||{};}
-function isAG(u,doj){return !!u&&!!(doj&&doj.attorneyGeneral)&&lc(u.username)===lc(doj.attorneyGeneral);}
-function canSetAG(u){return isEmperor(u)||isPresident(u);}
-function dojAdmin(u,doj){return isEmperor(u)||isPresident(u)||isAG(u,doj);}
 function isHead(u,ag){return !!u&&lc(ag.head||"")===lc(u.username);}
 function isDeputy(u,ag){return !!u&&(ag.deputies||[]).some(d=>lc(d)===lc(u.username));}
 function rosterRankOf(ag,u){return (ag.roster||{})[lc(u&&u.username)]||null;}
 function inAgency(u,ag){return isHead(u,ag)||isDeputy(u,ag)||!!rosterRankOf(ag,u);}
-function canEnterAgency(u,doj,id){return dojAdmin(u,doj)||inAgency(u,agencyOf(doj,id));}
-function canManageAgency(u,doj,id){return isEmperor(u)||isAG(u,doj)||isHead(u,agencyOf(doj,id));}
+function canEnterAgency(admin,u,doj,id){return admin||inAgency(u,agencyOf(doj,id));}
+function canManageAgency(admin,u,doj,id){return admin||isHead(u,agencyOf(doj,id));}
 
 /* ── person lookup helpers ─────────────────────────────────────────────────── */
 function acctByName(accounts,uname){return accounts.find(a=>lc(a.username)===lc(uname))||null;}
+// Search-as-you-type person picker. When `citizens` (a Set) is given, only
+// citizens of the Republic are offered — DOJ appointments are citizens-only.
+// `exclude` hides usernames already chosen. When a `value` is set it shows the
+// chosen person with a "Change" affordance instead of the search field.
+function PersonPicker({accounts,citizens,value,onPick,placeholder,exclude}){
+  const [q,setQ]=useState("");
+  const sel=value?acctByName(accounts,value):null;
+  if(sel)return <div style={{display:"flex",alignItems:"center",gap:10,background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,padding:"0.4rem 0.7rem"}}>
+    <Person account={sel} size={30}/><span style={{flex:1}}/>
+    <Btn small variant="ghost" onClick={()=>{onPick("");setQ("");}}>Change</Btn>
+  </div>;
+  const ex=new Set((exclude||[]).map(lc));
+  const results=q.trim()?accounts.filter(a=>(!citizens||citizens.has(lc(a.username)))&&!ex.has(lc(a.username))&&(lc(a.username).includes(lc(q))||lc(a.displayName||"").includes(lc(q)))).slice(0,6):[];
+  return <div>
+    <Inp value={q} onChange={setQ} placeholder={placeholder||"Search by username…"}/>
+    {q.trim()&&<div style={{marginTop:5,display:"flex",flexDirection:"column",gap:3}}>
+      {results.length===0?<div style={{fontSize:12,color:V.textDD,fontStyle:"italic",padding:"3px 2px"}}>{citizens?"No matching citizen.":"No match."}</div>
+        :results.map(a=><div key={a.username} onClick={()=>{onPick(a.username);setQ("");}} style={{cursor:"pointer",background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,padding:"0.35rem 0.6rem",display:"flex",alignItems:"center",gap:8}}>
+          <Person account={a} size={28}/>
+        </div>)}
+    </div>}
+  </div>;
+}
 function titleFor(doj,agencyId,username){
   const ag=agencyOf(doj,agencyId);const cfg=AG_BY_ID[agencyId];
   if(lc(ag.head||"")===lc(username))return cfg.headTitle;
@@ -241,12 +266,12 @@ function titleFor(doj,agencyId,username){
 }
 
 /* ── home ──────────────────────────────────────────────────────────────────── */
-function Home({user,doj,accounts,onOpen}){
-  const agName=doj.attorneyGeneral?acctByName(accounts,doj.attorneyGeneral):null;
-  const canAG=dojAdmin(user,doj);
+function Home({user,doj,gov,accounts,admin,onOpen}){
+  const agName=attorneyGeneral(gov)?acctByName(accounts,attorneyGeneral(gov)):null;
+  const canAG=admin;
   return <div className="fadeIn">
     <div style={{textAlign:"center",padding:"0.5rem 0 0.4rem"}}>
-      <Seal glyph="§" size={92} style={{margin:"0 auto 0.8rem"}}/>
+      <Seal file="justice.png" glyph="§" size={92} style={{margin:"0 auto 0.8rem"}}/>
       <div className="pf" style={{fontWeight:900,fontSize:26,color:V.text,letterSpacing:"0.03em"}}>Department of Justice</div>
       <div style={{fontSize:15,color:V.textD,fontStyle:"italic",marginTop:7,maxWidth:620,margin:"7px auto 0",lineHeight:1.75}}>
         The Republic's identity documents and its law-enforcement agencies, under the Attorney General.
@@ -259,18 +284,18 @@ function Home({user,doj,accounts,onOpen}){
     <STitle>Office of the Attorney General</STitle>
     <div onClick={()=>{if(canAG)onOpen({t:"ag"});}}
       style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${V.gold}`,borderRadius:"0 4px 4px 0",padding:"1rem 1.2rem",display:"flex",alignItems:"center",gap:14,cursor:canAG?"pointer":"default",opacity:canAG?1:0.6,maxWidth:560}}>
-      <Seal glyph="§" size={44}/>
+      <Seal file="justice.png" glyph="§" size={44}/>
       <div style={{flex:1}}>
         <div className="pf" style={{fontWeight:700,fontSize:15,color:V.text}}>Identity cards & appointments {canAG?"↗":""}</div>
         <div style={{fontSize:13,color:V.textD,lineHeight:1.6,marginTop:2}}>Issue State identity cards, and appoint the heads of the Republic's agencies.</div>
       </div>
-      {!canAG&&<Tag color={V.textDD}>AG ONLY</Tag>}
+      {!canAG&&<Tag color={V.textDD}>ATTORNEY GENERAL ONLY</Tag>}
     </div>
 
     <STitle>Agencies</STitle>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12}}>
       {AGENCIES.map(a=>{
-        const enter=!a.wip&&canEnterAgency(user,doj,a.id);
+        const enter=!a.wip&&canEnterAgency(admin,user,doj,a.id);
         const ag=agencyOf(doj,a.id);
         const head=ag.head?acctByName(accounts,ag.head):null;
         return <div key={a.id} onClick={()=>{if(enter)onOpen({t:"agency",id:a.id});}}
@@ -305,39 +330,29 @@ function AGPanel({user,doj,accounts,citizens,ids,onAction,notify,setProcessing})
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:2,flexWrap:"wrap"}}>
       <STitle color={V.goldL}>Office of the Attorney General</STitle>
     </div>
-    {canSetAG(user)&&<AGDesignate user={user} doj={doj} accounts={accounts} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
     <IssueID user={user} doj={doj} accounts={accounts} citizens={citizens} ids={ids} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
     <STitle color={V.goldL}>Agency Heads</STitle>
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
       {AGENCIES.filter(a=>!a.wip).map(a=>{
         const ag=agencyOf(doj,a.id);const head=ag.head?acctByName(accounts,ag.head):null;
-        return <HeadAppoint key={a.id} cfg={a} head={head} accounts={accounts} onAction={onAction} notify={notify} setProcessing={setProcessing}/>;
+        return <HeadAppoint key={a.id} cfg={a} head={head} accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>;
       })}
     </div>
   </div>;
 }
-function AGDesignate({user,doj,accounts,onAction,notify,setProcessing}){
-  const [u,setU]=useState(doj.attorneyGeneral||"");const [saving,setSaving]=useState(false);
-  const opts=[{v:"",l:"— No Attorney General —"},...accounts.map(a=>({v:a.username,l:(a.displayName?a.displayName+" ":"")+"@"+a.username}))];
-  return <div style={{background:V.bg2,border:`1px solid ${V.line}`,borderRadius:4,padding:"1.1rem",marginBottom:"1.1rem"}}>
-    <FL>Attorney General <span style={{textTransform:"none",letterSpacing:0,fontStyle:"italic",color:V.textDD}}>— designated by the President</span></FL>
-    <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{flex:1,minWidth:220}}><Sel value={u} onChange={setU} options={opts}/></div>
-      <Btn variant="gold" disabled={saving||lc(u)===lc(doj.attorneyGeneral||"")} onClick={async()=>{setSaving(true);setProcessing("Designating…");const res=await onAction("setAG",{username:u});setProcessing(null);setSaving(false);notify(res.ok?(u?"Attorney General designated.":"Office vacated."):res.error,res.ok?V.greenL:V.redL);}}>{saving?"Saving…":"Designate"}</Btn>
-    </div>
-  </div>;
-}
-function HeadAppoint({cfg,head,accounts,onAction,notify,setProcessing}){
-  const [u,setU]=useState(head?head.username:"");const [saving,setSaving]=useState(false);
-  const opts=[{v:"",l:"— Vacant —"},...accounts.map(a=>({v:a.username,l:(a.displayName?a.displayName+" ":"")+"@"+a.username}))];
+function HeadAppoint({cfg,head,accounts,citizens,onAction,notify,setProcessing}){
   return <div style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${cfg.accent}`,borderRadius:"0 3px 3px 0",padding:"0.8rem 1rem",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
     <Seal file={cfg.logo} glyph={cfg.glyph} color={cfg.accent} size={34}/>
     <div style={{flex:1,minWidth:150}}>
       <div className="pf" style={{fontWeight:700,fontSize:14,color:V.text}}>{cfg.name}</div>
       <div className="mono" style={{fontSize:9,color:V.textDD,letterSpacing:"0.12em"}}>{cfg.headTitle.toUpperCase()}</div>
     </div>
-    <div style={{flex:1,minWidth:200}}><Sel value={u} onChange={setU} options={opts}/></div>
-    <Btn small variant="gold" disabled={saving||lc(u)===lc(head?head.username:"")} onClick={async()=>{setSaving(true);setProcessing("Appointing…");const res=await onAction("setHead",{agency:cfg.id,username:u});setProcessing(null);setSaving(false);notify(res.ok?(u?(cfg.headTitle+" appointed."):(cfg.headTitle+" removed.")):res.error,res.ok?V.greenL:V.redL);}}>{saving?"…":"Appoint"}</Btn>
+    <div style={{flex:1,minWidth:220}}>
+      {head
+        ?<div style={{display:"flex",alignItems:"center",gap:10}}><Person account={head} size={30}/><span style={{flex:1}}/>
+          <ArmBtn small label="Remove" confirmLabel="Remove?" onConfirm={async()=>{setProcessing("Updating…");const res=await onAction("setHead",{agency:cfg.id,username:""});setProcessing(null);notify(res.ok?(cfg.headTitle+" removed."):res.error,res.ok?V.greenL:V.redL);}}/></div>
+        :<PersonPicker accounts={accounts} citizens={citizens} placeholder={"Search a citizen to appoint "+cfg.headTitle+"…"} onPick={async(u)=>{if(!u)return;setProcessing("Appointing…");const res=await onAction("setHead",{agency:cfg.id,username:u});setProcessing(null);notify(res.ok?(cfg.headTitle+" appointed."):res.error,res.ok?V.greenL:V.redL);}}/>}
+    </div>
   </div>;
 }
 function IssueID({user,doj,accounts,citizens,ids,onAction,notify,setProcessing}){
@@ -345,9 +360,6 @@ function IssueID({user,doj,accounts,citizens,ids,onAction,notify,setProcessing})
   const today=new Date().toISOString().slice(0,10);
   const plus5=new Date(Date.now()+5*365.25*86400000).toISOString().slice(0,10);
   const [issued,setIssued]=useState(today);const [expires,setExpires]=useState(plus5);
-  // Only citizens of the Republic carry a State identity card.
-  const citizenAccts=accounts.filter(a=>citizens.has(lc(a.username)));
-  const opts=[{v:"",l:"— Select a citizen —"},...citizenAccts.map(a=>({v:a.username,l:(a.displayName?a.displayName+" ":"")+"@"+a.username}))];
   const a=acctByName(accounts,acct);
   const existing=acct?ids[lc(acct)]:null;
   const preview=a?{username:a.username,name:a.displayName||a.username,state,number:genIdNo(a.username,STATES[state].code),issued,expires}:null;
@@ -355,8 +367,7 @@ function IssueID({user,doj,accounts,citizens,ids,onAction,notify,setProcessing})
     <FL>Issue a State identity card</FL>
     <div style={{display:"flex",gap:"1.2rem",flexWrap:"wrap",alignItems:"flex-start"}}>
       <div style={{flex:1,minWidth:250,display:"flex",flexDirection:"column",gap:"0.7rem"}}>
-        <div><FL>Bearer *</FL><Sel value={acct} onChange={setAcct} options={opts}/></div>
-        {citizenAccts.length===0&&<div style={{fontSize:12,color:V.textDD,fontStyle:"italic"}}>No citizens on the register yet — citizenship is recorded at the Department of State.</div>}
+        <div><FL>Bearer *</FL><PersonPicker accounts={accounts} citizens={citizens} value={acct} onPick={setAcct} placeholder="Search a citizen by username…"/></div>
         <div><FL>State *</FL><Sel value={state} onChange={setState} options={STATE_OPTS}/></div>
         <div style={{display:"flex",gap:"0.7rem",flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:130}}><FL>Date of issue</FL><Inp value={issued} onChange={setIssued} type="date"/></div>
@@ -380,10 +391,10 @@ function IssueID({user,doj,accounts,citizens,ids,onAction,notify,setProcessing})
 }
 
 /* ── an agency portal ──────────────────────────────────────────────────────── */
-function AgencyView({cfg,user,doj,accounts,citizens,ids,passports,records,warrants,onAction,notify,setProcessing,onBack}){
+function AgencyView({cfg,user,doj,admin,accounts,citizens,ids,passports,records,warrants,onAction,notify,setProcessing,onBack}){
   const [sub,setSub]=useState("command");
   const ag=agencyOf(doj,cfg.id);
-  const manage=canManageAgency(user,doj,cfg.id);
+  const manage=canManageAgency(admin,user,doj,cfg.id);
   const myWarrantsPending=Object.values(warrants||{}).filter(w=>w.agency===cfg.id&&w.status==="active").length;
   const SUBS=[["command","Command"],...(manage?[["personnel","Ranks & Appointments"]]:[]),["mdt","MDT"],["records","Enforcement"]];
   return <div className="fadeIn">
@@ -440,8 +451,6 @@ function AgencyPersonnel({cfg,ag,accounts,citizens,onAction,notify,setProcessing
   const deputies=ag.deputies||[];
   const [newRank,setNewRank]=useState("");
   const [appU,setAppU]=useState("");const [appR,setAppR]=useState(ranks[0]?ranks[0].id:"");
-  const [depU,setDepU]=useState("");
-  const rosterOpts=[{v:"",l:"— Select an account —"},...accounts.map(a=>({v:a.username,l:(a.displayName?a.displayName+" ":"")+"@"+a.username}))];
   const rankOpts=ranks.map(r=>({v:r.id,l:r.name}));
   const saveRanks=async(next)=>{const res=await onAction("setRanks",{agency:cfg.id,ranks:next});notify(res.ok?"Rank hierarchy updated.":res.error,res.ok?V.greenL:V.redL);};
   return <div>
@@ -451,10 +460,7 @@ function AgencyPersonnel({cfg,ag,accounts,citizens,onAction,notify,setProcessing
         <Person account={a||{username:d}} size={32}/><span style={{flex:1}}/>
         <ArmBtn small label="Remove" confirmLabel="Remove?" onConfirm={async()=>{setProcessing("Updating…");const res=await onAction("setDeputies",{agency:cfg.id,deputies:deputies.filter(x=>lc(x)!==lc(d))});setProcessing(null);notify(res.ok?"Deputy removed.":res.error,res.ok?V.greenL:V.redL);}}/>
       </div>;})}
-      {deputies.length<cfg.maxDeputies&&<div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-        <div style={{flex:1,minWidth:200}}><Sel value={depU} onChange={setDepU} options={rosterOpts}/></div>
-        <Btn small variant="gold" disabled={!depU||deputies.some(x=>lc(x)===lc(depU))} onClick={async()=>{setProcessing("Appointing…");const res=await onAction("setDeputies",{agency:cfg.id,deputies:[...deputies,depU]});setProcessing(null);setDepU("");notify(res.ok?(cfg.deputyTitle+" appointed."):res.error,res.ok?V.greenL:V.redL);}}>Appoint deputy</Btn>
-      </div>}
+      {deputies.length<cfg.maxDeputies&&<PersonPicker accounts={accounts} citizens={citizens} exclude={deputies} placeholder={"Search a citizen to appoint "+cfg.deputyTitle+"…"} onPick={async(u)=>{if(!u)return;setProcessing("Appointing…");const res=await onAction("setDeputies",{agency:cfg.id,deputies:[...deputies,u]});setProcessing(null);notify(res.ok?(cfg.deputyTitle+" appointed."):res.error,res.ok?V.greenL:V.redL);}}/>}
     </div>
 
     <STitle color={cfg.accent}>Rank hierarchy</STitle>
@@ -474,7 +480,7 @@ function AgencyPersonnel({cfg,ag,accounts,citizens,onAction,notify,setProcessing
 
     <STitle color={cfg.accent}>Appoint to a rank</STitle>
     <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
-      <div style={{flex:2,minWidth:200}}><FL>Account</FL><Sel value={appU} onChange={setAppU} options={rosterOpts}/></div>
+      <div style={{flex:2,minWidth:220}}><FL>Citizen</FL><PersonPicker accounts={accounts} citizens={citizens} value={appU} onPick={setAppU} placeholder="Search a citizen by username…"/></div>
       <div style={{flex:1,minWidth:150}}><FL>Rank</FL><Sel value={appR} onChange={setAppR} options={rankOpts}/></div>
       <Btn variant="gold" disabled={!appU||!appR} onClick={async()=>{setProcessing("Appointing…");const roster={...(ag.roster||{})};roster[lc(appU)]=appR;const res=await onAction("setRoster",{agency:cfg.id,roster});setProcessing(null);setAppU("");notify(res.ok?"Appointed to "+(ranks.find(r=>r.id===appR)||{}).name+".":res.error,res.ok?V.greenL:V.redL);}}>Appoint</Btn>
     </div>
@@ -566,7 +572,6 @@ function RecordRow({r,accounts}){
 function Enforcement({cfg,user,accounts,records,warrants,onAction,notify,setProcessing}){
   const [type,setType]=useState("arrest");
   const [subj,setSubj]=useState("");const [charge,setCharge]=useState("");const [location,setLocation]=useState("");const [fine,setFine]=useState("");const [notes,setNotes]=useState("");const [warrant,setWarrant]=useState(false);const [saving,setSaving]=useState(false);
-  const opts=[{v:"",l:"— Select subject —"},...accounts.map(a=>({v:a.username,l:(a.displayName?a.displayName+" ":"")+"@"+a.username}))];
   const agRecords=Object.values(records||{}).filter(r=>r.agency===cfg.id).sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,40);
   const agWarrants=Object.values(warrants||{}).filter(w=>w.agency===cfg.id&&w.status==="active").sort((a,b)=>(b.at||0)-(a.at||0));
   return <div>
@@ -577,7 +582,7 @@ function Enforcement({cfg,user,accounts,records,warrants,onAction,notify,setProc
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:"0.7rem"}}>
         <div style={{display:"flex",gap:"0.7rem",flexWrap:"wrap"}}>
-          <div style={{flex:2,minWidth:200}}><FL>Subject *</FL><Sel value={subj} onChange={setSubj} options={opts}/></div>
+          <div style={{flex:2,minWidth:200}}><FL>Subject *</FL><PersonPicker accounts={accounts} value={subj} onPick={setSubj} placeholder="Search any person — citizen or foreign national…"/></div>
           <div style={{flex:2,minWidth:180}}><FL>{type==="ticket"?"Offence":type==="warning"?"Reason":"Charge"} *</FL><Inp value={charge} onChange={setCharge} placeholder={type==="ticket"?"e.g. Speeding":type==="arrest"?"e.g. Grand larceny":"e.g. Trespass — warned"}/></div>
         </div>
         <div style={{display:"flex",gap:"0.7rem",flexWrap:"wrap"}}>
@@ -637,6 +642,8 @@ function App(){
 
   const accounts=useMemo(()=>{const out=[];const seen={};const take=v=>{if(v&&v.username&&!seen[lc(v.username)]){seen[lc(v.username)]=1;out.push(v);}};Object.values(raw["mi_accounts"]||{}).forEach(take);Object.entries(raw).forEach(([k,v])=>{if(k.startsWith("vx_acc_"))take(v);});return out.sort((x,y)=>((x.displayName||x.username)||"").localeCompare((y.displayName||y.username)||""));},[raw]);
   const doj=useMemo(()=>raw["vx_doj"]||{},[raw]);
+  // The Attorney General is read from the Republic's Cabinet (set on vindex.html).
+  const gov=useMemo(()=>raw["vx_gov"]||{},[raw]);
   const ids=useMemo(()=>raw["vx_state_ids"]||{},[raw]);
   const records=useMemo(()=>raw["vx_doj_records"]||{},[raw]);
   const warrants=useMemo(()=>raw["vx_warrants"]||{},[raw]);
@@ -650,7 +657,6 @@ function App(){
     const putDoj=async(next)=>{const res=await sset("vx_doj",next);if(res.ok)setRaw(r=>({...r,vx_doj:next}));return res;};
     const cur=doj;const agencies={...(cur.agencies||{})};
     const ag=(id)=>({...(agencies[id]||{})});
-    if(type==="setAG")return await putDoj({...cur,attorneyGeneral:p.username});
     if(type==="setHead"){agencies[p.agency]={...ag(p.agency),head:p.username};return await putDoj({...cur,agencies});}
     if(type==="setDeputies"){agencies[p.agency]={...ag(p.agency),deputies:p.deputies};return await putDoj({...cur,agencies});}
     if(type==="setRanks"){agencies[p.agency]={...ag(p.agency),ranks:p.ranks};return await putDoj({...cur,agencies});}
@@ -663,7 +669,8 @@ function App(){
     return {ok:false,error:"Unknown action."};
   },[doj,ids,records,warrants]);
 
-  const office=user?(isAG(user,doj)?"Attorney General":isEmperor(user)?"System Administrator":isPresident(user)?"President":"Signed in"):"";
+  const admin=dojAdmin(user,gov);
+  const office=user?(isAG(user,gov)?"Attorney General":isEmperor(user)?"System Administrator":isPresident(user)?"President":"Signed in"):"";
   const cfg=view.t==="agency"?AG_BY_ID[view.id]:null;
 
   return <div style={{minHeight:"100vh",background:`radial-gradient(ellipse 80% 45% at 50% -5%, #1c3a6e55, transparent 60%), ${V.bg}`}}>
@@ -672,7 +679,7 @@ function App(){
     <div style={{background:`linear-gradient(180deg,${V.navy},${V.bg2})`,borderBottom:`2px solid ${V.gold}55`}}>
       <div style={{maxWidth:1080,margin:"0 auto",padding:"0.8rem 1.2rem",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
         <a href="vindex.html" className="mono" style={{fontSize:8,letterSpacing:"0.1em",color:V.textD,textDecoration:"none",border:`1px solid ${V.line}`,borderRadius:2,padding:"4px 9px",flexShrink:0}}>← GOV PORTAL</a>
-        <Seal glyph="§" size={44}/>
+        <Seal file="justice.png" glyph="§" size={44}/>
         <div style={{flex:1,minWidth:170,cursor:"pointer"}} onClick={()=>setView({t:"home"})}>
           <div className="pf" style={{fontWeight:900,fontSize:16.5,letterSpacing:"0.04em",color:V.text,lineHeight:1.1}}>Department of Justice</div>
           <div className="mono" style={{fontSize:8,letterSpacing:"0.28em",color:V.gold,marginTop:2}}>REPUBLIC OF VINDEX NATION · FIAT JUSTITIA</div>
@@ -681,7 +688,7 @@ function App(){
           <McFace account={user} size={30}/>
           <div style={{textAlign:"right",lineHeight:1.25}}>
             <div className="pf" style={{fontWeight:700,fontSize:12.5,color:V.text}}>{user.displayName||user.username}</div>
-            <div className="mono" style={{fontSize:7.5,letterSpacing:"0.14em",color:dojAdmin(user,doj)?V.goldL:V.textDD}}>{office.toUpperCase()}</div>
+            <div className="mono" style={{fontSize:7.5,letterSpacing:"0.14em",color:admin?V.goldL:V.textDD}}>{office.toUpperCase()}</div>
           </div>
           <Btn small variant="ghost" onClick={()=>{forgetSession();setUser(null);setView({t:"home"});notify("Signed out.",V.textD);}}>Sign out</Btn>
         </div>:<Btn small variant="gold" onClick={()=>setAuthOpen(true)}>Sign In</Btn>}
@@ -691,7 +698,7 @@ function App(){
     <div style={{maxWidth:1080,margin:"0 auto",padding:"1.6rem 1.2rem 3rem"}}>
       {!loaded&&<div style={{textAlign:"center",padding:"4rem"}}><div className="mono" style={{fontSize:10,letterSpacing:"0.35em",color:V.textDD,animation:"pulse 1.4s infinite"}}>LOADING…</div></div>}
       {loaded&&!user&&<div style={{textAlign:"center",padding:"3rem 1rem"}}>
-        <Seal glyph="§" size={80} style={{margin:"0 auto 1rem"}}/>
+        <Seal file="justice.png" glyph="§" size={80} style={{margin:"0 auto 1rem"}}/>
         <div className="pf" style={{fontWeight:900,fontSize:22,color:V.text}}>Department of Justice</div>
         <div style={{fontSize:14,color:V.textD,fontStyle:"italic",margin:"0.6rem auto 1.2rem",maxWidth:440,lineHeight:1.7}}>This is a restricted portal for the Attorney General and the Republic's law-enforcement agencies. Sign in with your Vindex account.</div>
         <Btn variant="gold" onClick={()=>setAuthOpen(true)}>Sign In</Btn>
