@@ -119,6 +119,43 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
 .nation.soon .name{color:var(--ink2);}
 .nation.soon .divider{background:var(--rule);}
 
+/* ── the heads of state & government ─────────────────────────────────────────
+   The concert of nations, closing the sheet: each column under a rule tinted in
+   its nation's colour, the head of state in a ringed medallion, the head of
+   government beneath. Filled live from the shared register; hidden if the
+   register cannot be reached. */
+.leaders{margin:2.6rem 0 0;}
+.ld-head{text-align:center;font-size:.58rem;font-weight:600;letter-spacing:.34em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:1.15rem;text-indent:.34em;}
+.ld-grid{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--rule);}
+.ld-col{padding:1.35rem 1rem 1.25rem;text-align:center;border-right:1px solid var(--rule);border-top:3px solid var(--rule);}
+.ld-col:last-child{border-right:0;}
+.ld-col.lech{border-top-color:#a84d4d;}
+.ld-col.vindex{border-top-color:#5f8f1c;}
+.ld-col.wilden{border-top-color:#7a1c1c;}
+.ld-nation{font-size:.6rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;margin-bottom:1rem;}
+.ld-col.lech .ld-nation{color:#a84d4d;}
+.ld-col.vindex .ld-nation{color:#5f8f1c;}
+.ld-col.wilden .ld-nation{color:#7a1c1c;}
+.ld-med{width:56px;height:56px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 38%, #fffdf8, var(--paperD));overflow:hidden;
+  box-shadow:0 0 0 1px var(--ruleD), 0 0 0 4px var(--paper), 0 0 0 5px var(--rule);}
+.ld-med img{width:36px;height:36px;image-rendering:pixelated;display:block;}
+.ld-role{font-size:.52rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;color:var(--ink3);margin-top:.7rem;}
+.ld-name{font-size:1.02rem;font-weight:600;line-height:1.2;margin-top:.15rem;}
+.ld-name.vacant{color:var(--ink3);font-style:italic;font-weight:400;}
+.ld-div{width:26px;height:1px;background:var(--rule);margin:.85rem auto;}
+.ld-sec{display:flex;align-items:center;justify-content:center;gap:.55rem;}
+.ld-sec img{width:22px;height:22px;image-rendering:pixelated;border:1px solid var(--rule);display:block;}
+.ld-sec-t{text-align:left;}
+.ld-sec-r{font-size:.48rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);display:block;}
+.ld-sec-n{font-size:.84rem;font-weight:600;line-height:1.15;}
+.ld-sec-n.vacant{color:var(--ink3);font-style:italic;font-weight:400;}
+@media(max-width:760px){
+  .ld-grid{grid-template-columns:1fr;}
+  .ld-col{border-right:0;}
+}
+
 /* ── colophon ────────────────────────────────────────────────────────────── */
 .colophon{text-align:center;max-width:520px;margin:2.6rem auto 3rem;}
 .colophon .head{font-size:.58rem;font-weight:600;letter-spacing:.32em;text-transform:uppercase;
@@ -202,6 +239,105 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
     </a>
 
   </section>
+
+  <section class="leaders" id="ldLeaders" hidden aria-label="The heads of state and government of the three nations">
+    <div class="ld-head">The Heads of State &amp; Government</div>
+    <div class="ld-grid"></div>
+  </section>
+  <script>
+  /* The concert of nations, read live from the shared register. The Emperor is
+     recognised by his role; the Chancellor from the Bundeskongress' officials;
+     the rest by the office each nation's own portal conferred. A face follows
+     the estate's rule: custom picture, then the Minecraft override, then the
+     bare account. If the register is unreachable the section simply stays off
+     the sheet. */
+  (function(){
+    var API="https://lech-backend.onrender.com";
+    var low=function(s){return String(s||"").toLowerCase();};
+    var esc=function(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};
+    function face(accs,pfps,u){
+      u=low(u); var p=pfps[u]; if(p&&p.img)return p.img;
+      var a=accs[u]; var n=(a&&(a.mcName||a.username))||u;
+      return "https://mc-heads.net/avatar/"+encodeURIComponent(n)+"/64";
+    }
+    function nm(accs,u){var a=accs[low(u)];return a?(a.displayName||a.username):null;}
+
+    /* Who holds each of the six offices, and how they are styled on this sheet.
+       Exposed on `window` so the administration panel resolves the offices the
+       same way this footer does — one implementation, no chance of drift.
+
+       A styling override is stored against the HOLDER it was written for. On
+       every read we check that holder still occupies the office; if the office
+       has changed hands or fallen vacant the override simply no longer applies.
+       That is what makes it reset on its own — nothing has to be cleaned up. */
+    window.vtLeaders=function(raw){
+      raw=raw||{};
+      var accs=raw.mi_accounts||{}, bk=raw.bk_officials||{}, ov=raw.vt_leader_names||{};
+      var list=Object.keys(accs).map(function(k){return accs[k];});
+      var find=function(f){var a=list.filter(f)[0];return a?a.username:null;};
+      var chan=bk.chancellor_username?low(bk.chancellor_username):null;
+      if(!chan&&bk.chancellor&&low(bk.chancellor)!=="vacant"){
+        // The officials register may hold a bare username or a display name.
+        var cn=low(bk.chancellor);
+        if(accs[cn]) chan=cn;
+        else{var c=list.filter(function(a){return low(a.displayName||"")===cn;})[0];chan=c?c.username:null;}
+      }
+      var chanRaw=(bk.chancellor&&low(bk.chancellor)!=="vacant")?String(bk.chancellor):null;
+      var defs=[
+        {slot:"lech_hs",  cls:"lech",  nation:"Empire of Lech",            tier:"hs", role:"Emperor",
+         holder:find(function(a){return a.role==="emperor";})},
+        {slot:"lech_hg",  cls:"lech",  nation:"Empire of Lech",            tier:"hg", role:"Chancellor",
+         holder:chan, rawName:chanRaw},
+        {slot:"vindex_hs",cls:"vindex",nation:"Republic of Vindex Nation", tier:"hs", role:"President",
+         holder:find(function(a){return String(a.vxRole||"")==="president";})},
+        {slot:"vindex_hg",cls:"vindex",nation:"Republic of Vindex Nation", tier:"hg", role:"Vice President",
+         holder:find(function(a){return String(a.vxRole||"")==="vice_president";})},
+        {slot:"wilden_hs",cls:"wilden",nation:"Wilden",                    tier:"hs", role:"King",
+         holder:find(function(a){return String(a.wxRole||"")==="sovereign";})},
+        {slot:"wilden_hg",cls:"wilden",nation:"Wilden",                    tier:"hg", role:"Prime Minister",
+         holder:find(function(a){return String(a.wxRole||"")==="pm";})},
+      ];
+      return defs.map(function(d){
+        // The name the registers give, before any restyling.
+        var actual=d.holder?nm(accs,d.holder):(d.rawName||null);
+        var rec=ov[d.slot];
+        // The override stands only while the same person still holds the office.
+        var live=!!(rec&&rec.name&&d.holder&&low(rec.holder)===low(d.holder));
+        return {slot:d.slot,cls:d.cls,nation:d.nation,tier:d.tier,role:d.role,
+                holder:d.holder||null,actual:actual,
+                override:rec&&rec.name?String(rec.name):"",
+                overrideLive:live,
+                stale:!!(rec&&rec.name&&!live),
+                name:live?String(rec.name):actual};
+      });
+    };
+
+    fetch(API+"/api/data").then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.ok)return;
+      var raw=d.data||{}, accs=raw.mi_accounts||{}, pfps=raw.mi_pfp||{};
+      var L=window.vtLeaders(raw);
+      var by=function(s){return L.filter(function(x){return x.slot===s;})[0];};
+      var h="";
+      [["lech","Empire of Lech"],["vindex","Republic of Vindex Nation"],["wilden","Wilden"]].forEach(function(p){
+        var hs=by(p[0]+"_hs"), hg=by(p[0]+"_hg");
+        h+='<div class="ld-col '+p[0]+'">'
+          +'<div class="ld-nation">'+esc(p[1])+'</div>'
+          +'<div class="ld-med">'+(hs.holder?'<img src="'+esc(face(accs,pfps,hs.holder))+'" alt="" onerror="this.style.display=\'none\'"/>':"")+'</div>'
+          +'<div class="ld-role">'+esc(hs.role)+'</div>'
+          +'<div class="ld-name'+(hs.name?"":" vacant")+'">'+esc(hs.name||"Vacant")+'</div>'
+          +'<div class="ld-div"></div>'
+          +'<div class="ld-sec">'
+            +(hg.holder?'<img src="'+esc(face(accs,pfps,hg.holder))+'" alt="" onerror="this.style.display=\'none\'"/>':"")
+            +'<span class="ld-sec-t"><span class="ld-sec-r">'+esc(hg.role)+'</span>'
+            +'<span class="ld-sec-n'+(hg.name?"":" vacant")+'">'+esc(hg.name||"Vacant")+'</span></span>'
+          +'</div>'
+        +'</div>';
+      });
+      var el=document.getElementById("ldLeaders");
+      if(el){el.querySelector(".ld-grid").innerHTML=h;el.hidden=false;}
+    }).catch(function(){});
+  })();
+  </script>
 
   <section class="colophon">
     <div class="head">One sign-in</div>
@@ -488,6 +624,7 @@ function Admin({user,raw,reload,onProfile,onClose,notify}){
         nation's service; below they are shown, not edited.</Note>
 
       {admin&&<RegistrationControl raw={raw} notify={notify} reload={reload}/>}
+      {admin&&<LeaderNames raw={raw} notify={notify} reload={reload}/>}
 
       {/* the queue */}
       <div style={{borderTop:`1px solid ${RULE}`,paddingTop:16,marginTop:16}}>
@@ -551,6 +688,67 @@ function RegistrationControl({raw,notify,reload}){
           <Btn kind="ghost" disabled={busy} onClick={()=>save(true)}>Update reason</Btn>
         </>
         :<Btn kind="danger" disabled={busy} onClick={()=>save(true)}>Close registration</Btn>}
+    </div>
+  </div>;
+}
+
+/* ── how the world's leaders are styled on the sheet ─────────────────────────
+   The registers give a bare account name; a crown wants "Emperor Edward I".
+   An override is written against the holder it was made for, so when the office
+   changes hands or falls vacant it stops applying on its own — the sheet returns
+   to the register's own name rather than styling the newcomer as their
+   predecessor. Resolved by the same window.vtLeaders the footer uses. */
+function LeaderNames({raw,notify,reload}){
+  const [draft,setDraft]=useState({});
+  const [busy,setBusy]=useState("");
+  const rows=(raw&&typeof window!=="undefined"&&window.vtLeaders)?window.vtLeaders(raw):[];
+  if(!raw) return null;
+  if(!rows.length) return null;
+  const cur=(raw&&raw.vt_leader_names)||{};
+  const save=async(row,value)=>{
+    setBusy(row.slot);
+    const next={...cur};
+    if(value.trim()) next[row.slot]={holder:String(row.holder||"").toLowerCase(),name:value.trim(),at:Date.now()};
+    else delete next[row.slot];
+    const res=await sset("vt_leader_names",next);
+    setBusy("");
+    if(res.ok){
+      notify(value.trim()?("Now styled “"+value.trim()+"”."):"Styling cleared — the register's own name is shown.",true);
+      setDraft(d=>({...d,[row.slot]:undefined}));
+      reload();
+    } else notify(res.error,false);
+  };
+  const TINT={lech:"#a84d4d",vindex:"#5f8f1c",wilden:"#7a1c1c"};
+  return <div style={{border:`1px solid ${RULE}`,background:"#fffdf8",padding:"14px 16px",marginTop:16}}>
+    <div style={{...serif,fontSize:13,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:INK,marginBottom:4}}>
+      Styling of the world's leaders</div>
+    <Note>How each office-holder is named in the footer of this page. Leave blank to use the name their own
+      nation records. A styling applies only to the person holding the office when it was set — if the office
+      changes hands or falls vacant, it drops away by itself.</Note>
+    <div>
+      {rows.map(r=>{
+        const val=draft[r.slot]!==undefined?draft[r.slot]:(r.overrideLive?r.override:"");
+        const dirty=val.trim()!==(r.overrideLive?r.override:"");
+        return <div key={r.slot} style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",
+          padding:"9px 0",borderTop:`1px solid ${RULE}`}}>
+          <div style={{minWidth:190}}>
+            <div style={{...serif,fontSize:11,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",
+              color:TINT[r.cls]}}>{r.role}</div>
+            <div style={{...serif,fontSize:12,color:INK3}}>
+              {r.holder?<>{r.actual} <span style={{color:RULED}}>· {r.holder}</span></>
+                :<span style={{fontStyle:"italic"}}>Vacant</span>}
+            </div>
+          </div>
+          <Inp value={val} disabled={!r.holder}
+            onChange={e=>setDraft(d=>({...d,[r.slot]:e.target.value}))}
+            placeholder={r.holder?("e.g. "+(r.tier==="hs"?"His Imperial Majesty "+r.actual:r.actual)):"No one holds this office"}
+            style={{flex:1,minWidth:200,maxWidth:340,opacity:r.holder?1:.5}}/>
+          {r.stale&&<Tag color={INK3}>RESET</Tag>}
+          <Btn small kind="seal" disabled={!r.holder||!dirty||busy===r.slot}
+            onClick={()=>save(r,val)}>{busy===r.slot?"Saving…":"Save"}</Btn>
+          {r.overrideLive&&<Btn small kind="ghost" disabled={busy===r.slot} onClick={()=>save(r,"")}>Clear</Btn>}
+        </div>;
+      })}
     </div>
   </div>;
 }
