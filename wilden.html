@@ -178,6 +178,46 @@ details{margin-bottom:16px;}
 summary{color:var(--blue);cursor:pointer;font-size:15px;padding:2px 0;}
 details .content{border-left:5px solid var(--grey3);padding:12px 0 4px 16px;margin-top:8px;font-size:15px;}
 
+/* ── the standing rail ───────────────────────────────────────────────────────
+   Departments used to be cards buried inside the Government page: reaching one
+   took three clicks and prior knowledge of how the state is arranged, and once
+   you were inside a department there was no way across to another without
+   coming back here. The rail is furniture now — on this service and on every
+   department's own — so the whole government is one click wide. Below 900px it
+   lies down into a scrolling strip above the content. */
+.gshell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:26px;align-items:start;}
+.grail{position:sticky;top:14px;}
+.grail-grp{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey4);padding:0 10px;margin:16px 0 6px;}
+.grail-grp:first-child{margin-top:0;}
+.grail-i{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-size:15px;
+  padding:6px 10px;color:var(--blue);background:none;border:0;border-left:4px solid transparent;
+  cursor:pointer;text-decoration:none;line-height:1.3;}
+.grail-i:hover{background:var(--grey2);}
+.grail-i.on{color:var(--black);font-weight:600;border-left-color:var(--black);background:#fff;}
+.grail-i.dead{color:var(--grey4);cursor:default;}
+.grail-i.dead:hover{background:none;}
+.grail-dot{width:6px;height:6px;border-radius:50%;flex:none;}
+.grail-ar{margin-left:auto;font-size:11px;color:var(--grey4);}
+/* A department, folded inside the branch it answers to. Indented and set a size
+   down, with a hairline running back to its parent. */
+.grail-sub{padding-left:26px;font-size:13.5px;position:relative;}
+.grail-sub::before{content:"";position:absolute;left:15px;top:0;bottom:0;width:1px;background:var(--grey3);}
+.grail-sub.on::before{background:var(--black);}
+.grail-caret{margin-left:auto;font-size:10px;color:var(--grey4);}
+.grail-i.on .grail-caret{color:var(--black);}
+@media(max-width:900px){
+  .gshell{grid-template-columns:1fr;gap:12px;}
+  .grail{position:static;display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--grey3);padding-bottom:4px;}
+  .grail-grp{display:none;}
+  .grail-i{width:auto;white-space:nowrap;border-left:0;border-bottom:4px solid transparent;}
+  .grail-i.on{border-left:0;border-bottom-color:var(--black);}
+  .grail-ar,.grail-caret{display:none;}
+  /* Lying down, a folded department is just the next item along. */
+  .grail-sub{padding-left:10px;font-size:15px;}
+  .grail-sub::before{display:none;}
+}
+
 /* ── footer ──────────────────────────────────────────────────────────────── */
 .ftr{border-top:1px solid var(--grey3);background:var(--grey1);padding:22px 0 26px;margin-top:auto;}
 .ftr .w{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-end;}
@@ -1128,6 +1168,66 @@ const CABINET_OFFICES=[
 ];
 const deptFor=post=>{const o=CABINET_OFFICES.find(x=>x.post===post);return o?o.dept:null;};
 const hrefFor=post=>{const o=CABINET_OFFICES.find(x=>x.post===post);return o?o.href:null;};
+
+/* ── the departments, for the standing rail ──────────────────────────────────
+   Drawn from the Cabinet table above, so the rail and the Cabinet page can
+   never disagree about which departments exist. The two offices without a
+   department of their own — the Prime Minister and their deputy — are not
+   places you can navigate to, so they are left out. `id` marks which one you
+   are standing in. */
+const WX_DEPTS=CABINET_OFFICES.filter(o=>o.dept).map(o=>({
+  id:o.dept.toLowerCase().replace(/[^a-z]+/g,"_"), label:o.dept, href:o.href, post:o.post,
+}));
+// Green where the department has a service and someone holds its office; amber
+// where the service stands but nobody holds it; grey where nothing is built yet.
+function wxDeptState(dept,gov){
+  const posts=(gov&&gov.cabinet)||{};
+  const held=Object.keys(posts).some(u=>String(posts[u]||"")===dept.post);
+  if(!dept.href) return {dot:"var(--grey3)",title:dept.label+(held?" — no service established yet":" — vacant, no service yet")};
+  return held?{dot:"var(--green)",title:dept.label+" — "+dept.post}
+             :{dot:"var(--amber)",title:dept.label+" — office vacant"};
+}
+// A department, as it appears in the rail.
+function RailDept({d,gov,current,sub}){
+  const st=wxDeptState(d,gov);
+  const cls="grail-i"+(sub?" grail-sub":"")+(current===d.id?" on":"");
+  if(!d.href) return <span className={cls+" dead"} title={st.title}>
+    <span className="grail-dot" style={{background:st.dot}}/>{d.label}</span>;
+  return <a className={cls} href={d.href} title={st.title}>
+    <span className="grail-dot" style={{background:st.dot}}/>{d.label}
+    {current!==d.id&&<span className="grail-ar">↗</span>}</a>;
+}
+/* `sections` is the service's own navigation — this portal passes its tabs; a
+   department passes nothing and keeps its own sub-nav.
+
+   The departments answer to the Government, so here they are folded inside it
+   and unfold only when Government is the page you are on: four plain entries at
+   rest rather than ten. On a department's own service there is nothing to fold
+   — the departments are the context — so they are listed plainly. */
+const WX_DEPT_PARENT="government";
+function GovRail({sections,tab,onTab,gov,current}){
+  const hub=!!(sections&&sections.length>0);
+  return <nav className="grail" aria-label="Government navigation">
+    {hub&&<>
+      <div className="grail-grp">Government</div>
+      {sections.map(([v,l])=>{
+        const isParent=v===WX_DEPT_PARENT, open=isParent&&tab===v;
+        return <React.Fragment key={v}>
+          <button className={"grail-i"+(tab===v?" on":"")} onClick={()=>onTab(v)}
+            aria-expanded={isParent?open:undefined}>
+            {l}{isParent&&<span className="grail-caret">{open?"▾":"▸"}</span>}
+          </button>
+          {open&&WX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current} sub/>)}
+        </React.Fragment>;
+      })}
+    </>}
+    {!hub&&<>
+      <div className="grail-grp">Departments</div>
+      <a className="grail-i" href="wilden.html">← Government services</a>
+      {WX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current}/>)}
+    </>}
+  </nav>;
+}
 // "Other" keeps a Minister assignable to something not on the list; the retired
 // titles below still resolve so an existing assignment is not silently lost.
 const DEPARTMENTS=[...CABINET_OFFICES.map(o=>o.post),"Other",
@@ -1383,14 +1483,6 @@ function App(){
       </div>
     </header>
 
-    <nav className="nav">
-      <div className="w">
-        {TABS.map(([v,l])=>(
-          <button key={v} aria-current={tab===v?"page":undefined} onClick={()=>setTab(v)}>{l}</button>
-        ))}
-      </div>
-    </nav>
-
     <div className="phase">
       <div className="w">
         <Tag t="blue">Constitution 2026</Tag>
@@ -1399,7 +1491,9 @@ function App(){
     </div>
 
     <main>
-      <div className="w">
+      <div className="w gshell">
+        <GovRail sections={TABS} tab={tab} onTab={setTab} gov={gov}/>
+        <div>
         {msg&&<div className={"notif"+(msg.ok?" ok":"")}>
           <div className="head">{msg.ok?"Success":"There is a problem"}</div>
           <div className="body"><p style={{marginBottom:0}}>{msg.text}</p></div></div>}
@@ -1418,6 +1512,7 @@ function App(){
         {loaded&&tab==="judicature"&&<JudicatureTab justices={justices}/>}
         {loaded&&tab==="panel"&&hasPanel&&<PanelTab user={user} bills={bills} gov={gov} accounts={accounts}
           citizens={citizens} cabinetish={cabinetish} onAction={onAction} notify={notify} setBusy={setBusy}/>}
+        </div>
       </div>
     </main>
 

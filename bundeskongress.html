@@ -505,6 +505,18 @@ const MINISTER_PORTFOLIOS = [
   "Minister of Foreign Affairs",
 ];
 
+// The arms of each ministry, struck beside its minister in the Council. The
+// Vice Chancellor, the Chancellery and the Colonies keep no ministry seal of
+// their own; their rows simply leave the margin empty.
+const MINISTRY_SEAL = {
+  "Minister of Interior":         "MOI.png",
+  "Minister of Finance":          "MOF.png",
+  "Minister of War":              "MOW.png",
+  "Minister of Infrastructure":   "MOIN.png",
+  "Minister of Health":           "MOH.png",
+  "Minister of Foreign Affairs":  "MOFA.png",
+};
+
 const LAW_CATEGORIES = [
   { v:"criminal",       l:"Criminal Law",          color:"#9a2020" },
   { v:"civil",          l:"Civil Law",              color:"#4a6a9a" },
@@ -2575,38 +2587,68 @@ function BundestagTab({members,officials,bills,bundesherren,session,nextElection
 
       {sub==="ministers"&&<>
         <STitle>Council of Ministers</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:"0.75rem"}}>
-          {MINISTER_PORTFOLIOS.map(portfolio=>{
+        {/* Read as a register rather than a wall of equal cards: one ruled line
+            per office, the portfolio on the left, the minister in the middle,
+            and the ministry's own seal struck at the right margin. The Vice
+            Chancellor deputises for the Chancellor over the whole Council and
+            holds no ministry, so they stand above the rule rather than among
+            the departments. */}
+        {(()=>{
+          const row=(portfolio,lead)=>{
             const incumbent=ministers[portfolio]||"Vacant";
             const vacant=incumbent==="Vacant"||!incumbent;
             const person=vacant?null:lookupPerson(incumbent,
               (officials?.minister_usernames||{})[portfolio],members,bundesherren);
             const p=person?getParty(Object.values(members||{}).find(m=>m.id===person.id)?.party):null;
+            const seal=MINISTRY_SEAL[portfolio];
             return (
-              <div key={portfolio} style={{background:C.s2,border:`1px solid ${vacant?C.border:C.gold+"44"}`,
-                                            borderTop:`3px solid ${vacant?C.border:(p?.color||C.gold)}`,
-                                            borderRadius:"0 0 3px 3px",padding:"0.85rem 1rem"}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.2em",color:C.textDD,marginBottom:5,textTransform:"uppercase"}}>{portfolio}</div>
-                <div style={{display:"flex",alignItems:"center",gap:7}}>
-                  {/* The minister's own face where the portfolio is filled; the
-                      decoration stands in for a vacancy. */}
-                  {vacant
-                    ?<span style={{fontSize:18}}>🎖</span>
-                    :<McFace person={person} style={{borderColor:(p?.color||C.gold)+"66"}}/>}
-                  {vacant
-                    ?<span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:C.textDD,fontWeight:700,fontStyle:"italic"}}>Vacant</span>
-                    :<span>
-                       <MemberLink person={person} style={{fontFamily:"'Cinzel',serif",fontSize:14,color:C.text,fontWeight:700}}>
-                         {person.username||person.name}
-                       </MemberLink>
-                       <PostNominals person={person}/>
-                     </span>}
+              <div key={portfolio} style={{display:"flex",alignItems:"center",gap:"0.9rem",flexWrap:"wrap",
+                padding:lead?"0.75rem 0.95rem":"0.6rem 0.95rem",
+                background:vacant?"transparent":C.s2,
+                borderLeft:`3px solid ${vacant?C.border:(p?.color||C.gold)}`,
+                borderBottom:`1px solid ${C.border}`}}>
+                <div style={{width:172,flexShrink:0}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:lead?9.5:8.5,letterSpacing:"0.18em",
+                    color:vacant?C.textDD:C.gold,textTransform:"uppercase",lineHeight:1.35}}>{portfolio}</div>
+                  {lead&&<div style={{fontSize:10.5,color:C.textDD,fontStyle:"italic",marginTop:2}}>Deputy to the Chancellor</div>}
                 </div>
-                {p&&<div style={{fontSize:10,color:p.color,marginTop:3}}>{p.name}</div>}
+                <div style={{flex:1,minWidth:170,display:"flex",alignItems:"center",gap:8}}>
+                  {vacant
+                    ?<span style={{fontFamily:"'Cinzel',serif",fontSize:13.5,color:C.textDD,fontStyle:"italic"}}>Vacant</span>
+                    :<>
+                      <McFace person={person} style={{borderColor:(p?.color||C.gold)+"66"}}/>
+                      <span>
+                        <MemberLink person={person} style={{fontFamily:"'Cinzel',serif",fontSize:14,color:C.text,fontWeight:700}}>
+                          {person.username||person.name}
+                        </MemberLink>
+                        <PostNominals person={person}/>
+                        {p&&<div style={{fontSize:10,color:p.color,marginTop:1}}>{p.name}</div>}
+                      </span>
+                    </>}
+                </div>
+                {/* The ministry's seal, struck at the margin. Offices with no
+                    ministry of their own keep the space so the column stays true. */}
+                <div style={{width:38,height:38,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {seal&&<img src={seal} alt="" draggable={false}
+                    style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain",opacity:vacant?0.3:1,
+                      filter:vacant?"grayscale(1)":"none"}}
+                    onError={e=>{e.currentTarget.style.display="none";}}/>}
+                </div>
               </div>
             );
-          })}
-        </div>
+          };
+          const deputy=MINISTER_PORTFOLIOS.filter(p=>p==="Vice Chancellor");
+          const rest=MINISTER_PORTFOLIOS.filter(p=>p!=="Vice Chancellor");
+          return <div style={{borderTop:`1px solid ${C.border}`}}>
+            {deputy.map(p=>row(p,true))}
+            {rest.length>0&&<div style={{display:"flex",alignItems:"baseline",gap:10,padding:"0.85rem 0.95rem 0.5rem"}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:8,letterSpacing:"0.22em",color:C.textDD,
+                textTransform:"uppercase",flexShrink:0}}>The Ministries</span>
+              <span style={{flex:1,height:1,background:C.border}}/>
+            </div>}
+            {rest.map(p=>row(p,false))}
+          </div>;
+        })()}
       </>}
 
       {sub==="absences"&&<AbsencesPublic members={members} absences={absences}/>}
@@ -5681,14 +5723,21 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
                       <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:vacant?C.textDD:C.gold,fontWeight:700,fontStyle:vacant?"italic":"normal"}}>{vacant?"Vacant":incumbent}</span>
                     </div>
                   </div>
-                  {!vacant&&(
-                    <ArmBtn small label="Dismiss" confirmLabel="Confirm?" variant="danger"
-                      onConfirm={async()=>{
-                        setProcessing("Dismissing minister…");
-                        await onAction("dismissMinister",{portfolio});
-                        setProcessing(null);
-                      }}/>
-                  )}
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    {/* The ministry's seal, as in the public Council. */}
+                    {MINISTRY_SEAL[portfolio]&&<img src={MINISTRY_SEAL[portfolio]} alt="" draggable={false}
+                      style={{width:32,height:32,objectFit:"contain",opacity:vacant?0.3:1,
+                        filter:vacant?"grayscale(1)":"none"}}
+                      onError={e=>{e.currentTarget.style.display="none";}}/>}
+                    {!vacant&&(
+                      <ArmBtn small label="Dismiss" confirmLabel="Confirm?" variant="danger"
+                        onConfirm={async()=>{
+                          setProcessing("Dismissing minister…");
+                          await onAction("dismissMinister",{portfolio});
+                          setProcessing(null);
+                        }}/>
+                    )}
+                  </div>
                 </div>
               );
             })}

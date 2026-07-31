@@ -19,6 +19,55 @@ input,select,textarea{font-family:'Crimson Text',Georgia,serif;}
 .fadeIn{animation:fadeIn .3s ease both;}
 .mono{font-family:'Share Tech Mono',monospace;}
 .pf{font-family:'Playfair Display',Georgia,serif;}
+
+/* ── the standing rail ───────────────────────────────────────────────────────
+   Departments used to live as cards buried inside the Executive page, which
+   meant reaching one took three clicks and prior knowledge of how the
+   government is arranged. They are furniture now: always on the page, on the
+   portal and on every department's own service alike, so a person can cross
+   from Justice to Defense without returning to the hub. Below 900px the rail
+   lies down and becomes a scrolling strip above the content. */
+.gshell{max-width:1180px;margin:0 auto;padding:1.6rem 1.2rem 3rem;display:grid;
+  grid-template-columns:196px minmax(0,1fr);gap:1.9rem;align-items:start;}
+.grail{position:sticky;top:1rem;}
+.grail-grp{font-size:8px;letter-spacing:.2em;font-family:'Share Tech Mono',monospace;
+  color:#4d648f;padding:0 .55rem;margin:1.15rem 0 .45rem;text-transform:uppercase;}
+.grail-grp:first-child{margin-top:0;}
+.grail-i{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;
+  padding:.42rem .55rem;font-size:12.5px;line-height:1.25;color:#93a4c3;text-decoration:none;
+  background:transparent;border:0;border-left:2px solid transparent;cursor:pointer;
+  font-family:'Crimson Text',Georgia,serif;transition:color .15s,background .15s;}
+.grail-i:hover{color:#e8ebf2;background:rgba(201,160,90,.07);}
+.grail-i.on{color:#e8ebf2;border-left-color:#c9a05a;background:rgba(201,160,90,.10);font-weight:600;}
+.grail-i.dead{color:#3f5578;cursor:default;}
+.grail-i.dead:hover{background:transparent;color:#3f5578;}
+.grail-dot{width:5px;height:5px;border-radius:50%;flex:none;}
+/* The department's own seal, struck small. Full where the department is running
+   under a serving Secretary; faint and drained of colour where the office is
+   vacant, fainter still where nothing has been established. */
+.grail-seal{width:16px;height:16px;object-fit:contain;flex:none;}
+.grail-seal.vacant{opacity:.5;filter:grayscale(.85);}
+.grail-seal.none{opacity:.28;filter:grayscale(1);}
+.grail-ar{margin-left:auto;font-size:9px;color:#4d648f;}
+/* A department, folded inside the branch it belongs to. Indented and set a
+   size down, with a hairline running back to its parent. */
+.grail-sub{padding-left:1.55rem;font-size:11.5px;position:relative;}
+.grail-sub::before{content:"";position:absolute;left:.95rem;top:0;bottom:0;width:1px;background:#24406e;}
+.grail-sub.on::before{background:#c9a05a;}
+.grail-caret{margin-left:auto;font-size:8px;color:#4d648f;}
+.grail-i.on .grail-caret{color:#c9a05a;}
+@media(max-width:900px){
+  .gshell{grid-template-columns:1fr;gap:1rem;padding-top:1rem;}
+  .grail{position:static;border-bottom:1px solid #24406e;padding-bottom:.5rem;
+    display:flex;gap:.15rem;overflow-x:auto;}
+  .grail-grp{display:none;}
+  .grail-i{width:auto;white-space:nowrap;border-left:0;border-bottom:2px solid transparent;padding:.45rem .7rem;}
+  .grail-i.on{border-left:0;border-bottom-color:#c9a05a;background:transparent;}
+  .grail-ar,.grail-caret{display:none;}
+  /* Lying down, a folded department is just the next item along. */
+  .grail-sub{padding-left:.7rem;font-size:12.5px;}
+  .grail-sub::before{display:none;}
+}
 /* The chamber: seven desks, filled or vacant. */
 .vx-bench{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
 </style>
@@ -520,6 +569,77 @@ function BillCard({bill,votes,reps,user,accounts,onAction,notify,setProcessing})
   </div>;
 }
 
+/* ── the departments of the Republic ─────────────────────────────────────────
+   One route table, shared by the portal's rail and by every department's own
+   service, so the navigation cannot drift apart between pages. `post` is the
+   Cabinet office that runs the department: it is what decides whether the
+   department reads as staffed. A department with no `href` has no service built
+   yet and is shown greyed rather than hidden — the sheet stays honest about
+   what exists. */
+const VX_DEPTS=[
+  {id:"state", label:"State",    href:"state.html",       post:"Secretary of State",                       seal:"statedept.png"},
+  {id:"doj",   label:"Justice",  href:"doj.html",         post:"Attorney General",                         seal:"justice.png"},
+  {id:"dod",   label:"Defense",  href:"deptdefense.html", post:"Secretary of Defense",                     seal:"defense.png"},
+  {id:"trs",   label:"Treasury", href:null,               post:"Secretary of Treasury",                    seal:"treasury.png"},
+  {id:"hhs",   label:"Health",   href:null,               post:"Secretary of Health and Human Services",   seal:"hhs.png"},
+];
+/* Each department is marked by its own seal rather than a coloured light. The
+   seal still carries the standing, in the way a seal naturally would: struck
+   full where the department is running under a serving Secretary, and left
+   faint and unstruck where the office is vacant or the department has yet to be
+   established. The tooltip says which, for anyone who wants it in words. */
+function vxDeptState(dept,gov){
+  if(!dept.href) return {tone:"none",title:dept.label+" — no service established yet"};
+  const cab=(gov&&gov.cabinet)||{};
+  const held=Object.keys(cab).some(u=>String(cab[u]||"").trim().toLowerCase()===dept.post.toLowerCase());
+  return held
+    ? {tone:"held",  title:dept.label+" — "+dept.post}
+    : {tone:"vacant",title:dept.label+" — office vacant"};
+}
+// A department, as it appears in the rail.
+function RailDept({d,gov,current,sub}){
+  const st=vxDeptState(d,gov);
+  const cls="grail-i"+(sub?" grail-sub":"")+(current===d.id?" on":"");
+  const seal=<img className={"grail-seal "+st.tone} src={d.seal} alt="" draggable={false}
+    onError={e=>{e.currentTarget.style.visibility="hidden";}}/>;
+  if(!d.href) return <span className={cls+" dead"} title={st.title}>{seal}{d.label}</span>;
+  return <a className={cls} href={d.href} title={st.title}>{seal}{d.label}
+    {current!==d.id&&<span className="grail-ar">↗</span>}</a>;
+}
+/* The rail. `sections` is the page's own navigation — the portal passes its
+   tabs, a department passes nothing and keeps its own sub-nav.
+
+   The departments belong to the Executive, so on the portal they are folded
+   away inside it and unfold only when the Executive is the page you are on.
+   That keeps the rail to five plain entries at rest instead of a wall of ten:
+   the branches of government first, the machinery of one branch only when you
+   have asked for it. On a department's own service there is nothing to fold —
+   the departments are the context — so they are listed plainly. */
+const VX_DEPT_PARENT="executive";
+function GovRail({sections,tab,onTab,gov,current}){
+  const hub=!!(sections&&sections.length>0);
+  return <nav className="grail" aria-label="Government navigation">
+    {hub&&<>
+      <div className="grail-grp">The Republic</div>
+      {sections.map(s=>{
+        const isParent=s.v===VX_DEPT_PARENT, open=isParent&&tab===s.v;
+        return <React.Fragment key={s.v}>
+          <button className={"grail-i"+(tab===s.v?" on":"")} onClick={()=>onTab(s.v)}
+            aria-expanded={isParent?open:undefined}>
+            {s.l}{isParent&&<span className="grail-caret">{open?"▾":"▸"}</span>}
+          </button>
+          {open&&VX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current} sub/>)}
+        </React.Fragment>;
+      })}
+    </>}
+    {!hub&&<>
+      <div className="grail-grp">Departments</div>
+      <a className="grail-i" href="vindex.html">← Government Portal</a>
+      {VX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current}/>)}
+    </>}
+  </nav>;
+}
+
 /* ═══════════ HOME ════════════════════════════════════════════════════════ */
 /* ── the citizen's own standing ───────────────────────────────────────────────
    A citizen of the Republic — and only a citizen — sees where they stand at a
@@ -703,10 +823,32 @@ function ExecutiveTab({president,vp,cabinet,gov,orders,speaker}){
 
     <STitle>The Cabinet</STitle>
     {cabinet.length===0?<Empty>No Cabinet secretaries appointed. The President may create and dismantle departments at their discretion.</Empty>
-      :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:10}}>
-        {cabinet.map(c=>{const post=posts[String(c.username||"").toLowerCase()];
-          return <Officer key={c.username} account={c} office={post||"Cabinet Secretary"} accent="#9a7ab0" seal={DEPT_SEAL[post]}/>;})}
-      </div>}
+      :(()=>{
+        /* Secretaries head a department and stand in the line of succession;
+           cabinet-level officials sit at the same table without either. They are
+           set apart here rather than mixed in, so the succession can be read off
+           the first group alone. Anyone holding neither kind of post — or one
+           the President has invented — falls in with the Secretaries. */
+        const postOf=c=>posts[String(c.username||"").toLowerCase()];
+        const atLevel=c=>CABINET_LEVEL_POSTS.includes(postOf(c));
+        const secretaries=cabinet.filter(c=>!atLevel(c));
+        const level=cabinet.filter(atLevel);
+        const grid=list=><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:10}}>
+          {list.map(c=>{const post=postOf(c);
+            return <Officer key={c.username} account={c} office={post||"Cabinet Secretary"} accent="#9a7ab0" seal={DEPT_SEAL[post]}/>;})}
+        </div>;
+        return <>
+          {secretaries.length>0&&grid(secretaries)}
+          {level.length>0&&<>
+            <div style={{display:"flex",alignItems:"baseline",gap:10,margin:secretaries.length?"1.1rem 0 0.7rem":"0 0 0.7rem"}}>
+              <span className="mono" style={{fontSize:8.5,letterSpacing:"0.2em",color:V.textDD,textTransform:"uppercase",flexShrink:0}}>Cabinet-level</span>
+              <span style={{flex:1,height:1,background:V.line}}/>
+              <span style={{fontSize:11.5,color:V.textDD,fontStyle:"italic",flexShrink:0}}>Of Cabinet rank · outside the line of succession</span>
+            </div>
+            {grid(level)}
+          </>}
+        </>;
+      })()}
 
     <STitle>Executive Orders</STitle>
     <div style={{fontSize:13,color:V.textD,fontStyle:"italic",marginBottom:10,lineHeight:1.7}}>
@@ -1354,12 +1496,11 @@ function App(){
           <Btn small variant="ghost" onClick={()=>{forgetSession();setUser(null);if(tab==="panel")setTab("home");notify("Signed out.",V.textD);}}>Sign out</Btn>
         </div>:<Btn small variant="gold" onClick={()=>setAuthOpen(true)}>Sign In</Btn>}
       </div>
-      <div style={{maxWidth:1080,margin:"0 auto",padding:"0 1.2rem",display:"flex",overflowX:"auto"}}>
-        {TABS.map(t=>(<button key={t.v} onClick={()=>setTab(t.v)} className="pf" style={{fontWeight:700,fontSize:11.5,letterSpacing:"0.12em",textTransform:"uppercase",padding:"0.7rem 1rem",background:"transparent",border:"none",cursor:"pointer",whiteSpace:"nowrap",borderBottom:`3px solid ${tab===t.v?V.gold:"transparent"}`,color:tab===t.v?V.goldL:V.textD}}>{t.l}</button>))}
-      </div>
     </div>
 
-    <div style={{maxWidth:1080,margin:"0 auto",padding:"1.6rem 1.2rem 3rem"}}>
+    <div className="gshell">
+      <GovRail sections={TABS} tab={tab} onTab={setTab} gov={gov}/>
+      <div>
       {!loaded&&<div style={{textAlign:"center",padding:"4rem"}}><div className="mono" style={{fontSize:10,letterSpacing:"0.35em",color:V.textDD,animation:"pulse 1.4s infinite"}}>LOADING…</div></div>}
       {loaded&&tab==="home"&&<HomeTab president={president} speaker={speaker} reps={reps} bills={bills} onGo={setTab}
         me={user&&iAmCitizen?{user,office:isEmperor(user)?"System Administrator":officeOf(vxRole(user)).l,citizen:myCitizen,passport:myPassport,visa:myVisa,honours:myHonours,idCard:myId,warrant:myWarrant,vessel:myVessel}:null}/>}
@@ -1369,6 +1510,7 @@ function App(){
       {loaded&&tab==="judiciary"&&<JudiciaryTab/>}
       {loaded&&tab==="panel"&&hasPanel&&<PanelTab user={user} bills={bills} gov={gov} orders={orders}
         cabinet={cabinet} accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+      </div>
     </div>
 
     <div style={{borderTop:`1px solid ${V.line}`,padding:"1.1rem 1.2rem 1.5rem"}}>

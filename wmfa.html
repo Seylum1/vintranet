@@ -165,12 +165,79 @@ input[type=text],input[type=password],input[type=date],textarea,select{
 .sp-frame::after{content:'';position:absolute;inset:4px;border:1px solid rgba(150,130,80,.5);border-radius:5px;}
 @keyframes spStamp{0%{opacity:0;transform:rotate(-13deg) scale(1.6);}60%{opacity:1;transform:rotate(-13deg) scale(.94);}100%{opacity:1;transform:rotate(-13deg) scale(1);}}
 .sp-revoked{animation:spStamp .5s ease .45s both;}
+
+/* ── the standing rail ───────────────────────────────────────────────────────
+   Departments used to be cards buried inside the Government page: reaching one
+   took three clicks and prior knowledge of how the state is arranged, and once
+   you were inside a department there was no way across to another without
+   coming back here. The rail is furniture now — on this service and on every
+   department's own — so the whole government is one click wide. Below 900px it
+   lies down into a scrolling strip above the content. */
+.gshell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:26px;align-items:start;}
+.grail{position:sticky;top:14px;}
+.grail-grp{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--grey4);padding:0 10px;margin:16px 0 6px;}
+.grail-grp:first-child{margin-top:0;}
+.grail-i{display:flex;align-items:center;gap:8px;width:100%;text-align:left;font:inherit;font-size:15px;
+  padding:6px 10px;color:var(--blue);background:none;border:0;border-left:4px solid transparent;
+  cursor:pointer;text-decoration:none;line-height:1.3;}
+.grail-i:hover{background:var(--grey2);}
+.grail-i.on{color:var(--black);font-weight:600;border-left-color:var(--black);background:#fff;}
+.grail-i.dead{color:var(--grey4);cursor:default;}
+.grail-i.dead:hover{background:none;}
+.grail-dot{width:6px;height:6px;border-radius:50%;flex:none;}
+.grail-ar{margin-left:auto;font-size:11px;color:var(--grey4);}
+@media(max-width:900px){
+  .gshell{grid-template-columns:1fr;gap:12px;}
+  .grail{position:static;display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--grey3);padding-bottom:4px;}
+  .grail-grp{display:none;}
+  .grail-i{width:auto;white-space:nowrap;border-left:0;border-bottom:4px solid transparent;}
+  .grail-i.on{border-left:0;border-bottom-color:var(--black);}
+  .grail-ar{display:none;}
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useEffect,useCallback,useMemo}=React;
+
+/* ── the departments, for the standing rail ──────────────────────────────────
+   The same table wilden.html derives from its Cabinet, restated here so a
+   department's own service can carry the rail without loading the portal. Keep
+   in step with CABINET_OFFICES in wilden.html. A department with no href has no
+   service built yet and is shown greyed rather than hidden. */
+const WX_DEPTS=[
+  {id:"his_majesty_s_treasury",label:"His Majesty's Treasury",href:null,            post:"Chancellor of the Exchequer"},
+  {id:"home_office",           label:"Home Office",           href:"homeoffice.html",post:"Secretary of State for Home Affairs"},
+  {id:"foreign_office",        label:"Foreign Office",        href:"wmfa.html",      post:"Secretary of State for Foreign Affairs"},
+  {id:"ministry_of_defence",   label:"Ministry of Defence",   href:null,            post:"Secretary of State for Defence"},
+  {id:"department_for_health", label:"Department for Health", href:null,            post:"Secretary of State for Health"},
+  {id:"crown_office",          label:"Crown Office",          href:null,            post:"Lord Advocate"},
+];
+// Green where the department has a service and someone holds its office; amber
+// where the service stands but nobody holds it; grey where nothing is built yet.
+function wxDeptState(dept,gov){
+  const posts=(gov&&gov.cabinet)||{};
+  const held=Object.keys(posts).some(u=>String(posts[u]||"")===dept.post);
+  if(!dept.href) return {dot:"var(--grey3)",title:dept.label+(held?" — no service established yet":" — vacant, no service yet")};
+  return held?{dot:"var(--green)",title:dept.label+" — "+dept.post}
+             :{dot:"var(--amber)",title:dept.label+" — office vacant"};
+}
+function GovRail({gov,current}){
+  return <nav className="grail" aria-label="Government navigation">
+    <div className="grail-grp">Departments</div>
+    <a className="grail-i" href="wilden.html">← Government services</a>
+    {WX_DEPTS.map(d=>{
+      const st=wxDeptState(d,gov);
+      if(!d.href) return <span key={d.id} className="grail-i dead" title={st.title}>
+        <span className="grail-dot" style={{background:st.dot}}/>{d.label}</span>;
+      return <a key={d.id} className={"grail-i"+(current===d.id?" on":"")} href={d.href} title={st.title}>
+        <span className="grail-dot" style={{background:st.dot}}/>{d.label}
+        {current!==d.id&&<span className="grail-ar">↗</span>}</a>;
+    })}
+  </nav>;
+}
 
 /* ── backend (shared session) ────────────────────────────────────────────── */
 function uid(){return Date.now()+"_"+Math.random().toString(36).slice(2,8);}
@@ -941,7 +1008,9 @@ function App(){
       <p>Citizenship and passports of Wilden. <a href="wilden.html">Government of Wilden</a></p>
     </div></div>
 
-    <main><div className="w">
+    <main><div className="w gshell">
+      <GovRail gov={gov} current="foreign_office"/>
+      <div>
       {msg&&<div className={"notif"+(msg.ok?" ok":" err")}><div className="head">{msg.ok?"Success":"There is a problem"}</div>
         <div className="body"><p style={{marginBottom:0}}>{msg.text}</p></div></div>}
       {busy&&<Notif title={busy+"…"}><p style={{marginBottom:0}}>Please wait.</p></Notif>}
@@ -951,6 +1020,7 @@ function App(){
       {loaded&&tab==="passports"&&<PassportsTab passports={passports} citizens={citizens} accounts={accounts} user={user} gov={gov} stampVisas={stampVisas} onAction={onAction} notify={notify} setBusy={setBusy}/>}
       {loaded&&tab==="visas"&&<VisasTab relations={relations} visas={visas} user={user} gov={gov} onAction={onAction} notify={notify} setBusy={setBusy} foreignPassports={foreignPassports}/>}
       {loaded&&tab==="relations"&&<RelationsTab relations={relations} user={user} gov={gov} onAction={onAction} notify={notify} setBusy={setBusy}/>}
+      </div>
     </div></main>
 
     <footer className="ftr"><div className="w">
