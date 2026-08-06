@@ -29,10 +29,18 @@ button,input,select,textarea{font-family:'Crimson Text',Georgia,serif;color:var(
 
 /* ── Header ─────────────────────────────────────────── */
 header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg));flex-wrap:wrap;}
-.hdr-crests{display:flex;align-items:center;gap:.5rem;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.14em;}
-.hdr-crests .l{color:var(--lech-bright);}
-.hdr-crests .v{color:var(--vin-bright);}
+.hdr-crests{display:flex;align-items:center;gap:.55rem;}
 .hdr-crests .x{color:var(--ink-faint);font-size:.95rem;}
+/* Each crest is a button: tap it to see who leads that country. */
+.crest{display:flex;align-items:center;gap:.45rem;background:transparent;border:1px solid transparent;border-radius:4px;padding:.2rem .45rem;cursor:pointer;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.14em;transition:all .15s;}
+.crest:hover{background:var(--bg3);border-color:var(--line2);}
+.crest.l{color:var(--lech-bright);}
+.crest.v{color:var(--vin-bright);}
+.crest-img{width:26px;height:26px;flex:none;border-radius:3px;background-size:contain;background-position:center;background-repeat:no-repeat;display:none;}
+.crest-img.ok{display:block;}
+/* With no crest image on disk the button still reads clearly, so nothing breaks. */
+.crest .crest-name{white-space:nowrap;}
+@media(max-width:720px){ .crest .crest-name{display:none;} .crest{padding:.2rem;} .crest-img{display:block;background:var(--bg3);} }
 #warTitleWrap{flex:1;min-width:220px;text-align:center;}
 #warTitle{font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:1.35rem;letter-spacing:.04em;outline:none;border-bottom:1px dashed transparent;display:inline-block;padding:0 .35rem;min-width:120px;}
 #warTitle[contenteditable="true"]:hover,#warTitle[contenteditable="true"]:focus{border-bottom-color:var(--line2);}
@@ -41,6 +49,7 @@ header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-botto
 .hdr-actions{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;}
 .btn{background:var(--bg3);border:1px solid var(--line2);border-radius:4px;padding:.32rem .7rem;font-size:.85rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .btn:hover{border-color:var(--ink-faint);background:#1b222b;}
+a.btn{text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;flex-shrink:0;}
 .btn.primary{border-color:var(--vin-deep);background:#122419;color:var(--vin-bright);}
 .btn.primary:hover{border-color:var(--vin);}
 .btn.danger{color:#e79d97;border-color:#5c2c28;}
@@ -52,31 +61,26 @@ header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-botto
 #userOffice{color:var(--ink-faint);font-size:.72rem;font-family:'Share Tech Mono',monospace;letter-spacing:.05em;}
 .spectator{font-family:'Share Tech Mono',monospace;font-size:.68rem;letter-spacing:.12em;color:var(--contest);border:1px solid var(--contest-deep);border-radius:3px;padding:.15rem .5rem;}
 
-/* ── Command strip: flags & war leadership ──────────── */
-#command{display:flex;align-items:center;gap:1rem;padding:.45rem 1rem;border-bottom:1px solid var(--line);background:var(--bg2);}
-.cmd-side{display:flex;align-items:center;gap:1rem;flex:1;min-width:0;flex-wrap:wrap;}
-.cmd-side.lech{justify-content:flex-end;}
-.cmd-x{color:var(--ink-faint);font-size:1.1rem;flex-shrink:0;}
-.flag{height:44px;max-width:80px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
-.cmd-leaders{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;}
-.leader{display:flex;align-items:center;gap:.45rem;}
+/* ── Leadership bubble (opened from a crest in the header) ── */
+#leadersOverlay{position:fixed;inset:0;z-index:9050;background:rgba(5,8,12,.86);display:none;align-items:center;justify-content:center;padding:1rem;}
+#leadersOverlay.show{display:flex;}
+#leadersBox{background:var(--bg2);border:1px solid var(--line2);border-top-width:3px;border-radius:6px;width:100%;max-width:340px;padding:1rem 1.1rem 1.1rem;box-shadow:0 18px 50px rgba(0,0,0,.6);}
+#leadersBox.lech{border-top-color:var(--lech);}
+#leadersBox.vindex{border-top-color:var(--vin);}
+.ldr-top{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.15rem;}
+.ldr-title{font-family:'Cinzel',serif;font-size:.9rem;letter-spacing:.1em;}
+#leadersBox.lech .ldr-title{color:var(--lech-bright);}
+#leadersBox.vindex .ldr-title{color:var(--vin-bright);}
+.ldr-sub{font-size:.76rem;color:var(--ink-faint);font-style:italic;margin-bottom:.8rem;}
+.ldr-x{background:transparent;border:none;color:var(--ink-dim);font-size:1rem;cursor:pointer;line-height:1;padding:.2rem;}
+.ldr-x:hover{color:var(--ink);}
+.leader{display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-top:1px solid var(--line);}
+.leader:first-of-type{border-top:none;}
 .leader .head{width:34px;height:34px;border-radius:4px;image-rendering:pixelated;border:1px solid var(--line2);flex-shrink:0;}
 .leader span.head.vacant{display:flex;align-items:center;justify-content:center;background:var(--bg3);color:var(--ink-faint);font-size:1rem;}
 .leader.isvacant .l-name{color:var(--ink-faint);font-style:italic;font-weight:400;}
-.l-title{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.12em;}
-.cmd-side.vin .l-title{color:var(--vin-bright);opacity:.85;}
-.cmd-side.lech .l-title{color:var(--lech-bright);opacity:.85;}
-.l-name{font-size:.84rem;font-weight:600;line-height:1.2;white-space:nowrap;}
-@media(max-width:1150px){ .l-name{white-space:normal;max-width:96px;} .flag{height:36px;} }
-@media(max-height:620px){
-  #command{padding:.25rem .7rem;gap:.6rem;}
-  .flag{height:26px;}
-  .leader .head{width:22px;height:22px;}
-  .leader span.head.vacant{font-size:.8rem;}
-  .l-title{font-size:.5rem;}
-  .l-name{font-size:.72rem;}
-  .cmd-leaders{gap:.6rem;}
-}
+.l-title{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.12em;color:var(--ink-faint);}
+.l-name{font-size:.9rem;font-weight:600;line-height:1.25;}
 
 /* ── Tracker ────────────────────────────────────────── */
 #tracker{padding:.7rem 1.2rem .55rem;border-bottom:1px solid var(--line);background:var(--bg2);}
@@ -104,7 +108,7 @@ header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-botto
 .trk-thr{display:flex;align-items:center;gap:.3rem;font-size:.75rem;color:var(--ink-faint);}
 .trk-thr input{width:52px;background:var(--bg3);border:1px solid var(--line2);border-radius:3px;padding:.1rem .3rem;font-family:'Share Tech Mono',monospace;font-size:.75rem;text-align:center;}
 
-/* ── Objectives (each side's standing orders, derived from the last battle) ── */
+/* ── Objectives (each side's standing orders, set by the administrator) ── */
 .trk-obj{display:flex;justify-content:space-between;align-items:center;gap:.8rem;margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--line);flex-wrap:wrap;}
 .obj{display:flex;align-items:center;gap:.5rem;min-width:0;flex:1;}
 .obj.vin{justify-content:flex-start;}
@@ -112,19 +116,42 @@ header{display:flex;align-items:center;gap:1rem;padding:.55rem 1rem;border-botto
 .obj-lbl{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.14em;flex-shrink:0;}
 .obj.vin .obj-lbl{color:var(--vin-bright);opacity:.85;}
 .obj.lech .obj-lbl{color:var(--lech-bright);opacity:.85;}
-.obj-verb{font-family:'Share Tech Mono',monospace;font-size:.74rem;letter-spacing:.08em;font-weight:700;white-space:nowrap;flex-shrink:0;}
+/* The verb and the place it names share one typeface, size and tracking, so an
+   order reads as a single line of dispatch instead of two mismatched fragments. */
+.obj-verb,.obj-tgt,.obj-note{font-family:'Share Tech Mono',monospace;font-size:.78rem;letter-spacing:.08em;line-height:1.4;}
+.obj-verb{font-weight:700;white-space:nowrap;flex-shrink:0;}
+.obj-tgt{font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.obj-tgt.none{font-weight:400;color:var(--ink-dim);}
+.obj-note{color:var(--ink-faint);}
 .obj-verb.attack{color:#ffb35c;}
 .obj-verb.defend{color:#8fb7d6;}
 .obj-verb.hold{color:var(--ink-dim);}
 .obj-verb.win{color:var(--contest);text-shadow:0 0 10px rgba(217,154,61,.5);}
 .obj-verb.lost{color:var(--danger);}
-.obj-verb.idle{color:var(--ink-faint);font-style:italic;font-weight:400;}
-.obj-tgt{font-family:'Playfair Display',Georgia,serif;font-size:.9rem;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.obj-tgt.none{font-family:'Crimson Text',serif;font-weight:400;font-style:italic;color:var(--ink-dim);font-size:.82rem;}
-.obj-world{font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.1em;color:var(--ink-faint);border:1px solid var(--line2);border-radius:3px;padding:.05rem .3rem;flex-shrink:0;}
-.obj-note{font-style:italic;color:var(--ink-faint);font-size:.72rem;}
+.obj-verb.idle{color:var(--ink-faint);font-weight:400;}
+/* administrator's inline editor */
+.obj-edit{display:flex;align-items:center;gap:.3rem;flex:1;min-width:0;}
+.obj-edit select,.obj-edit input{background:var(--bg);border:1px solid var(--line2);border-radius:3px;padding:.14rem .35rem;font-family:'Share Tech Mono',monospace;font-size:.74rem;}
+.obj-edit select{flex-shrink:0;}
+.obj-edit input{flex:1;min-width:60px;}
 @media(max-width:760px){ .trk-obj{flex-direction:column;align-items:stretch;gap:.35rem;} .obj.lech{justify-content:flex-start;text-align:left;} }
-@media(max-height:620px){ .trk-obj{margin-top:.3rem;padding-top:.3rem;} .obj-tgt{font-size:.8rem;} }
+@media(max-height:620px){ .trk-obj{margin-top:.3rem;padding-top:.3rem;} .obj-verb,.obj-tgt,.obj-note{font-size:.7rem;} }
+
+/* ── Battle banner ──────────────────────────────────────
+   Stacked and centred: the label on top, then the battle, then when it is, then
+   one clear way in. Everything reads down the middle of the page. */
+#nextBattle{display:flex;flex-direction:column;align-items:center;gap:.28rem;padding:.55rem 1rem .6rem;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1d1608,#12100b);text-align:center;}
+#nextBattle[hidden]{display:none;}
+.nb-lbl{font-family:'Cinzel',serif;font-size:.64rem;letter-spacing:.24em;color:var(--contest);}
+.nb-name{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:1.1rem;color:var(--ink);line-height:1.2;}
+/* The time reads as ordinary prose — no boxed-off monospace chip. */
+.nb-when{font-size:.92rem;color:var(--ink-dim);}
+.nb-when b{color:var(--ink);font-weight:600;}
+.nb-when em{font-style:italic;color:var(--ink-faint);font-size:.85rem;}
+.nb-tallies{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;}
+.btn.roster{background:linear-gradient(180deg,#16321f,#102618);border-color:var(--vin);color:#9ff0bf;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.14em;padding:.34rem 1.5rem;}
+.btn.roster:hover{border-color:var(--vin-bright);background:linear-gradient(180deg,#1c4028,#143020);color:#c8ffdd;}
+@media(max-height:620px){ #nextBattle{padding:.28rem .7rem .3rem;gap:.15rem;} .nb-name{font-size:.9rem;} .nb-when{font-size:.78rem;} }
 
 /* ── Main layout ────────────────────────────────────── */
 main{flex:1;display:flex;min-height:0;}
@@ -173,8 +200,18 @@ main{flex:1;display:flex;min-height:0;}
 .bcard-meta{font-size:.74rem;color:var(--ink-dim);font-family:'Share Tech Mono',monospace;margin-top:.1rem;}
 .bcard-notes{font-size:.82rem;color:var(--ink-dim);font-style:italic;margin-top:.2rem;}
 .bcard-by{font-size:.68rem;color:var(--ink-faint);font-family:'Share Tech Mono',monospace;margin-top:.2rem;}
-.bcard-btns{display:flex;gap:.3rem;justify-content:flex-end;margin-top:.25rem;}
+.bcard-btns{display:flex;gap:.3rem;justify-content:flex-end;margin-top:.25rem;flex-wrap:wrap;}
 .bcard-btns .btn{font-size:.7rem;padding:.12rem .45rem;}
+.bf-hint{font-size:.74rem;color:var(--ink-faint);font-style:italic;line-height:1.4;}
+/* Recording the result — only ever offered once a battle has actually been fought. */
+.bresult{margin-top:.5rem;padding:.5rem .55rem;border:1px solid var(--contest-deep);border-radius:4px;background:rgba(217,154,61,.07);}
+.bresult[hidden]{display:none;}
+.brl{font-family:'Share Tech Mono',monospace;font-size:.6rem;letter-spacing:.14em;color:var(--contest);margin-bottom:.28rem;}
+.bropts{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.5rem;}
+.bropts .btn{font-size:.72rem;padding:.16rem .5rem;}
+.bropts .btn.active{background:#221b10;border-color:var(--contest);color:#ffd98a;box-shadow:inset 0 0 0 1px var(--contest-deep);}
+.brfoot{display:flex;gap:.3rem;justify-content:flex-end;}
+.brfoot .btn{font-size:.72rem;padding:.16rem .55rem;}
 
 /* ── Map area ───────────────────────────────────────── */
 #mapArea{flex:1;position:relative;display:flex;flex-direction:column;min-width:0;background:#07090b;}
@@ -182,8 +219,7 @@ main{flex:1;display:flex;min-height:0;}
 #toolbar .sep{width:1px;height:20px;background:var(--line);margin:0 .2rem;}
 #toolbar label{font-size:.75rem;color:var(--ink-dim);display:flex;align-items:center;gap:.35rem;}
 #opacity{width:80px;accent-color:var(--contest);}
-.th-tab{background:var(--bg3);border:1px solid var(--line2);border-radius:4px;padding:.32rem .7rem;font-size:.8rem;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.08em;color:var(--ink-dim);}
-.th-tab.active{color:#fff;border-color:var(--contest-deep);background:#221b10;box-shadow:inset 0 0 0 1px var(--contest-deep);}
+#theatreTabs select{background:#221b10;border:1px solid var(--contest-deep);border-radius:4px;padding:.28rem .5rem;font-family:'Cinzel',serif;font-size:.78rem;letter-spacing:.06em;color:#fff;cursor:pointer;}
 #viewport{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;}
 #viewport.drawing{cursor:crosshair;}
 #viewport.panning{cursor:grabbing;}
@@ -202,6 +238,72 @@ main{flex:1;display:flex;min-height:0;}
 footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg2);font-size:.74rem;color:var(--ink-faint);display:flex;gap:1rem;justify-content:space-between;}
 #toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);background:#1b222b;border:1px solid var(--line2);border-radius:5px;padding:.45rem .9rem;font-size:.85rem;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.5);max-width:80vw;}
 #toast.show{opacity:1;}
+
+/* ── Battle bar extras: side tallies, personal status, cap alert ── */
+.side-count{font-family:'Share Tech Mono',monospace;font-size:.76rem;letter-spacing:.04em;color:var(--ink-dim);border:1px solid var(--line2);border-radius:3px;padding:.12rem .5rem;}
+.side-count b{color:var(--ink);font-size:.86rem;}
+.side-count em{font-style:normal;opacity:.75;margin-left:.35rem;}
+.side-count.vin{border-color:var(--vin-deep);color:var(--vin-bright);}
+.side-count.lech{border-color:var(--lech-deep);color:var(--lech-bright);}
+.side-count.over{border-color:var(--danger);color:#ffb0aa;background:rgba(200,87,79,.14);}
+.nb-lbl.livelbl{color:var(--danger);animation:nbpulse 1.6s infinite;}
+@keyframes nbpulse{0%,100%{opacity:1}60%{opacity:.4}}
+.nb-you{flex-basis:100%;text-align:center;font-family:'Cinzel',serif;font-size:.92rem;letter-spacing:.16em;padding:.3rem .6rem;border-radius:3px;margin-top:.15rem;}
+.nb-you.in{background:rgba(43,122,75,.22);border:1px solid var(--vin);color:#9ff0bf;}
+.nb-you.out{background:rgba(200,87,79,.2);border:1px solid var(--danger);color:#ffc2bc;}
+.nb-you em{font-family:'Share Tech Mono',monospace;font-style:normal;font-size:.7rem;letter-spacing:.08em;opacity:.85;margin-left:.5rem;}
+.nb-over{flex-basis:100%;text-align:center;font-family:'Share Tech Mono',monospace;font-size:.8rem;letter-spacing:.1em;color:#ffc2bc;background:rgba(200,87,79,.22);border:1px solid var(--danger);border-radius:3px;padding:.22rem .6rem;margin-top:.15rem;}
+.phase{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.14em;border-radius:3px;padding:.08rem .45rem;border:1px solid;}
+.phase.ph-sched{color:var(--contest);border-color:var(--contest-deep);}
+.phase.ph-live{color:#ffc2bc;border-color:var(--danger);background:rgba(200,87,79,.18);}
+.phase.ph-done{color:var(--ink-faint);border-color:var(--line2);}
+.bcard.scheduled{border-left-color:var(--contest);}
+.bcard.live{border-left-color:var(--danger);}
+
+/* ── Roster room ── */
+#rosterOverlay{position:fixed;inset:0;z-index:9100;background:rgba(5,8,12,.94);display:none;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;}
+#rosterOverlay.show{display:flex;}
+#rosterBox{background:var(--bg2);border:1px solid var(--line2);border-radius:6px;width:100%;max-width:1060px;padding:1rem 1.15rem 1.2rem;margin:auto 0;}
+.rtop{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
+.rttl{font-family:'Playfair Display',Georgia,serif;font-weight:900;font-size:1.3rem;}
+.rsub{font-family:'Share Tech Mono',monospace;font-size:.72rem;color:var(--ink-faint);margin-top:.25rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+.rrule{font-size:.82rem;color:var(--ink-dim);font-style:italic;margin:.7rem 0 .9rem;padding:.45rem .7rem;border-left:2px solid var(--contest-deep);background:var(--bg3);border-radius:0 3px 3px 0;}
+.rrule b{color:var(--contest);font-style:normal;}
+.rcols{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;}
+@media(max-width:820px){ .rcols{grid-template-columns:1fr;} }
+.rcol{border:1px solid var(--line);border-top-width:3px;border-radius:4px;background:var(--bg3);padding:.7rem .8rem;}
+.rcol.vin{border-top-color:var(--vin);}
+.rcol.lech{border-top-color:var(--lech);}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;flex-wrap:wrap;margin-bottom:.5rem;}
+.rside{font-family:'Cinzel',serif;font-size:.82rem;letter-spacing:.1em;}
+.rcol.vin .rside{color:var(--vin-bright);}
+.rcol.lech .rside{color:var(--lech-bright);}
+.rcount{font-family:'Share Tech Mono',monospace;font-size:.74rem;color:var(--ink-dim);}
+.rcount b{color:var(--ink);font-size:.88rem;}
+.rcount.over{color:#ffb0aa;}
+.rover{font-family:'Share Tech Mono',monospace;font-size:.76rem;letter-spacing:.08em;color:#ffc2bc;background:rgba(200,87,79,.2);border:1px solid var(--danger);border-radius:3px;padding:.25rem .5rem;margin-bottom:.5rem;text-align:center;}
+.rslots{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--ink-faint);margin-bottom:.5rem;}
+.rmeta{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.78rem;color:var(--ink-dim);padding:.22rem 0;border-bottom:1px solid var(--line);}
+.rmeta b{color:var(--ink);}
+.rso{flex:1;min-width:0;max-width:62%;background:var(--bg);border:1px solid var(--line2);border-radius:3px;padding:.18rem .35rem;font-size:.8rem;cursor:pointer;}
+.rso:hover{border-color:var(--ink-faint);}
+.rnone{font-style:italic;color:var(--ink-faint);font-size:.76rem;}
+.rgroup{margin-top:.6rem;}
+.rglbl{font-family:'Share Tech Mono',monospace;font-size:.64rem;letter-spacing:.14em;margin-bottom:.3rem;}
+.rglbl.in{color:var(--vin-bright);}
+.rglbl.out{color:var(--contest);}
+.rmem{display:flex;align-items:center;gap:.45rem;padding:.24rem .35rem;border-radius:3px;border:1px solid transparent;}
+.rmem:nth-child(even){background:rgba(255,255,255,.02);}
+.rmem.me{border-color:var(--contest-deep);background:rgba(217,154,61,.12);}
+.rface{width:22px;height:22px;border-radius:3px;image-rendering:pixelated;flex:none;}
+.rname{flex:1;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rname em{font-style:normal;color:var(--contest);font-size:.72rem;}
+.rbtn{font-size:.68rem;padding:.1rem .42rem;}
+.rempty{font-size:.78rem;color:var(--ink-faint);font-style:italic;padding:.2rem .35rem;}
+.radd{display:flex;gap:.35rem;margin-top:.6rem;}
+.radd input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);border-radius:3px;padding:.26rem .4rem;font-size:.85rem;}
+.rnote{font-size:.74rem;color:var(--ink-faint);font-style:italic;margin-top:.5rem;line-height:1.5;}
+.rstamp{font-family:'Share Tech Mono',monospace;font-size:.62rem;color:var(--ink-faint);margin-top:.5rem;text-align:right;}
 
 /* auth modal */
 #authOverlay{position:fixed;inset:0;z-index:9000;background:rgba(5,8,12,.92);display:none;align-items:center;justify-content:center;padding:1rem;}
@@ -232,7 +334,18 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
 <div id="app">
 
   <header>
-    <div class="hdr-crests"><span class="l">EMPIRE OF LECH</span><span class="x">⚔</span><span class="v">REPUBLIC OF VINDEX</span></div>
+    <a class="btn" id="btnVintranet" href="index.html" title="Back to the Vintranet">← Vintranet</a>
+    <div class="hdr-crests">
+      <button type="button" class="crest l" data-crest="lech" title="Who leads the Empire of Lech">
+        <span class="crest-img" data-src="lechflag.png,lechcoa.png"></span>
+        <span class="crest-name">EMPIRE OF LECH</span>
+      </button>
+      <span class="x">⚔</span>
+      <button type="button" class="crest v" data-crest="vindex" title="Who leads the Republic of Vindex">
+        <span class="crest-img" data-src="vindexflag.png,vindexcoa.png"></span>
+        <span class="crest-name">REPUBLIC OF VINDEX</span>
+      </button>
+    </div>
     <div id="warTitleWrap">
       <div id="warTitle" spellcheck="false"></div><br/>
       <div id="warSub" spellcheck="false"></div>
@@ -244,7 +357,7 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
     </div>
   </header>
 
-  <section id="command"></section>
+  <section id="nextBattle" hidden></section>
 
   <section id="tracker">
     <div class="trk-row">
@@ -284,20 +397,13 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
             <input type="date" id="bfDate"/>
             <select id="bfWorld"></select>
           </div>
-          <input type="text" id="bfLocation" placeholder="Location / front"/>
           <div class="bf-grid">
-            <select id="bfVictor">
-              <option value="lech">Lech victory</option>
-              <option value="vindex">Vindex victory</option>
-              <option value="stalemate">Inconclusive</option>
-            </select>
-            <select id="bfScale">
-              <option value="1">Skirmish (±1)</option>
-              <option value="2" selected>Major battle (±2)</option>
-              <option value="3">Decisive (±3)</option>
-            </select>
+            <input type="time" id="bfTime" title="Start time"/>
+            <select id="bfTz" title="Timezone"></select>
           </div>
-          <textarea id="bfNotes" placeholder="Notes / outcome"></textarea>
+          <input type="text" id="bfLocation" placeholder="Location / front"/>
+          <textarea id="bfNotes" placeholder="Notes (optional)"></textarea>
+          <div class="bf-hint">The result is recorded when the battle is concluded, not now.</div>
           <div class="tcard-btns">
             <button type="button" class="btn" id="bfCancel" style="display:none">Cancel</button>
             <button type="submit" class="btn primary" id="bfSubmit">Add Battle</button>
@@ -313,7 +419,7 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
         <button class="btn" id="btnSidebar" title="Toggle sidebar">☰</button>
         <div class="sep"></div>
         <span id="theatreTabs"></span>
-        <div class="sep"></div>
+        <div class="sep" id="sepTheatre"></div>
         <button class="btn active" id="modeSelect" title="Select territories, drag to pan">Select / Pan</button>
         <button class="btn" id="modeDraw" style="display:none" title="Draw a new border polygon">✎ Draw Border</button>
         <button class="btn primary" id="btnFinish" style="display:none">Finish ✓</button>
@@ -363,6 +469,11 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
   </div>
 </div>
 
+<div id="leadersOverlay"><div id="leadersBox"></div></div>
+
+<div id="rosterOverlay"><div id="rosterBox"></div></div>
+<datalist id="accountNames"></datalist>
+
 <div id="toast"></div>
 
 <script>
@@ -402,11 +513,39 @@ const DEFAULT_META = {
     { id: 'sanamaro', name: 'San Amaro', map: 'SanAmaroMap.png' },
     { id: 'viridis',  name: 'Viridis',   map: 'ViridisMap.png' },   // not drawn yet — shows "not found" until the file lands
   ],
+  // Which theatre the war room is centred on. The administrator sets it and
+  // everyone follows: a spectator simply sees the live front, with no theatre
+  // switcher to wander off into.
+  activeTheatreId: 'sanamaro',
+  // Standing orders. Set by hand from the tracker — the war is adjudicated by a
+  // person, not by polygon adjacency, so the orders say whatever the
+  // administrator means them to say.
+  objectives: {
+    lech:   { mode: '', target: '' },
+    vindex: { mode: '', target: '' },
+  },
+  // The next scheduled engagement. `date` and `time` are wall-clock in `tz`
+  // (an IANA zone), so the banner can render the same instant correctly for a
+  // viewer sitting in any timezone.
+  nextBattle: { name: '', date: '', time: '', tz: '', note: '' },
+};
+
+/* The orders an administrator may issue. Empty = nothing standing. */
+const OBJ_MODES = {
+  ATTACK:  { cls: 'attack', icon: '⚔', label: 'ATTACK' },
+  DEFEND:  { cls: 'defend', icon: '🛡', label: 'DEFEND' },
+  HOLD:    { cls: 'hold',   icon: '',  label: 'HOLD THE LINE' },
+  ADVANCE: { cls: 'attack', icon: '⚔', label: 'ADVANCE ON' },
+  RAID:    { cls: 'attack', icon: '⚔', label: 'RAID' },
+  WON:     { cls: 'win',    icon: '⚑', label: 'VICTORIOUS' },
+  LOST:    { cls: 'lost',   icon: '✖', label: 'DEFEATED' },
 };
 
 let meta = JSON.parse(JSON.stringify(DEFAULT_META));
 let territories = [];   // records from lvwar_territories
 let battles = [];       // records from lvwar_battles, sorted by .at
+let rosters = {};       // records from lvwar_rosters, keyed roster_<battleId>_<side>
+let serviceRecords = {};// vx_dod_personnel / mow_personnel — who holds a commission
 let account = null;     // signed-in account (null = spectator)
 let vxGov = {};         // vx_gov singleton (cabinet posts) — SecDef check
 let bkOfficials = {};   // bk_officials singleton — Chancellor / Minister of War
@@ -489,8 +628,26 @@ function refreshPerms() {
   $('threshold').disabled = !canMeta;
   $('warTitle').contentEditable = canMeta ? 'true' : 'false';
   $('warSub').contentEditable = canMeta ? 'true' : 'false';
+  applySidebarVisibility();
   renderUserBox();
+  renderTheatreTabs();
+  renderObjectives();
+  renderBattleBar();
+  // The battle cards carry the administrator's controls, so they have to be
+  // rebuilt whenever authority changes — otherwise a session restored a moment
+  // after the first paint leaves the log looking read-only.
+  if (loadedOnce) renderBattles();
   updateHint();
+}
+// The territory register is the administrator's own working view of the war —
+// the roster of every zone and its owner. The public sidebar carries the battle
+// log alone. (The map itself stays public; it is the *list* that is private.)
+function applySidebarVisibility() {
+  const tab = document.querySelector('.tab[data-tab="territories"]');
+  const panel = $('panel-territories');
+  if (tab) tab.style.display = canMeta ? '' : 'none';
+  if (panel) panel.style.display = canMeta ? '' : 'none';
+  if (!canMeta && tab && tab.classList.contains('active')) switchTab('battles');
 }
 function officeLabel() {
   if (!account) return '';
@@ -597,7 +754,11 @@ function busyEditing() {
   if (drawPts.length || vertexDrag || editingBattleId) return true;
   const ae = document.activeElement;
   if (ae && ae.isContentEditable) return true;
-  return !!(ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) && ae.closest('#sidebar'));
+  // The objective and next-battle controls live in the tracker and the banner,
+  // not the sidebar — a poll landing mid-edit would otherwise repaint them out
+  // from under the administrator's cursor.
+  return !!(ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName) &&
+    ae.closest('#sidebar,#tracker,#nextBattle,#rosterOverlay'));
 }
 async function loadAll() {
   const res = await sgetAll();
@@ -617,24 +778,74 @@ async function loadAll() {
       : JSON.parse(JSON.stringify(DEFAULT_META));
     if (!Array.isArray(meta.theatres) || !meta.theatres.length) meta.theatres = JSON.parse(JSON.stringify(DEFAULT_META.theatres));
     theatreIdx = clamp(theatreIdx, 0, meta.theatres.length - 1);
+    const wantIdx = theatreIndexFromMeta();
     territories = Object.values(raw.lvwar_territories || {}).filter(t => t && Array.isArray(t.points));
-    battles = Object.values(raw.lvwar_battles || {}).filter(b => b && b.victor).sort((a, b) => (a.at || 0) - (b.at || 0));
+    // Every battle, not only the decided ones — a scheduled or live battle has no
+    // victor yet but must still appear. Only concluded ones move the tracker.
+    battles = Object.values(raw.lvwar_battles || {}).filter(b => b && b.id).sort((a, b) => (a.at || 0) - (b.at || 0));
+    rosters = raw.lvwar_rosters || {};
+    // Each nation's own service record, read straight from its defence site, so
+    // the appointable officers here are always the ones actually commissioned.
+    serviceRecords = { vx_dod_personnel: raw.vx_dod_personnel || {},
+                       mow_personnel: raw.mow_personnel || {} };
     if (selectedId && !territories.some(t => t.id === selectedId)) selectedId = null;
     renderAll();
-    if (!loadedOnce) { loadedOnce = true; loadTheatre(0); }
+    // Follow the administrator: whichever theatre the record names is the one
+    // every viewer is looking at, on first load and on every poll after.
+    if (!loadedOnce) { loadedOnce = true; loadTheatre(wantIdx); }
+    else if (wantIdx !== theatreIdx) loadTheatre(wantIdx);
     updateHint();
   }
   refreshPerms();
 }
-setInterval(() => { if (document.visibilityState === 'visible' && loadedOnce && !busyEditing()) loadAll(); }, 25000);
+// A live battle needs a much tighter refresh than the map does — somebody is
+// standing at a base waiting to be tapped in, and 25 seconds is far too long to
+// find out. The clock runs every 5s and simply skips most ticks when nothing is
+// being fought.
+let lastPoll = 0;
+setInterval(() => {
+  if (document.visibilityState !== 'visible' || !loadedOnce || busyEditing()) return;
+  const every = liveBattle() ? 5000 : 25000;
+  if (Date.now() - lastPoll < every) return;
+  lastPoll = Date.now();
+  loadAll();
+}, 5000);
 
 /* ══════════ THEATRES & MAP ══════════ */
 function activeTheatre() { return meta.theatres[theatreIdx] || meta.theatres[0]; }
+// The theatre the war record says is live, as an index into meta.theatres.
+function theatreIndexFromMeta() {
+  const i = meta.theatres.findIndex(t => t.id === meta.activeTheatreId);
+  return i >= 0 ? i : 0;
+}
+// Only the administrator gets a control, and choosing one moves the whole war
+// room for everybody. Spectators get nothing here at all — the map they are
+// shown IS the front, so there is nothing to choose.
 function renderTheatreTabs() {
-  $('theatreTabs').innerHTML = meta.theatres.map((t, i) =>
-    `<button type="button" class="th-tab${i === theatreIdx ? ' active' : ''}" data-i="${i}">${esc(t.name)}</button>`).join(' ');
-  $('theatreTabs').querySelectorAll('.th-tab').forEach(b =>
-    b.addEventListener('click', () => loadTheatre(+b.dataset.i)));
+  const host = $('theatreTabs'), sep = $('sepTheatre');
+  if (!canMeta) {
+    host.innerHTML = '';
+    if (sep) sep.style.display = 'none';
+    return;
+  }
+  if (sep) sep.style.display = '';
+  host.innerHTML = `<label>theatre
+    <select id="theatreSel">${meta.theatres.map((t, i) =>
+      `<option value="${i}"${i === theatreIdx ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
+  </label>`;
+  $('theatreSel').addEventListener('change', e => setActiveTheatre(+e.target.value));
+}
+// An administrator moving the front. Recorded on the war meta so every viewer
+// follows on their next poll.
+function setActiveTheatre(i) {
+  if (!canMeta) return;
+  const idx = clamp(i, 0, meta.theatres.length - 1);
+  const th = meta.theatres[idx];
+  if (!th) return;
+  meta.activeTheatreId = th.id;
+  persistMetaDebounced();
+  loadTheatre(idx);
+  toast('The war room is now centred on ' + th.name + '.');
 }
 function loadTheatre(i) {
   if (mode === 'draw') cancelDraw();
@@ -748,31 +959,6 @@ function centroid(pts) {
   a *= 3;
   return [cx / a, cy / a];
 }
-// Distance from a point to a segment, and the minimum distance between two
-// polygon boundaries — used to decide which territories are adjacent (share, or
-// nearly share, a border) when working out each side's objective.
-function segDist(px, py, ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-  let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
-}
-function polyMinDist(pa, pb) {
-  let m = Infinity;
-  for (const p of pa) for (let i = 0; i < pb.length; i++) {
-    const a = pb[i], b = pb[(i + 1) % pb.length];
-    const d = segDist(p[0], p[1], a[0], a[1], b[0], b[1]);
-    if (d < m) m = d;
-    if (m === 0) return 0;
-  }
-  for (const p of pb) for (let i = 0; i < pa.length; i++) {
-    const a = pa[i], b = pa[(i + 1) % pa.length];
-    const d = segDist(p[0], p[1], a[0], a[1], b[0], b[1]);
-    if (d < m) m = d;
-  }
-  return m;
-}
-
 /* ══════════ RENDER: MAP OVERLAY ══════════ */
 const svgNS = 'http://www.w3.org/2000/svg';
 function el(tag, attrs) {
@@ -1135,8 +1321,10 @@ function renderTerritories() {
 /* ══════════ BATTLES & TRACKER ══════════ */
 const SCALES = { 1: 'Skirmish', 2: 'Major battle', 3: 'Decisive' };
 function battleScore(b) { return b.victor === 'lech' ? +b.scale : b.victor === 'vindex' ? -b.scale : 0; }
+// Only a concluded battle moves the war. Scheduled and live ones carry no result
+// yet, so they must not tilt the tracker while they are being fought.
 function warScore() {
-  return clamp(battles.reduce((s, b) => s + battleScore(b), 0), -meta.threshold, meta.threshold);
+  return clamp(concludedBattles().reduce((s, b) => s + battleScore(b), 0), -meta.threshold, meta.threshold);
 }
 function displayNameOf(username) {
   const a = accountsDir[String(username || '').toLowerCase()];
@@ -1167,7 +1355,8 @@ function renderTracker() {
   const mag = Math.abs(score) / thr;
   const side = score > 0 ? 'LECH' : 'VINDEX';
   let txt, cls = score > 0 ? 'lech' : score < 0 ? 'vin' : '';
-  if (score === 0) txt = battles.length ? 'DEADLOCK' : 'THE GUNS ARE SILENT';
+  const fought = concludedBattles();
+  if (score === 0) txt = fought.length ? 'DEADLOCK' : 'THE GUNS ARE SILENT';
   else if (mag >= 1) { txt = `⚑ TOTAL ${side} VICTORY ⚑`; cls += ' victory'; }
   else if (mag >= 0.7) txt = `${side} NEARING VICTORY`;
   else if (mag >= 0.4) txt = `${side} DOMINANT`;
@@ -1176,144 +1365,549 @@ function renderTracker() {
   mainEl.textContent = txt;
   mainEl.className = cls.trim();
 
-  const last3 = battles.slice(-3);
+  const last3 = fought.slice(-3);
   const mom = last3.reduce((s, b) => s + battleScore(b), 0);
   $('trkMomentum').textContent = last3.length
     ? 'momentum: ' + (mom > 0 ? 'Lech ▲' : mom < 0 ? 'Vindex ▲' : 'even —')
     : '';
 
-  const lw = battles.filter(b => b.victor === 'lech').length;
-  const vw = battles.filter(b => b.victor === 'vindex').length;
+  const lw = fought.filter(b => b.victor === 'lech').length;
+  const vw = fought.filter(b => b.victor === 'vindex').length;
   $('lechWins').textContent = lw + (lw === 1 ? ' victory' : ' victories');
   $('vinWins').textContent = vw + (vw === 1 ? ' victory' : ' victories');
   renderObjectives();
 }
 
 /* ══════════ OBJECTIVES ══════════ */
-// Standing orders for each crown, read off the war record. Whoever won the most
-// recent decisive battle is on the offensive — they push from the ground they
-// hold into the adjacent enemy (or contested) zone. The other side is thrown
-// onto the defensive, guarding its most exposed holding. Because the attacker is
-// always simply "who won last", a defender that wins the next battle takes the
-// offensive in turn — exactly the swing the front should show.
-function sideOf(s) {
-  if (s === 'lech' || s === 'lech-occ') return 'lech';
-  if (s === 'vindex' || s === 'vindex-occ') return 'vindex';
-  if (s === 'wilden' || s === 'wilden-occ') return 'wilden';
-  return 'contested';
+// Standing orders are set by hand from the tracker. The war is adjudicated by a
+// person, so the orders say exactly what the administrator means them to say —
+// nothing is inferred from polygon adjacency, which could only ever guess.
+function objectivesOf() {
+  const o = (meta && meta.objectives) || {};
+  const one = s => ({ mode: String((o[s] || {}).mode || ''), target: String((o[s] || {}).target || '') });
+  return { lech: one('lech'), vindex: one('vindex') };
 }
-function terrsIn(world) {
-  return territories.filter(t => (t.world || '') === world && Array.isArray(t.points) && t.points.length >= 3);
+function objLine(side, o) {
+  const head = `<span class="obj-lbl">${side === 'lech' ? 'LECH' : 'VINDEX'} OBJECTIVE</span>`;
+  const m = OBJ_MODES[o.mode];
+  if (!m) return head + `<span class="obj-verb idle">standing by</span>`;
+  const verb = `<span class="obj-verb ${m.cls}">${m.icon ? m.icon + ' ' : ''}${m.label}</span>`;
+  if (o.target) return head + verb + ` <span class="obj-tgt" title="${esc(o.target)}">${esc(o.target)}</span>`;
+  const fallback = m.cls === 'attack' ? 'press the advance' : m.cls === 'defend' ? 'hold the front' : '';
+  return head + verb + (fallback ? ` <span class="obj-tgt none">${fallback}</span>` : '');
 }
-function worldsWithTerr() {
-  const s = new Set(territories.filter(t => Array.isArray(t.points) && t.points.length >= 3).map(t => t.world || ''));
-  return meta.theatres.map(th => th.name).filter(n => s.has(n));
-}
-function focusWorld(last) {
-  const withT = worldsWithTerr();
-  if (!withT.length) return null;
-  if (last && last.world && withT.includes(last.world)) return last.world;   // the theatre the last battle was fought in
-  const act = activeTheatre();
-  if (act && withT.includes(act.name)) return act.name;
-  return withT[0];
-}
-// Territories are adjacent when their borders sit within ~12% of the theatre's
-// span of one another — enough to catch shared and near-shared frontiers.
-function adjThreshold(ts) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const t of ts) for (const p of t.points) {
-    if (p[0] < minX) minX = p[0]; if (p[1] < minY) minY = p[1];
-    if (p[0] > maxX) maxX = p[0]; if (p[1] > maxY) maxY = p[1];
-  }
-  return (Math.hypot(maxX - minX, maxY - minY) || 1) * 0.12;
-}
-function setCentroid(list) {
-  if (!list.length) return null;
-  let x = 0, y = 0;
-  for (const t of list) { const c = centroid(t.points); x += c[0]; y += c[1]; }
-  return [x / list.length, y / list.length];
-}
-function nearestName(pool, origin) {
-  if (!pool.length) return null;
-  if (!origin) return pool[0].name;
-  let best = pool[0], bd = Infinity;
-  for (const t of pool) {
-    const c = centroid(t.points), d = Math.hypot(c[0] - origin[0], c[1] - origin[1]);
-    if (d < bd) { bd = d; best = t; }
-  }
-  return best.name;
-}
-// Where the last battle was fought, if it names a territory we know — so the
-// objective points at the zone next to the actual fighting.
-function battleOrigin(b, world) {
-  if (!b) return null;
-  const hay = ((b.location || '') + ' ' + (b.name || '')).toLowerCase();
-  const hit = terrsIn(world).find(t => t.name && hay.includes(String(t.name).toLowerCase()));
-  return hit ? centroid(hit.points) : null;
-}
-function pickAttackTarget(side, world, origin) {
-  const ts = terrsIn(world), enemy = side === 'lech' ? 'vindex' : 'lech';
-  const mine = ts.filter(t => sideOf(t.status) === side);
-  const targets = ts.filter(t => { const s = sideOf(t.status); return s === 'contested' || s === enemy; });
-  if (!targets.length) return null;
-  const thrD = adjThreshold(ts);
-  const adj = targets.filter(t => mine.some(m => polyMinDist(m.points, t.points) <= thrD));
-  const enemyAdj = adj.filter(t => sideOf(t.status) === enemy);      // press into enemy ground first
-  const pool = enemyAdj.length ? enemyAdj : (adj.length ? adj : targets);
-  return nearestName(pool, origin || setCentroid(mine.length ? mine : targets));
-}
-function pickDefendTarget(side, world, origin) {
-  const ts = terrsIn(world), enemy = side === 'lech' ? 'vindex' : 'lech';
-  const mine = ts.filter(t => sideOf(t.status) === side);
-  if (!mine.length) return null;
-  const threats = ts.filter(t => { const s = sideOf(t.status); return s === enemy || s === 'contested'; });
-  const thrD = adjThreshold(ts);
-  const exposed = mine.filter(m => threats.some(t => polyMinDist(m.points, t.points) <= thrD));
-  const pool = exposed.length ? exposed : mine;
-  return nearestName(pool, origin || setCentroid(threats.length ? threats : mine));
-}
-function computeObjectives() {
-  const thr = meta.threshold, score = warScore();
-  const res = { lech: { mode: null, target: null, world: null }, vindex: { mode: null, target: null, world: null } };
-  if (battles.length && Math.abs(score) >= thr) {          // the war is decided
-    const win = score > 0 ? 'lech' : 'vindex', lose = win === 'lech' ? 'vindex' : 'lech';
-    res[win].mode = 'WON'; res[lose].mode = 'LOST';
-    return res;
-  }
-  const decisive = battles.filter(b => b.victor === 'lech' || b.victor === 'vindex');
-  if (!decisive.length) { res.lech.mode = 'HOLD'; res.vindex.mode = 'HOLD'; return res; }
-  const last = decisive[decisive.length - 1];
-  const attacker = last.victor, defender = attacker === 'lech' ? 'vindex' : 'lech';
-  const world = focusWorld(last);
-  res[attacker].mode = 'ATTACK'; res[attacker].world = world;
-  res[defender].mode = 'DEFEND'; res[defender].world = world;
-  if (world) {
-    const origin = battleOrigin(last, world);
-    res[attacker].target = pickAttackTarget(attacker, world, origin);
-    res[defender].target = pickDefendTarget(defender, world, origin);
-  }
-  return res;
-}
-function objLine(side, o, multiWorld) {
-  const lbl = (side === 'lech' ? 'LECH' : 'VINDEX') + ' OBJECTIVE';
-  const wrap = s => `<span class="obj-lbl">${lbl}</span>${s}`;
-  if (!o || !o.mode) return wrap(`<span class="obj-verb idle">standing by</span>`);
-  if (o.mode === 'WON') return wrap(`<span class="obj-verb win">⚑ VICTORIOUS</span>`);
-  if (o.mode === 'LOST') return wrap(`<span class="obj-verb lost">✖ DEFEATED</span>`);
-  if (o.mode === 'HOLD') return wrap(`<span class="obj-verb hold">HOLD THE LINE</span> <span class="obj-note">awaiting first battle</span>`);
-  const icon = o.mode === 'ATTACK' ? '⚔' : '🛡';
-  const tgt = o.target
-    ? `<span class="obj-tgt" title="${esc(o.target)}">${esc(o.target)}</span>`
-    : `<span class="obj-tgt none">${o.mode === 'ATTACK' ? 'press the advance' : 'hold the front'}</span>`;
-  const world = (o.world && multiWorld) ? `<span class="obj-world">${esc(o.world)}</span>` : '';
-  return wrap(`<span class="obj-verb ${o.mode === 'ATTACK' ? 'attack' : 'defend'}">${icon} ${o.mode}</span> ${tgt} ${world}`);
+function objEditor(side, o) {
+  const opts = ['<option value="">— standing by —</option>'].concat(
+    Object.keys(OBJ_MODES).map(k =>
+      `<option value="${k}"${o.mode === k ? ' selected' : ''}>${OBJ_MODES[k].label}</option>`)).join('');
+  return `<span class="obj-lbl">${side === 'lech' ? 'LECH' : 'VINDEX'} OBJECTIVE</span>
+    <span class="obj-edit">
+      <select data-obj="${side}" data-f="mode">${opts}</select>
+      <input type="text" data-obj="${side}" data-f="target" value="${esc(o.target)}" placeholder="location / detail"/>
+    </span>`;
 }
 function renderObjectives() {
-  const o = computeObjectives(), multi = meta.theatres.length > 1;
-  $('objVin').innerHTML = objLine('vindex', o.vindex, multi);
-  $('objLech').innerHTML = objLine('lech', o.lech, multi);
+  const o = objectivesOf();
+  const vin = $('objVin'), lech = $('objLech');
+  if (!canMeta) {
+    vin.innerHTML = objLine('vindex', o.vindex);
+    lech.innerHTML = objLine('lech', o.lech);
+    return;
+  }
+  vin.innerHTML = objEditor('vindex', o.vindex);
+  lech.innerHTML = objEditor('lech', o.lech);
+  [vin, lech].forEach(hostEl => hostEl.querySelectorAll('[data-obj]').forEach(ctl => {
+    ctl.addEventListener(ctl.tagName === 'SELECT' ? 'change' : 'input', () => {
+      if (!canMeta) return;
+      if (!meta.objectives) meta.objectives = {};
+      const cur = meta.objectives[ctl.dataset.obj] ||
+        (meta.objectives[ctl.dataset.obj] = { mode: '', target: '' });
+      cur[ctl.dataset.f] = ctl.value;
+      persistMetaDebounced();
+    });
+  }));
 }
 
+/* ══════════ NEXT BATTLE ══════════ */
+// The scheduled engagement is stored as a wall-clock date and time in a named
+// zone. Every viewer sees it rendered in their OWN local time, with the zone it
+// was set in shown beside it, so "7:00 PM EDT" is unambiguous wherever the
+// person reading it happens to be.
+// The four American zones the war is fought across. Each is stored as its IANA
+// name rather than as a bare "EST", because the IANA zone carries daylight
+// saving with it — America/New_York is EST in winter and EDT in summer, which a
+// fixed-offset "EST" would get wrong for half the year. The short code is only
+// ever what we *show*.
+const US_ZONES = [
+  { tz: 'America/New_York',    code: 'EST', label: 'EST — Eastern' },
+  { tz: 'America/Chicago',     code: 'CST', label: 'CST — Central' },
+  { tz: 'America/Denver',      code: 'MST', label: 'MST — Mountain' },
+  { tz: 'America/Los_Angeles', code: 'PST', label: 'PST — Pacific' },
+];
+const DEFAULT_TZ = 'America/New_York';
+// The zone's own abbreviation at that moment — EST or EDT, CST or CDT — so the
+// banner reads correctly on either side of the daylight-saving switch.
+function zoneAbbr(tz, date) {
+  try {
+    const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+      .formatToParts(date || new Date()).find(x => x.type === 'timeZoneName');
+    if (p && p.value) return p.value;
+  } catch (e) {}
+  const z = US_ZONES.find(x => x.tz === tz);
+  return z ? z.code : (tz || DEFAULT_TZ);
+}
+// How far `tz` sits from UTC at a given instant, in milliseconds.
+function tzOffsetMs(tz, date) {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const p = {};
+    for (const part of dtf.formatToParts(date)) p[part.type] = part.value;
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - date.getTime();
+  } catch (e) { return 0; }
+}
+// Wall-clock in `tz` to the real instant. Resolved twice so a time sitting near
+// a daylight-saving switch lands on the correct side of it.
+function zonedToInstant(date, time, tz) {
+  if (!date || !time) return null;
+  const naive = Date.parse(date + 'T' + time + ':00Z');
+  if (isNaN(naive)) return null;
+  const zone = tz || DEFAULT_TZ;
+  let guess = naive - tzOffsetMs(zone, new Date(naive));
+  guess = naive - tzOffsetMs(zone, new Date(guess));
+  const d = new Date(guess);
+  return isNaN(d.getTime()) ? null : d;
+}
+// "19:00" as it was typed, shown the way it is spoken: "7:00 PM".
+function fmtClock(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return String(hhmm || '');
+  const h = +m[1];
+  return ((h % 12) || 12) + ':' + m[2] + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+/* ══════════ BATTLE PHASES ══════════ */
+// A battle now exists before it is fought. Scheduled: rosters open, Strategy
+// Officers appointed, nothing counted. Live: the cap is enforced and the bench
+// runs. Concluded: victor and scale recorded, roster frozen as the record of who
+// actually fought. Battles written before phases existed carry a victor and no
+// phase, so those read as concluded.
+const PHASES = {
+  scheduled: { label: 'SCHEDULED', cls: 'ph-sched' },
+  live:      { label: 'LIVE',      cls: 'ph-live' },
+  concluded: { label: 'CONCLUDED', cls: 'ph-done' },
+};
+function phaseOf(b) { return (b && b.phase) ? b.phase : ((b && b.victor) ? 'concluded' : 'scheduled'); }
+function concludedBattles() { return battles.filter(b => phaseOf(b) === 'concluded' && b.victor); }
+function liveBattle() { return battles.find(b => phaseOf(b) === 'live') || null; }
+function startInstantOf(b) {
+  if (!b) return null;
+  return zonedToInstant(b.startDate || b.date, b.startTime, b.startTz);
+}
+// The soonest scheduled battle — the one the banner announces.
+function nextScheduled() {
+  const sched = battles.filter(b => phaseOf(b) === 'scheduled');
+  if (!sched.length) return null;
+  const dated = sched.map(b => ({ b, t: startInstantOf(b) })).filter(x => x.t);
+  if (!dated.length) return sched[0];
+  dated.sort((p, q) => p.t.getTime() - q.t.getTime());
+  return dated[0].b;
+}
+// The battle the war room is currently organised around.
+function focusBattle() { return liveBattle() || nextScheduled(); }
+
+/* ══════════ ROSTERS & THE 1.25× RULE ══════════ */
+// Each side keeps its own roster. The larger side may field at most 125% of the
+// smaller side's TOTAL PRESENT — everyone they have at the battle, benched or
+// not — rounded down. Below four present the rule is not applied at all: a
+// skirmish that small is left alone.
+//
+// Because the cap keys off *present* rather than *subbed in*, benching somebody
+// never moves either cap. The number only changes when a person genuinely joins
+// or leaves, which is what keeps it stable in the middle of a fight.
+const CAP_RATIO = 1.25;
+const CAP_MIN_SIDE = 4;
+function capAgainst(opponentPresent) {
+  if (opponentPresent < CAP_MIN_SIDE) return Infinity;
+  return Math.floor(opponentPresent * CAP_RATIO);
+}
+function rosterKey(battleId, side) { return 'roster_' + battleId + '_' + side; }
+function rosterFor(battleId, side) {
+  const r = rosters[rosterKey(battleId, side)];
+  if (r) return r;
+  return { id: rosterKey(battleId, side), battleId: battleId, side: side,
+    strategyOfficer: '', benchLocation: '', members: [] };
+}
+function membersOf(r) { return Array.isArray(r.members) ? r.members : []; }
+function presentOf(r) { return membersOf(r).length; }
+function inOf(r) { return membersOf(r).filter(m => m.status !== 'benched').length; }
+// Everything one side needs to know about its own standing.
+function standing(battleId, side) {
+  const own = rosterFor(battleId, side);
+  const foe = rosterFor(battleId, side === 'lech' ? 'vindex' : 'lech');
+  const cap = capAgainst(presentOf(foe));
+  const active = inOf(own);
+  return { own, foe, cap, active, present: presentOf(own),
+    over: cap === Infinity ? 0 : Math.max(0, active - cap),
+    slots: cap === Infinity ? Infinity : Math.max(0, cap - active),
+    capped: cap !== Infinity };
+}
+const SIDES = { lech: { name: 'Empire of Lech', short: 'LECH', cls: 'lech' },
+                vindex: { name: 'Republic of Vindex', short: 'VINDEX', cls: 'vin' } };
+
+/* ── who may be made a Strategy Officer ──────────────────────────────────────
+   Only a commissioned officer of that country's own service. Each nation keeps
+   its service record on its own site — the Republic's Department of Defense and
+   the Empire's Ministry of War — and this reads those registers directly, so a
+   promotion or a discharge over there changes who is appointable here with no
+   second list to maintain.
+
+   Vindex commissions at O-1 (Second Lieutenant / Ensign); Lech commissions at
+   OF-1 (Lieutenant / Sub-Lieutenant). Everything below those is enlisted or a
+   non-commissioned officer and is never offered. */
+const MILITARY = {
+  vindex: { key: 'vx_dod_personnel', label: 'Vindex Department of Defense', site: 'deptdefense.html' },
+  lech:   { key: 'mow_personnel',    label: 'Imperial Ministry of War',     site: 'mow.html' },
+};
+// Officer grades only — mirrors the rank tables on those two sites. The grade
+// code is the source of truth; these abbreviations are only what gets printed.
+const OFFICER_RANKS = {
+  VA:   { 'O-1':'2LT','O-2':'1LT','O-3':'CPT','O-4':'MAJ','O-5':'LTC','O-6':'COL','O-7':'BG','O-8':'MG','O-9':'LTG','O-10':'GEN' },
+  VN:   { 'O-1':'ENS','O-2':'LTJG','O-3':'LT','O-4':'LCDR','O-5':'CDR','O-6':'CAPT','O-7':'RDML','O-8':'RADM','O-9':'VADM','O-10':'ADM' },
+  ILA:  { 'OF-1':'Lt','OF-2':'Capt','OF-3':'Maj','OF-4':'LCol','OF-5':'Col','OF-6':'BGen','OF-7':'DGen','OF-8':'CGen','OF-9':'Gen','OF-10':'ME' },
+  ILN:  { 'OF-1':'SLt','OF-2':'Lt','OF-3':'LCdr','OF-4':'Cdr','OF-5':'Capt','OF-6':'FAdm','OF-7':'CAdm','OF-8':'VAdm','OF-9':'Adm','OF-10':'GAdm' },
+  ILSOC:{ 'OF-2':'Capt','OF-3':'Maj','OF-5':'Col','OF-6':'BGen','OF-10':'COMSOC' },
+};
+// "O-3" and "OF-3" are commissions; "E-3" and "OR-3" are not.
+function isOfficerGrade(g) { return /^(O|OF)-\d+$/i.test(String(g || '').trim()); }
+function gradeRank(g) { const m = /^(?:O|OF)-(\d+)$/i.exec(String(g || '').trim()); return m ? +m[1] : 0; }
+const sameUser = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+
+function eligibleOfficers(side) {
+  const conf = MILITARY[side];
+  if (!conf) return [];
+  const reg = serviceRecords[conf.key] || {};
+  const seen = {}, out = [];
+  Object.keys(reg).forEach(id => {
+    const p = reg[id];
+    if (!p || String(p.status || 'active') !== 'active') return;
+    if (!isOfficerGrade(p.grade)) return;
+    const u = String(p.username || '').trim().toLowerCase();
+    if (!u || seen[u]) return;
+    // They must actually hold a Vintranet account, or they could never sign in
+    // to work the bench. (Skipped if the account directory has not loaded.)
+    if (Object.keys(accountsDir).length && !accountsDir[u]) return;
+    seen[u] = 1;
+    const abbr = (OFFICER_RANKS[p.branch] || {})[String(p.grade || '').toUpperCase()] || p.grade;
+    out.push({ username: u, name: p.name || displayNameOf(u) || u,
+      grade: p.grade, abbr: abbr, branch: p.branch || '' });
+  });
+  out.sort((a, b) => gradeRank(b.grade) - gradeRank(a.grade) || a.name.localeCompare(b.name));
+  return out;
+}
+
+/* ── who may work a roster ── */
+function isVindexCommandA(a) {
+  if (!a) return false;
+  if (isSysAdminA(a)) return true;
+  const r = String(a.vxRole || '');
+  if (r === 'president' || r === 'vice_president') return true;
+  return isVxSecDef(a);
+}
+function isLechCommandA(a) {
+  if (!a) return false;
+  if (isSysAdminA(a)) return true;
+  if (hasWarA(a)) return true;
+  const off = bkOfficials || {};
+  const u = String(a.username || '').toLowerCase();
+  if (off.chancellor_username && String(off.chancellor_username).toLowerCase() === u) return true;
+  const bare = String(off.chancellor || '').toLowerCase();
+  return !!bare && bare !== 'vacant' &&
+    (bare === u || bare === String(a.displayName || '').toLowerCase());
+}
+function isCommandFor(side) { return side === 'vindex' ? isVindexCommandA(account) : isLechCommandA(account); }
+function isSOFor(side, battleId) {
+  if (!account) return false;
+  return String(rosterFor(battleId, side).strategyOfficer || '').toLowerCase() ===
+         String(account.username || '').toLowerCase();
+}
+// War command works the roster; so does the Strategy Officer they appointed.
+function canWorkRoster(side, battleId) { return isCommandFor(side) || isSOFor(side, battleId); }
+
+async function persistRoster(r) {
+  noteSaving();
+  r.updatedAt = Date.now();
+  rosters[r.id] = r;
+  const res = await saveRecord('lvwar_rosters', r);
+  noteSaved(res.ok, res.error);
+  if (!res.ok) loadAll();
+  return res;
+}
+// Where the signed-in account stands in this battle, if anywhere.
+function myCombatant(b) {
+  if (!account || !b) return null;
+  const u = String(account.username || '').toLowerCase();
+  if (!u) return null;
+  const list = ['lech', 'vindex'];
+  for (let i = 0; i < list.length; i++) {
+    const r = rosterFor(b.id, list[i]);
+    const m = membersOf(r).find(x => String(x.username || '').toLowerCase() === u);
+    if (m) return { side: list[i], m: m, roster: r };
+  }
+  return null;
+}
+
+/* ══════════ THE BATTLE BAR ══════════ */
+// When a battle is, written the way a person would say it. The time is given in
+// the zone it was set in — that is the announcement everybody was told — and the
+// viewer's own clock is added only when it actually differs, so nobody has to do
+// the conversion in their head and nobody reads a second time for nothing.
+function whenText(b) {
+  const inst = startInstantOf(b);
+  if (!inst) return '';
+  const tz = b.startTz || DEFAULT_TZ;
+  const day = inst.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const setClock = fmtClock(b.startTime) + ' ' + zoneAbbr(tz, inst);
+  let mine = '';
+  try {
+    const local = inst.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      .replace(/ /g, ' ').toUpperCase();
+    if (local.replace(/\s/g, '') !== fmtClock(b.startTime).replace(/\s/g, '').toUpperCase())
+      mine = ` <em>(${esc(local)} your time)</em>`;
+  } catch (e) {}
+  return `${day} at <b>${esc(setClock)}</b>${mine}`;
+}
+function renderBattleBar() {
+  const sec = $('nextBattle');
+  if (!sec) return;
+  const b = focusBattle();
+  if (!b) {
+    if (!canBattles) { sec.hidden = true; sec.innerHTML = ''; return; }
+    sec.hidden = false;
+    sec.innerHTML = `<span class="nb-lbl">NEXT BATTLE</span>
+      <span class="nb-when">None scheduled — add one in the battle log.</span>`;
+    return;
+  }
+  sec.hidden = false;
+  const live = phaseOf(b) === 'live';
+  const sl = standing(b.id, 'lech'), sv = standing(b.id, 'vindex');
+  const mine = myCombatant(b);
+
+  const tally = s => {
+    const st = s === 'lech' ? sl : sv;
+    return `<span class="side-count ${SIDES[s].cls}${st.over > 0 ? ' over' : ''}">
+      ${SIDES[s].short} <b>${st.active}</b> in / ${st.present} present
+      <em>${st.capped ? 'max ' + st.cap : 'no cap'}</em></span>`;
+  };
+  // The one line a player actually needs: am I fighting, or am I at base?
+  let you = '';
+  if (mine) {
+    const benched = mine.m.status === 'benched';
+    const bench = rosterFor(b.id, mine.side).benchLocation;
+    you = `<span class="nb-you ${benched ? 'out' : 'in'}">
+      ${benched ? '⛔ YOU ARE BENCHED — STAY AT BASE' : '⚔ YOU ARE IN — FIGHT'}
+      ${benched && bench ? `<em>${esc(bench)}</em>` : ''}</span>`;
+  }
+  let alert = '';
+  ['vindex', 'lech'].forEach(s => {
+    const st = s === 'lech' ? sl : sv;
+    if (st.over > 0) alert += `<span class="nb-over">⚠ ${SIDES[s].short} OVER CAP — BENCH ${st.over} NOW</span>`;
+  });
+
+  sec.innerHTML =
+    `<span class="nb-lbl${live ? ' livelbl' : ''}">${live ? '● BATTLE UNDER WAY' : 'NEXT BATTLE'}</span>
+     <span class="nb-name">${esc(b.name || 'Unnamed engagement')}</span>
+     <button type="button" class="btn roster" id="btnRoster">Roster</button>` +
+    (live ? `<div class="nb-tallies">${tally('vindex')}${tally('lech')}</div>`
+          : `<span class="nb-when">${whenText(b)}</span>`) +
+    alert + you;
+
+  $('btnRoster').addEventListener('click', () => openRoster(b.id));
+}
+
+/* ══════════ THE ROSTER ROOM ══════════ */
+let rosterBattleId = null;
+function openRoster(id) {
+  rosterBattleId = id;
+  $('rosterOverlay').classList.add('show');
+  renderRoster();
+}
+function closeRoster() { $('rosterOverlay').classList.remove('show'); rosterBattleId = null; }
+
+function rosterColumn(b, side) {
+  const S = SIDES[side], st = standing(b.id, side), r = st.own;
+  const mayWork = canWorkRoster(side, b.id) && phaseOf(b) !== 'concluded';
+  const mayAppoint = isCommandFor(side) && phaseOf(b) !== 'concluded';
+  const so = r.strategyOfficer ? displayNameOf(r.strategyOfficer) : '';
+  const list = membersOf(r).slice().sort((a, c) =>
+    (a.status === 'benched' ? 1 : 0) - (c.status === 'benched' ? 1 : 0) ||
+    String(a.name || '').localeCompare(String(c.name || '')));
+  const inList = list.filter(m => m.status !== 'benched');
+  const outList = list.filter(m => m.status === 'benched');
+
+  const card = (m, benched) => {
+    const isMe = account && String(m.username || '').toLowerCase() === String(account.username || '').toLowerCase();
+    const face = m.username || m.name;
+    const blocked = benched && st.slots <= 0;
+    return `<div class="rmem${isMe ? ' me' : ''}">
+      <img class="rface" src="https://mc-heads.net/avatar/${encodeURIComponent(face)}/28" alt=""/>
+      <span class="rname">${esc(m.name)}${isMe ? ' <em>(you)</em>' : ''}</span>
+      ${mayWork ? `<button type="button" class="btn rbtn" data-act="${benched ? 'in' : 'out'}" data-id="${esc(m.id)}"
+        ${blocked ? 'disabled title="At the cap — nobody may be tapped in"' : ''}>${benched ? 'Tap in' : 'Bench'}</button>
+        <button type="button" class="btn rbtn danger" data-act="rm" data-id="${esc(m.id)}" title="They have left the battle">✕</button>` : ''}
+    </div>`;
+  };
+
+  return `<section class="rcol ${S.cls}">
+    <header class="rhead">
+      <span class="rside">${S.name}</span>
+      <span class="rcount${st.over > 0 ? ' over' : ''}"><b>${st.active}</b> in · ${st.present} present
+        · ${st.capped ? 'max <b>' + st.cap + '</b>' : 'no cap'}</span>
+    </header>
+    ${st.over > 0 ? `<div class="rover">⚠ OVER CAP — BENCH ${st.over} MORE</div>` : ''}
+    ${st.capped && st.over === 0 && st.slots > 0 && st.slots !== Infinity
+      ? `<div class="rslots">${st.slots} slot${st.slots === 1 ? '' : 's'} open</div>` : ''}
+    ${!st.capped ? `<div class="rslots">Opponent has fewer than ${CAP_MIN_SIDE} present — no cap applies</div>` : ''}
+    ${(() => {
+      // Read-only for everyone but this nation's war command.
+      if (!mayAppoint) return `<div class="rmeta"><span>Strategy Officer: <b>${so ? esc(so) : '—'}</b></span></div>`;
+      const officers = eligibleOfficers(side);
+      const held = r.strategyOfficer;
+      const listed = officers.some(o => sameUser(o.username, held));
+      if (!officers.length && !held) {
+        return `<div class="rmeta"><span>Strategy Officer</span>
+          <em class="rnone">no commissioned officers on the roll</em></div>
+          <div class="rnote">Only officers of the ${esc(MILITARY[side].label)} may be appointed.
+            Commission somebody on <b>${esc(MILITARY[side].site)}</b> and they will appear here.</div>`;
+      }
+      return `<div class="rmeta">
+        <span>Strategy Officer</span>
+        <select class="rso" data-so="${side}">
+          <option value="">— nobody —</option>
+          ${officers.map(o => `<option value="${esc(o.username)}"${sameUser(o.username, held) ? ' selected' : ''}
+            >${esc(o.abbr)} ${esc(o.name)}</option>`).join('')}
+          ${held && !listed
+            ? `<option value="${esc(held)}" selected>${esc(displayNameOf(held) || held)} — no longer commissioned</option>`
+            : ''}
+        </select>
+      </div>`;
+    })()}
+    <div class="rmeta">
+      <span>Bench: <b>${r.benchLocation ? esc(r.benchLocation) : '—'}</b></span>
+      ${mayWork ? `<button type="button" class="btn rbtn" data-bench="${side}">Set</button>` : ''}
+    </div>
+    <div class="rgroup"><div class="rglbl in">IN THE FIGHT — ${inList.length}</div>
+      ${inList.length ? inList.map(m => card(m, false)).join('') : '<div class="rempty">nobody</div>'}</div>
+    <div class="rgroup"><div class="rglbl out">BENCHED — ${outList.length}</div>
+      ${outList.length ? outList.map(m => card(m, true)).join('') : '<div class="rempty">nobody</div>'}</div>
+    ${mayWork ? `<form class="radd" data-side="${side}">
+      <input type="text" placeholder="Add a combatant…" list="accountNames" required/>
+      <button type="submit" class="btn">Add</button>
+    </form>` : ''}
+    ${outList.length && presentOf(r) >= CAP_MIN_SIDE ? `<div class="rnote">Benched players still count toward
+      your present total, so they keep the enemy's cap where it is. Remove anyone who has actually left.</div>` : ''}
+    <div class="rstamp">${r.updatedAt ? 'updated ' + fmtAgo(r.updatedAt) : 'no changes yet'}</div>
+  </section>`;
+}
+
+function fmtAgo(ts) {
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function renderRoster() {
+  const ov = $('rosterOverlay');
+  if (!ov.classList.contains('show')) return;
+  const b = battles.find(x => x.id === rosterBattleId);
+  if (!b) { closeRoster(); return; }
+  const ph = PHASES[phaseOf(b)] || PHASES.scheduled;
+  $('rosterBox').innerHTML = `
+    <div class="rtop">
+      <div>
+        <div class="rttl">${esc(b.name || 'Unnamed engagement')}</div>
+        <div class="rsub"><span class="phase ${ph.cls}">${ph.label}</span>
+          ${b.location ? ' · ' + esc(b.location) : ''}${b.world ? ' · ' + esc(b.world) : ''}</div>
+      </div>
+      <button type="button" class="btn" id="rosterClose">Close ✕</button>
+    </div>
+    <div class="rrule">The larger side may field at most <b>125%</b> of the smaller side's total present,
+      rounded down. Under ${CAP_MIN_SIDE} present, no cap applies.</div>
+    <div class="rcols">${rosterColumn(b, 'vindex')}${rosterColumn(b, 'lech')}</div>`;
+
+  $('rosterClose').addEventListener('click', closeRoster);
+
+  // in / bench / remove
+  $('rosterBox').querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.closest('.rcol').classList.contains('vin') ? 'vindex' : 'lech';
+    if (!canWorkRoster(side, b.id)) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    const i = membersOf(r).findIndex(m => m.id === btn.dataset.id);
+    if (i < 0) return;
+    if (btn.dataset.act === 'rm') r.members.splice(i, 1);
+    else {
+      const goingIn = btn.dataset.act === 'in';
+      if (goingIn && standing(b.id, side).slots <= 0) { toast('At the cap — bench somebody first.'); return; }
+      r.members[i].status = goingIn ? 'in' : 'benched';
+      r.members[i].since = Date.now();
+    }
+    await persistRoster(r);
+    renderRoster(); renderBattleBar();
+  }));
+
+  // add a combatant
+  $('rosterBox').querySelectorAll('.radd').forEach(f => f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const side = f.dataset.side;
+    if (!canWorkRoster(side, b.id)) return;
+    const input = f.querySelector('input');
+    const typed = input.value.trim();
+    if (!typed) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    if (!Array.isArray(r.members)) r.members = [];
+    // Match a real account where we can, so the player's own status banner works.
+    const acc = Object.values(accountsDir).find(a =>
+      String(a.username || '').toLowerCase() === typed.toLowerCase() ||
+      String(a.displayName || '').toLowerCase() === typed.toLowerCase());
+    const username = acc ? String(acc.username || '').toLowerCase() : '';
+    if (username && membersOf(r).some(m => String(m.username || '').toLowerCase() === username)) {
+      toast('Already on the roster.'); input.value = ''; return;
+    }
+    r.members.push({ id: 'c_' + uid(), name: acc ? (acc.displayName || acc.username) : typed,
+      username: username, status: 'in', since: Date.now() });
+    // Someone added beyond the cap starts on the bench rather than illegally in.
+    const st = standing(b.id, side);
+    if (st.capped && inOf(r) > st.cap) r.members[r.members.length - 1].status = 'benched';
+    input.value = '';
+    await persistRoster(r);
+    renderRoster(); renderBattleBar();
+  }));
+
+  // appoint a Strategy Officer from that nation's commissioned officers
+  $('rosterBox').querySelectorAll('[data-so]').forEach(sel => sel.addEventListener('change', async () => {
+    const side = sel.dataset.so;
+    if (!isCommandFor(side)) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    r.strategyOfficer = String(sel.value || '').trim().toLowerCase();
+    const res = await persistRoster(r);
+    if (res.ok) toast(r.strategyOfficer
+      ? (displayNameOf(r.strategyOfficer) || r.strategyOfficer) + ' has the bench.'
+      : 'Strategy Officer cleared.');
+    renderRoster(); renderBattleBar();
+  }));
+  $('rosterBox').querySelectorAll('[data-bench]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.dataset.bench;
+    if (!canWorkRoster(side, b.id)) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    const where = prompt('Where do benched ' + SIDES[side].short + ' players wait?', r.benchLocation || '');
+    if (where === null) return;
+    r.benchLocation = String(where || '').trim();
+    await persistRoster(r);
+    renderRoster(); renderBattleBar();
+  }));
+}
 function renderBattles() {
   const list = $('battleList');
   if (!battles.length) {
@@ -1321,24 +1915,95 @@ function renderBattles() {
     return;
   }
   list.innerHTML = '';
-  [...battles].reverse().forEach(b => {
-    const sc = battleScore(b);
+  // Anything still to come or under way sits at the top; the settled record runs
+  // newest-first beneath it.
+  const pending = battles.filter(b => phaseOf(b) !== 'concluded')
+    .sort((a, c) => (phaseOf(a) === 'live' ? 0 : 1) - (phaseOf(c) === 'live' ? 0 : 1));
+  const done = concludedBattles().slice().reverse();
+  [].concat(pending, done).forEach(b => {
+    const ph = phaseOf(b), P = PHASES[ph] || PHASES.scheduled;
+    const settled = ph === 'concluded';
+    const sc = settled ? battleScore(b) : 0;
+    const inst = startInstantOf(b);
+    const sl = standing(b.id, 'lech'), sv = standing(b.id, 'vindex');
     const card = document.createElement('div');
-    card.className = 'bcard ' + b.victor;
+    card.className = 'bcard ' + (settled ? b.victor : ph);
     const by = b._writtenBy ? `<div class="bcard-by">recorded by ${esc(displayNameOf(b._writtenBy))}</div>` : '';
     card.innerHTML = `
       <div class="bcard-top">
         <span class="bcard-name">${esc(b.name)}</span>
-        <span class="bcard-pts ${b.victor}">${sc === 0 ? '±0' : (sc > 0 ? `+${sc} LECH` : `+${-sc} VINDEX`)}</span>
+        ${settled
+          ? `<span class="bcard-pts ${b.victor}">${sc === 0 ? '±0' : (sc > 0 ? `+${sc} LECH` : `+${-sc} VINDEX`)}</span>`
+          : `<span class="phase ${P.cls}">${P.label}</span>`}
       </div>
-      <div class="bcard-meta">${esc(b.date || '')}${b.world ? ' · ' + esc(b.world) : ''}${b.location ? ' · ' + esc(b.location) : ''} · ${SCALES[b.scale] || ''}</div>
+      <div class="bcard-meta">${esc(b.date || '')}${inst && !settled ? ' · ' + esc(fmtClock(b.startTime)) + ' ' + esc(zoneAbbr(b.startTz || DEFAULT_TZ, inst)) : ''}${b.world ? ' · ' + esc(b.world) : ''}${b.location ? ' · ' + esc(b.location) : ''}${settled ? ' · ' + (SCALES[b.scale] || '') : ''}</div>
+      ${!settled ? `<div class="bcard-meta">VINDEX ${sv.active}/${sv.present}${sv.capped ? ' · max ' + sv.cap : ''}
+        &nbsp;·&nbsp; LECH ${sl.active}/${sl.present}${sl.capped ? ' · max ' + sl.cap : ''}</div>` : ''}
       ${b.notes ? `<div class="bcard-notes">${esc(b.notes)}</div>` : ''}
       ${by}
-      ${canBattles ? `<div class="bcard-btns">
-        <button type="button" class="btn" data-act="edit">edit</button>
-        <button type="button" class="btn danger" data-act="del">✕</button>
-      </div>` : ''}`;
+      <div class="bcard-btns">
+        <button type="button" class="btn" data-act="roster">Roster</button>
+        ${canBattles && ph === 'scheduled' ? `<button type="button" class="btn primary" data-act="golive">Open the fight</button>` : ''}
+        ${canBattles && ph === 'live' ? `<button type="button" class="btn primary" data-act="result">Record the result</button>` : ''}
+        ${canBattles && ph === 'concluded' ? `<button type="button" class="btn" data-act="result">Amend result</button>
+        <button type="button" class="btn" data-act="reopen">Reopen</button>` : ''}
+        ${canBattles ? `<button type="button" class="btn" data-act="edit">edit</button>
+        <button type="button" class="btn danger" data-act="del">✕</button>` : ''}
+      </div>
+      <div class="bresult" hidden>
+        <div class="brl">WHO WON?</div>
+        <div class="bropts">
+          <button type="button" class="btn brw" data-victor="lech">Lech</button>
+          <button type="button" class="btn brw" data-victor="vindex">Vindex</button>
+          <button type="button" class="btn brw" data-victor="stalemate">Inconclusive</button>
+        </div>
+        <div class="brl">HOW BIG?</div>
+        <div class="bropts">
+          <button type="button" class="btn brs" data-scale="1">Skirmish ±1</button>
+          <button type="button" class="btn brs" data-scale="2">Major ±2</button>
+          <button type="button" class="btn brs" data-scale="3">Decisive ±3</button>
+        </div>
+        <div class="brfoot">
+          <button type="button" class="btn" data-act="rcancel">Cancel</button>
+          <button type="button" class="btn primary" data-act="rsave">Confirm result</button>
+        </div>
+      </div>`;
+    card.querySelector('[data-act="roster"]').addEventListener('click', () => openRoster(b.id));
     if (canBattles) {
+      const setPhase = async (to, extra) => {
+        Object.assign(b, extra || {}, { phase: to });
+        if (to === 'live') b.liveAt = Date.now();
+        if (to === 'concluded') b.concludedAt = Date.now();
+        renderBattles(); renderTracker(); renderBattleBar();
+        await persistBattle(b);
+      };
+      const golive = card.querySelector('[data-act="golive"]');
+      if (golive) golive.addEventListener('click', () => {
+        setPhase('live'); toast('The fight is open — the cap is now enforced.');
+      });
+      // The result is chosen here, when the fighting is over — never on the form
+      // that schedules a battle that has not happened yet.
+      const panel = card.querySelector('.bresult');
+      let pickVictor = b.victor || '', pickScale = b.scale || 2;
+      const paint = () => {
+        panel.querySelectorAll('.brw').forEach(x => x.classList.toggle('active', x.dataset.victor === pickVictor));
+        panel.querySelectorAll('.brs').forEach(x => x.classList.toggle('active', +x.dataset.scale === +pickScale));
+      };
+      panel.querySelectorAll('.brw').forEach(x =>
+        x.addEventListener('click', () => { pickVictor = x.dataset.victor; paint(); }));
+      panel.querySelectorAll('.brs').forEach(x =>
+        x.addEventListener('click', () => { pickScale = +x.dataset.scale; paint(); }));
+      const resBtn = card.querySelector('[data-act="result"]');
+      if (resBtn) resBtn.addEventListener('click', () => { panel.hidden = !panel.hidden; paint(); });
+      card.querySelector('[data-act="rcancel"]').addEventListener('click', () => { panel.hidden = true; });
+      card.querySelector('[data-act="rsave"]').addEventListener('click', () => {
+        if (!pickVictor) { toast('Choose who won first.'); return; }
+        panel.hidden = true;
+        setPhase('concluded', { victor: pickVictor, scale: +pickScale });
+        toast('Result recorded — the roster is frozen.');
+      });
+      const reop = card.querySelector('[data-act="reopen"]');
+      if (reop) reop.addEventListener('click', () => setPhase('live'));
       card.querySelector('[data-act="del"]').addEventListener('click', async () => {
         if (!confirm(`Remove “${b.name}” from the record?`)) return;
         battles = battles.filter(x => x.id !== b.id);
@@ -1351,8 +2016,8 @@ function renderBattles() {
         editingBattleId = b.id;
         $('bfName').value = b.name; $('bfDate').value = b.date || '';
         $('bfWorld').value = b.world || ''; $('bfLocation').value = b.location || '';
-        $('bfVictor').value = b.victor; $('bfScale').value = b.scale;
         $('bfNotes').value = b.notes || '';
+        $('bfTime').value = b.startTime || ''; $('bfTz').value = b.startTz || DEFAULT_TZ;
         $('bfTitle').textContent = 'EDIT BATTLE';
         $('bfSubmit').textContent = 'Update';
         $('bfCancel').style.display = '';
@@ -1369,13 +2034,16 @@ function renderBattleWorldOptions() {
     meta.theatres.map(th => `<option>${esc(th.name)}</option>`).join('') +
     '<option>Other</option>';
   $('bfWorld').value = cur;
+  const curTz = $('bfTz').value;
+  $('bfTz').innerHTML = US_ZONES.map(z => `<option value="${esc(z.tz)}">${esc(z.label)}</option>`).join('');
+  $('bfTz').value = curTz || DEFAULT_TZ;
 }
 function resetBattleForm() {
   editingBattleId = null;
   $('battleForm').reset();
   $('bfDate').value = new Date().toISOString().slice(0, 10);
-  $('bfScale').value = '2';
-  $('bfTitle').textContent = 'RECORD A BATTLE';
+  $('bfTz').value = DEFAULT_TZ;
+  $('bfTitle').textContent = 'SCHEDULE A BATTLE';
   $('bfSubmit').textContent = 'Add Battle';
   $('bfCancel').style.display = 'none';
 }
@@ -1385,10 +2053,11 @@ $('battleForm').addEventListener('submit', e => {
   const data = {
     name: $('bfName').value.trim() || 'Unnamed engagement',
     date: $('bfDate').value,
+    startDate: $('bfDate').value,
+    startTime: $('bfTime').value,
+    startTz: $('bfTz').value || DEFAULT_TZ,
     world: $('bfWorld').value,
     location: $('bfLocation').value.trim(),
-    victor: $('bfVictor').value,
-    scale: +$('bfScale').value,
     notes: $('bfNotes').value.trim(),
   };
   let rec;
@@ -1396,11 +2065,13 @@ $('battleForm').addEventListener('submit', e => {
     rec = battles.find(x => x.id === editingBattleId);
     if (rec) Object.assign(rec, data);
   } else {
-    rec = { id: 'bat_' + uid(), at: Date.now(), ...data };
+    // A new battle is scheduled, not settled — its victor is only meaningful once
+    // it has actually been concluded.
+    rec = { id: 'bat_' + uid(), at: Date.now(), phase: 'scheduled', ...data };
     battles.push(rec);
   }
   resetBattleForm();
-  renderBattles(); renderTracker();
+  renderBattles(); renderTracker(); renderBattleBar();
   if (rec) persistBattle(rec);
 });
 $('bfCancel').addEventListener('click', resetBattleForm);
@@ -1470,18 +2141,44 @@ function leaderHTML(l) {
     : `<span class="head vacant">·</span>`;
   return `<div class="leader${l.acc ? '' : ' isvacant'}">${head}<div><div class="l-title">${l.title}</div><div class="l-name">${esc(name)}</div></div></div>`;
 }
-function renderCommand() {
-  $('command').innerHTML = `
-    <div class="cmd-side vin">
-      <img class="flag" src="vindexflag.png" onerror="this.onerror=null;this.src='vindexcoa.png';" alt="Republic of Vindex Nation"/>
-      <div class="cmd-leaders">${vindexLeaders().map(leaderHTML).join('')}</div>
+// Leadership no longer takes a whole strip across the page. Each country's crest
+// in the header opens it instead, so the war itself gets the room.
+function openLeaders(side) {
+  const box = $('leadersBox');
+  const isLech = side === 'lech';
+  box.className = isLech ? 'lech' : 'vindex';
+  box.innerHTML = `
+    <div class="ldr-top">
+      <span class="ldr-title">${isLech ? 'Empire of Lech' : 'Republic of Vindex'}</span>
+      <button type="button" class="ldr-x" id="ldrClose" title="Close">✕</button>
     </div>
-    <div class="cmd-x">⚔</div>
-    <div class="cmd-side lech">
-      <div class="cmd-leaders">${lechLeaders().map(leaderHTML).join('')}</div>
-      <img class="flag" src="lechflag.png" onerror="this.onerror=null;this.src='lechcoa.png';" alt="Empire of Lech"/>
-    </div>`;
+    <div class="ldr-sub">Those who command in this war</div>
+    ${(isLech ? lechLeaders() : vindexLeaders()).map(leaderHTML).join('')}`;
+  $('leadersOverlay').classList.add('show');
+  $('ldrClose').addEventListener('click', closeLeaders);
 }
+function closeLeaders() { $('leadersOverlay').classList.remove('show'); }
+document.querySelectorAll('.crest').forEach(btn =>
+  btn.addEventListener('click', () => openLeaders(btn.dataset.crest)));
+$('leadersOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeLeaders(); });
+
+// A crest image only appears if the file is actually there; otherwise the button
+// stands on its name alone rather than showing a broken picture.
+function mountCrests() {
+  document.querySelectorAll('.crest-img').forEach(host => {
+    if (host.dataset.done) return;
+    host.dataset.done = '1';
+    const sources = String(host.dataset.src || '').split(',').filter(Boolean);
+    (function tryNext(i) {
+      if (i >= sources.length) return;                 // none of them exist — leave it hidden
+      const probe = new Image();
+      probe.onload = () => { host.style.backgroundImage = `url("${sources[i]}")`; host.classList.add('ok'); };
+      probe.onerror = () => tryNext(i + 1);
+      probe.src = sources[i];
+    })(0);
+  });
+}
+mountCrests();
 
 /* ══════════ LEGEND ══════════ */
 function renderLegend() {
@@ -1544,8 +2241,20 @@ $('btnReset').addEventListener('click', async () => {
 function renderAll() {
   $('warTitle').textContent = meta.warName;
   $('warSub').textContent = meta.warSub;
-  renderTheatreTabs(); renderBattleWorldOptions(); renderCommand();
+  renderBattleBar();
+  renderTheatreTabs(); renderBattleWorldOptions();
   renderLegend(); renderTracker(); renderBattles(); renderTerritories(); renderMap();
+  applySidebarVisibility();
+  renderAccountNames();
+  renderRoster();
+}
+// Names the roster's "add a combatant" box can complete against, so a player
+// gets linked to their real account and their own status banner works.
+function renderAccountNames() {
+  const dl = $('accountNames');
+  if (!dl) return;
+  dl.innerHTML = Object.values(accountsDir)
+    .map(a => `<option value="${esc(a.displayName || a.username)}"></option>`).join('');
 }
 window.__war = { get data() { return { meta, territories, battles, account, canTerritory, canBattles, canMeta }; } };
 
