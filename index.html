@@ -82,6 +82,32 @@ body{
   .wd-enter{margin-left:0;}
 }
 
+/* ── the statelessness notice ────────────────────────────────────────────────
+   Set like the war notice, and directly beneath it, because it is the same kind
+   of thing: a standing condition the reader is carrying, pasted onto the sheet
+   above the nations. It is not red — this is a matter of record, not an alarm —
+   but the sober ink-grey of an unstamped paper. Shown only to a signed-in
+   account that holds no nationality anywhere. */
+.statedesk{--st:#4a4740;
+  display:flex;align-items:center;gap:1.15rem;
+  margin:0 0 2.3rem;padding:1.05rem 1.6rem;
+  border-top:3px double var(--st);border-bottom:3px double var(--st);
+  background:linear-gradient(180deg, rgba(74,71,64,.05), rgba(74,71,64,.1));}
+.sd-glyph{font-size:1.75rem;line-height:1;color:var(--st);flex-shrink:0;}
+.sd-text{display:flex;flex-direction:column;gap:.32rem;min-width:0;}
+.sd-head{font-size:.92rem;font-weight:700;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--st);line-height:1.2;}
+.sd-sub{font-size:.88rem;font-weight:300;font-style:italic;color:var(--ink2);line-height:1.5;}
+.sd-enter{margin-left:auto;flex-shrink:0;white-space:nowrap;text-decoration:none;
+  font-size:.66rem;font-weight:600;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--st);border-top:1px solid var(--st);border-bottom:1px solid var(--st);
+  padding:7px 18px;text-indent:.26em;transition:background .18s,color .18s;}
+.sd-enter:hover{background:var(--st);color:var(--paper);}
+@media(max-width:640px){
+  .statedesk{flex-direction:column;text-align:center;gap:.8rem;padding:1rem 1.1rem;}
+  .sd-enter{margin-left:0;}
+}
+
 /* ── the three nations ───────────────────────────────────────────────────── */
 .nations{display:grid;grid-template-columns:repeat(3,1fr);
   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
@@ -202,6 +228,9 @@ a.nation:hover .enter{background:var(--seal);color:var(--paper);}
     </span>
     <span class="wd-enter">War Room</span>
   </a>
+
+  <!-- Filled by the React island when the signed-in reader holds no nationality. -->
+  <div id="vx-notice"></div>
 
   <section class="nations">
 
@@ -385,7 +414,7 @@ async function sset(key,value){try{const r=await fetch(API+"/api/set",{method:"P
 async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 // A registration no longer signs you in: the account is created awaiting review,
 // and the server returns no session at all until it is approved.
-async function registerAccount(username,passwordHash,firstName,lastName){try{const r=await fetch(API+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,passwordHash,firstName,lastName})});const d=await r.json();if(d&&d.ok)return {ok:true,pending:true,message:d.message||""};return {ok:false,closed:!!(d&&d.closed),error:(d&&d.error)||"Registration was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
+async function registerAccount(username,passwordHash,firstName,lastName,citizenship){try{const r=await fetch(API+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,passwordHash,firstName,lastName,citizenship})});const d=await r.json();if(d&&d.ok)return {ok:true,pending:true,message:d.message||""};return {ok:false,closed:!!(d&&d.closed),error:(d&&d.error)||"Registration was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 async function setRoleplayName(firstName,lastName){try{const r=await fetch(API+"/api/set-name",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,firstName,lastName})});const d=await r.json();if(d&&d.ok){saveSession(AUTH_TOKEN,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Refused."};}catch{return {ok:false,error:"Connection error."};}}
 // An account still needs a roleplay name if it predates the first/last-name
 // rule: no display name, one that restates the username, or a single word.
@@ -411,6 +440,33 @@ async function registrationState(){
   try{const r=await fetch(API+"/api/registration");const d=await r.json();
     return (d&&d.ok)?{open:d.open!==false,reason:d.reason||""}:{open:true,reason:""};}
   catch(e){return {open:true,reason:""};}
+}
+
+/* ── the three nations, as a choice ───────────────────────────────────────────
+   A new account names the nation it belongs to at registration, and each option
+   is bordered in that nation's own colour so the choice reads as a choice of
+   flag rather than a value in a list. The naming is only a *request*: it is laid
+   before that nation's foreign ministry, which alone confers citizenship. Until
+   one does, the account is stateless. */
+const NATION_CHOICES=[
+  {v:"vindex",short:"Vindex",l:"Republic of Vindex Nation",color:"#2f7d4f",service:"state.html",office:"the Department of State"},
+  {v:"lech",  short:"Lech",  l:"Empire of Lech",           color:"#d2544f",service:"mfa.html",  office:"the Ministry of Foreign Affairs"},
+  {v:"wilden",short:"Wilden",l:"Wilden",                   color:"#7d1a22",service:"wmfa.html", office:"the Ministry of Foreign Affairs"},
+];
+const nationOf=v=>NATION_CHOICES.find(n=>n.v===v)||null;
+// Holding a nationality, as the three registers record it. Residence and the
+// registered-alien categories are not nationality; a revoked or renounced record
+// is the loss of one. Anything else leaves a person stateless.
+const NATIONALITY_STATUS=new Set(["citizen","naturalised"]);
+function citizenshipsOf(username,raw){
+  const u=String(username||"").toLowerCase();
+  const held=(reg)=>Object.values(reg||{}).some(c=>String(c.username||"").toLowerCase()===u
+    &&NATIONALITY_STATUS.has(String(c.status||"")));
+  const out=[];
+  if(held((raw||{}).vx_state_citizens))out.push("vindex");
+  if(held((raw||{}).mfa_citizens))out.push("lech");
+  if(held((raw||{}).wx_state_citizens))out.push("wilden");
+  return out;
 }
 
 /* ── a player's standing across the three nations (read-only here) ────────── */
@@ -542,6 +598,7 @@ function SignIn({onClose,onDone,switchRegister}){
 /* ── register (public, Minecraft-verified, country-neutral) ──────────────── */
 function Register({onClose,onDone,switchSignIn}){
   const [u,setU]=useState(""),[fn,setFn]=useState(""),[ln,setLn]=useState(""),[p,setP]=useState(""),[p2,setP2]=useState("");
+  const [cit,setCit]=useState("");
   const [err,setErr]=useState(""),[busy,setBusy]=useState(false);
   const [done,setDone]=useState(false);
   // Whether the network is taking new people at all, and why not if it isn't.
@@ -552,9 +609,10 @@ function Register({onClose,onDone,switchSignIn}){
     if(!fn.trim()||!ln.trim()){setErr("Enter your roleplay character's first and last name.");return;}
     if(p.length<4){setErr("Choose a password of at least 4 characters.");return;}
     if(p!==p2){setErr("The two passwords do not match.");return;}
+    if(!cit){setErr("Choose the nation your primary citizenship is in.");return;}
     setBusy(true);setErr("");
     const hash=await sha256(p);
-    const r=await registerAccount(u.trim(),hash,fn.trim(),ln.trim());
+    const r=await registerAccount(u.trim(),hash,fn.trim(),ln.trim(),cit);
     setBusy(false);
     if(!r.ok){setErr(r.error);return;}
     // A registration is a request to join, not a joining: no session comes back.
@@ -565,6 +623,9 @@ function Register({onClose,onDone,switchSignIn}){
       <div style={{...serif,fontSize:16,color:INK,marginBottom:10}}>Your account is under review.</div>
       <Note>An administrator will look over your registration shortly. You'll be able to sign in once it
         has been approved — try again a little later.</Note>
+      {nationOf(cit)&&<Note>Once you are admitted to the network, your request for the citizenship of{" "}
+        <b>{nationOf(cit).l}</b> is put before {nationOf(cit).office}, which decides it. Until it does,
+        you are stateless.</Note>}
       <Btn kind="seal" onClick={onClose}>Close</Btn>
     </div>
   </Overlay>;
@@ -580,8 +641,7 @@ function Register({onClose,onDone,switchSignIn}){
         </>
         :<>
           <Note>Your username must be a real Minecraft account — it is checked against Mojang. Your roleplay
-            name is who you are on the network; it appears on every register and document. A new
-            account belongs to no nation; each country grants its own citizenship afterward.
+            name is who you are on the network; it appears on every register and document.
             Registrations are reviewed before they may sign in.</Note>
           {err&&<Note err>{err}</Note>}
           <Field label="Minecraft username"><Inp value={u} onChange={e=>setU(e.target.value)} autoFocus placeholder="Your exact Minecraft name"/></Field>
@@ -591,6 +651,32 @@ function Register({onClose,onDone,switchSignIn}){
           </div>
           <Field label="Password"><Inp type="password" value={p} onChange={e=>setP(e.target.value)}/></Field>
           <Field label="Confirm password"><Inp type="password" value={p2} onChange={e=>setP2(e.target.value)}/></Field>
+
+          {/* The nation the newcomer belongs to — asked once, here, and answered by
+              that nation's foreign ministry rather than by this form. */}
+          <div style={{margin:"18px 0 16px"}}>
+            <div style={{...serif,fontSize:15.5,color:INK,fontWeight:600,lineHeight:1.35}}>What is your primary citizenship?</div>
+            <div style={{...serif,fontSize:12.5,fontStyle:"italic",color:INK3,margin:"4px 0 11px",lineHeight:1.5}}>
+              This is based off the tag your account currently holds in-game.</div>
+            <div role="radiogroup" aria-label="Primary citizenship"
+              style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(94px,1fr))",gap:9}}>
+              {NATION_CHOICES.map(n=>{const on=cit===n.v;
+                return <button key={n.v} type="button" role="radio" aria-checked={on} onClick={()=>{setCit(n.v);setErr("");}}
+                  style={{...serif,cursor:"pointer",textAlign:"center",padding:"13px 8px",borderRadius:0,
+                    background:on?n.color+"26":"transparent",border:`2px solid ${n.color}`,
+                    boxShadow:on?`0 0 0 2px ${n.color}44`:"none",
+                    color:on?INK:INK2,fontSize:14.5,fontWeight:on?700:400,lineHeight:1.25,
+                    transition:"background .15s,box-shadow .15s"}}>
+                  {n.short}
+                  <span style={{display:"block",fontSize:10,letterSpacing:".14em",textTransform:"uppercase",
+                    color:n.color,marginTop:5,fontWeight:600}}>{on?"Chosen":"Select"}</span>
+                </button>;})}
+            </div>
+            {nationOf(cit)&&<div style={{...serif,fontSize:12.5,fontStyle:"italic",color:INK3,marginTop:10,lineHeight:1.55}}>
+              Your request will be put before {nationOf(cit).office} of {nationOf(cit).l} once your
+              account is admitted. You are stateless until it is granted.</div>}
+          </div>
+
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <Btn kind="seal" onClick={go} disabled={busy}>{busy?"Creating…":"Create account"}</Btn>
             <Btn kind="ghost" onClick={switchSignIn}>I already have one</Btn>
@@ -777,6 +863,14 @@ function PendingRow({acc,user,notify,reload}){
       <div style={{...serif,fontSize:12,color:INK3}}>{acc.username}
         {acc.registeredAt?" · applied "+new Date(acc.registeredAt).toLocaleDateString():""}</div>
     </div>
+    {/* The nation they named. It is not this panel's to decide — admitting the
+        account is what puts the request before that nation's ministry — but the
+        reviewer should see what they are letting through. */}
+    {nationOf((acc.citizenshipRequest||{}).country)&&<span style={{...serif,fontSize:11,fontWeight:600,
+      letterSpacing:".14em",textTransform:"uppercase",padding:"3px 9px",
+      border:`1px solid ${nationOf(acc.citizenshipRequest.country).color}`,
+      color:nationOf(acc.citizenshipRequest.country).color}}
+      title="Primary citizenship named at registration">{nationOf(acc.citizenshipRequest.country).short}</span>}
     <span style={{flex:1}}/>
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <Btn small kind="seal" disabled={busy} onClick={()=>decide(true)}>Approve</Btn>
@@ -1227,6 +1321,40 @@ function NameGate({user,onNamed,onSignOut}){
   </div>;
 }
 
+/* ── statelessness ────────────────────────────────────────────────────────────
+   A person with no nationality on any of the three registers. The notice states
+   the fact plainly and, where they asked for one, what became of the request —
+   pending before a ministry, or refused by it. It is rendered into the sheet
+   itself (a portal to #vx-notice, under the war notice) rather than into the
+   header island, because it belongs with the page's other standing notices.
+   Nothing is shown while the snapshot is still loading, so it never flashes up
+   at someone who does in fact hold a citizenship. */
+function StatelessNotice({user,raw}){
+  if(!user||!raw)return null;
+  if(user.approved===false||user.banned)return null;
+  if(citizenshipsOf(user.username,raw).length)return null;
+  const req=user.citizenshipRequest||null;
+  const nat=req?nationOf(req.country):null;
+  const status=req?String(req.status||"pending"):"";
+  let sub=null,link=null;
+  if(nat&&status==="pending"){
+    sub=<>Your citizenship request in <b style={{fontWeight:600,fontStyle:"normal"}}>{nat.l}</b> is pending.</>;
+    link={href:nat.service,label:nat.short};
+  }else if(nat&&status==="denied"){
+    sub=<>Your citizenship request in <b style={{fontWeight:600,fontStyle:"normal"}}>{nat.l}</b> was refused
+      {req.reason?<> — {req.reason}</>:null}.</>;
+    link={href:nat.service,label:nat.short};
+  }
+  return <div className="statedesk">
+    <span className="sd-glyph" aria-hidden="true">&#9723;</span>
+    <span className="sd-text">
+      <span className="sd-head">You are stateless</span>
+      {sub&&<span className="sd-sub">{sub}</span>}
+    </span>
+    {link&&<a className="sd-enter" href={link.href}>{link.label}</a>}
+  </div>;
+}
+
 /* ── root ────────────────────────────────────────────────────────────────── */
 function VintranetApp(){
   const [user,setUser]=useState(()=>cachedAccount());
@@ -1238,6 +1366,10 @@ function VintranetApp(){
   // Load the roster the first time a view needs it, and refresh it after a write.
   const open=useCallback((v)=>{if(v&&["admin","directory","profile"].includes(v.t)&&!raw)loadRaw();setView(v);},[raw,loadRaw]);
   useEffect(()=>{srestore().then(acc=>{if(acc)setUser(acc);else if(!AUTH_TOKEN)setUser(null);});},[]);
+  // The statelessness notice reads the three citizenship registers, so a signed-in
+  // reader needs the snapshot whether or not they open a view.
+  useEffect(()=>{if(user&&!raw)loadRaw();},[user,raw,loadRaw]);
+  const notice=document.getElementById("vx-notice");
   return <>
     <Chip user={user}
       onSignIn={()=>setView({t:"signin"})} onRegister={()=>setView({t:"register"})}
@@ -1245,6 +1377,7 @@ function VintranetApp(){
       onProfile={()=>open({t:"profile",username:user.username})}
       onAdmin={()=>open({t:"admin"})}
       onSignOut={()=>{forgetSession();setUser(null);setView(null);notify("You have been signed out.",true);}}/>
+    {notice&&ReactDOM.createPortal(<StatelessNotice user={user} raw={raw}/>,notice)}
     {toast&&<div style={{position:"fixed",top:44,right:16,zIndex:80,maxWidth:340,...serif,fontSize:13.5,
       background:PAPER,border:`1px solid ${RULED}`,borderLeft:`4px solid ${toast.ok?"#2e7d32":SEAL}`,
       padding:"10px 15px",boxShadow:"0 8px 26px rgba(32,29,24,.28)"}}>{toast.text}</div>}

@@ -252,6 +252,29 @@ async function srestore(){let t=null;try{t=localStorage.getItem(SESSION_KEY);}ca
   try{const r=await fetch(API+"/api/me?token="+encodeURIComponent(t));const d=await r.json();if(d&&d.ok&&d.account){saveSession(t,d.account);return d.account;}clearSession();return null;}catch(e){return null;}}
 async function sgetAll(){try{const r=await fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):""));const d=await r.json();return (d&&d.ok)?(d.data||{}):{};}catch{return{};}}
 async function sset(k,v){try{const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch{return {ok:false,error:"Connection error."};}}
+// One record at a time, for the shared account store. The Ministry writes to an
+// account only to record how it answered that account's request for citizenship;
+// the server refuses everything else.
+async function swrite(collection,record){try{const r=await fetch(API+"/api/write",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,collection,record})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch(e){return {ok:false,error:"Connection error."};}}
+
+/* ── requests made at registration ────────────────────────────────────────────
+   A newcomer names their primary citizenship when they register on the
+   Vintranet. That naming is a request, not a grant: it is laid before the
+   foreign ministry of the nation named — here, the Ministry of Foreign Affairs
+   of Wilden — which admits or refuses it. A registration still under review on
+   the Vintranet is not yet anyone's business, so only admitted accounts appear;
+   so does anyone already on the register drop off, since there is nothing left
+   to decide. */
+function newCitizenshipRequests(accounts,citizens,nation){
+  const held=new Set();
+  Object.values(citizens||{}).forEach(c=>{if(c&&c.username)held.add(String(c.username).toLowerCase());});
+  return (accounts||[]).filter(a=>{
+    const r=a&&a.citizenshipRequest;
+    if(!r||r.country!==nation||String(r.status||"pending")!=="pending")return false;
+    if(a.approved===false||a.banned)return false;
+    return !held.has(String(a.username||"").toLowerCase());
+  }).sort((x,y)=>((x.citizenshipRequest.at||0)-(y.citizenshipRequest.at||0)));
+}
 async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 function fmtDate(d){if(d===undefined||d===null||d==="")return "—";const t=typeof d==="number"?d:new Date(d).getTime();if(isNaN(t))return ""+d;return new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});}
 function mcFaceUrl(n){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"")+"/64";}
@@ -386,6 +409,8 @@ function CitizenshipTab({citizens,accounts,user,gov,onAction,notify,setBusy}){
     <p className="lede">The register of the people of Wilden. Only a citizen may hold office in the
       Government, so the register is what the Government's appointments draw from.</p>
 
+    {manage&&<NewAccountRequests accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setBusy={setBusy}/>}
+
     {manage&&<GrantCitizen accounts={accounts} onAction={onAction} notify={notify} setBusy={setBusy}/>}
 
     <h2>The register</h2>
@@ -397,6 +422,53 @@ function CitizenshipTab({citizens,accounts,user,gov,onAction,notify,setBusy}){
           return <CitizenRow key={c.id} citizen={c} st={st} account={a} manage={manage}
             onAction={onAction} notify={notify} setBusy={setBusy}/>;})}</tbody>
       </table>}
+  </div>;
+}
+// The queue of newcomers who named Wilden at registration. It heads the
+// Citizenship page because it is the one thing here that is *waiting*: the
+// register below it is settled, this is not. Only the Government sees it.
+function NewAccountRequests({accounts,citizens,onAction,notify,setBusy}){
+  const queue=useMemo(()=>newCitizenshipRequests(accounts,citizens,"wilden"),[accounts,citizens]);
+  const [working,setWorking]=useState("");
+  const accept=async(a)=>{
+    const nm=a.displayName||a.username;
+    setWorking(a.username);setBusy("Granting citizenship");
+    const made=await onAction("grant",{username:a.username,name:nm,status:"citizen",
+      since:new Date().toISOString().slice(0,10),notes:"Granted on the request made at registration."});
+    if(!made.ok){setWorking("");setBusy(null);notify(made.error,false);return;}
+    const res=await onAction("citizenshipRequest",{username:a.username,status:"approved"});
+    setWorking("");setBusy(null);
+    notify(res.ok?(nm+" is a citizen of Wilden."):res.error,res.ok);
+  };
+  const deny=async(a)=>{
+    const nm=a.displayName||a.username;
+    setWorking(a.username);setBusy("Recording the refusal");
+    const res=await onAction("citizenshipRequest",{username:a.username,status:"denied"});
+    setWorking("");setBusy(null);
+    notify(res.ok?(nm+"'s request was refused."):res.error,res.ok);
+  };
+  return <div className="notif" style={{borderColor:"var(--grey4)"}}>
+    <div className="head" style={{background:"var(--grey4)"}}>
+      New account citizenship requests{queue.length?" ("+queue.length+")":""}</div>
+    <div className="body" style={{padding:"14px 16px"}}>
+      <p className="hint" style={{marginBottom:queue.length?12:0}}>Accounts admitted to the Vintranet that named
+        Wilden as their primary citizenship. Accepting records them on the register below as a citizen.</p>
+      {queue.length===0
+        ?<p className="hint" style={{marginBottom:0}}>No requests are waiting.</p>
+        :<table style={{marginBottom:0}}>
+          <thead><tr><th>Person</th><th>Requested</th><th className="num">Decision</th></tr></thead>
+          <tbody>{queue.map(a=><tr key={a.username}>
+            <td><Person account={a} size={30}/></td>
+            <td>{a.citizenshipRequest.at?fmtDate(a.citizenshipRequest.at):"—"}</td>
+            <td className="num">
+              <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
+                <Btn small disabled={!!working} onClick={()=>accept(a)}>Accept</Btn>
+                <ArmBtn small label="Deny" confirmLabel="Deny the request" onConfirm={()=>deny(a)}/>
+              </div>
+            </td>
+          </tr>)}</tbody>
+        </table>}
+    </div>
   </div>;
 }
 function GrantCitizen({accounts,onAction,notify,setBusy}){
@@ -978,8 +1050,23 @@ function App(){
     if(type==="relation"){const {key,...rec}=p;const cur={...relations,[key]:{...rec,updatedAt:Date.now()}};return await put("wx_state_relations",cur);}
     if(type==="visaSubmit"){const id="wvis_"+uid();const cur={...visas,[id]:{...p,id}};return await put("wx_state_visas",cur);}
     if(type==="visaUpdate"){const cur={...visas};if(cur[p.id])cur[p.id]={...cur[p.id],...p};return await put("wx_state_visas",cur);}
+    // How the Ministry answered a request for citizenship made at registration. The
+    // account is the shared record of the whole network, so this is a single record
+    // write, not a register: the server admits only this one field, and only from
+    // the nation the request names.
+    if(type==="citizenshipRequest"){
+      const accs=raw["mi_accounts"]||{};
+      const key=Object.keys(accs).find(k=>String((accs[k]||{}).username||k).toLowerCase()===String(p.username||"").toLowerCase());
+      if(!key)return {ok:false,error:"That account is not on the network."};
+      const acc=accs[key];
+      const next={...acc,citizenshipRequest:{...(acc.citizenshipRequest||{}),country:"wilden",
+        status:p.status,decidedAt:Date.now(),decidedBy:(user&&user.username)||""}};
+      const res=await swrite("accounts",next);
+      if(res.ok)setRaw(r=>({...r,mi_accounts:{...(r.mi_accounts||{}),[key]:next}}));
+      return res;
+    }
     return {ok:false,error:"Unknown action."};
-  },[citizens,passports,relations,visas]);
+  },[citizens,passports,relations,visas,raw,user]);
 
   const TABS=[["home","Home"],["citizenship","Citizenship"],["passports","Passports"],["visas","Visas"],["relations","Foreign Relations"]];
   const manages=canManage(user,gov);

@@ -172,6 +172,29 @@ async function srestore(){
 }
 async function sgetAll(){try{const r=await fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):""));const d=await r.json();return (d&&d.ok)?(d.data||{}):{};}catch{return{};}}
 async function sset(k,v){try{const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});const d=await r.json();return !!(d&&d.ok);}catch{return false;}}
+// One record at a time, for the shared account store. The Ministry writes to an
+// account only to record how it answered that account's request for citizenship;
+// the server refuses everything else.
+async function swrite(collection,record){try{const r=await fetch(API+"/api/write",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,collection,record})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch(e){return {ok:false,error:"Connection error."};}}
+
+/* ── requests made at registration ────────────────────────────────────────────
+   A newcomer names their primary citizenship when they register on the
+   Vintranet. That naming is a request, not a grant: it is laid before the
+   foreign ministry of the nation named — here, the Ministry of Foreign Affairs
+   of the Empire — which admits or refuses it. A registration still under review
+   on the Vintranet is not yet anyone's business, so only admitted accounts
+   appear; so does anyone already on the registry drop off, since there is
+   nothing left to decide. */
+function newCitizenshipRequests(accounts,citizens,nation){
+  const held=new Set();
+  Object.values(citizens||{}).forEach(c=>{if(c&&c.username)held.add(String(c.username).toLowerCase());});
+  return (accounts||[]).filter(a=>{
+    const r=a&&a.citizenshipRequest;
+    if(!r||r.country!==nation||String(r.status||"pending")!=="pending")return false;
+    if(a.approved===false||a.banned)return false;
+    return !held.has(String(a.username||"").toLowerCase());
+  }).sort((x,y)=>((x.citizenshipRequest.at||0)-(y.citizenshipRequest.at||0)));
+}
 async function sdel(k){try{await fetch(API+"/api/unset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k})});}catch{}}
 async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"ACCESS DENIED"};}catch(e){return {ok:false,error:"Connection error"};}}
 
@@ -283,7 +306,54 @@ function RelationsTab({countries,advisories,restrictions}){
   </div>;
 }
 
-function CitizenshipTab({citizens,user,myCitizenship,onRequireSignIn,onAction,notify,setProcessing}){
+// The queue of newcomers who named the Empire at registration. It heads the
+// Citizenship page because it is the one thing here that is *waiting*: the
+// registry below it is settled, this is not. Only Ministry access sees it — for
+// everyone else the page begins where it always did.
+function NewAccountRequests({accounts,citizens,onAction,notify,setProcessing}){
+  const queue=useMemo(()=>newCitizenshipRequests(accounts,citizens,"lech"),[accounts,citizens]);
+  const [busy,setBusy]=useState("");
+  const accept=async(a)=>{
+    const nm=a.displayName||a.username;
+    setBusy(a.username);setProcessing("Granting citizenship...");
+    await onAction("createCitizen",{name:nm,username:a.username,nationality:"",status:"citizen",
+      since:new Date().toISOString().slice(0,10),notes:"Granted on the request made at registration."});
+    const res=await onAction("citizenshipRequest",{username:a.username,status:"approved"});
+    setBusy("");setProcessing(null);
+    notify(res&&res.ok?(nm+" is a subject of the Empire."):((res&&res.error)||"The request could not be closed."),
+      res&&res.ok?C.accent:C.redL);
+  };
+  const deny=async(a)=>{
+    const nm=a.displayName||a.username;
+    setBusy(a.username);setProcessing("Recording the refusal...");
+    const res=await onAction("citizenshipRequest",{username:a.username,status:"denied"});
+    setBusy("");setProcessing(null);
+    notify(res&&res.ok?(nm+"'s request was refused."):((res&&res.error)||"The refusal could not be recorded."),
+      res&&res.ok?C.textD:C.redL);
+  };
+  return <div style={{background:"#1a1400",border:`1px solid ${C.gold}44`,borderLeft:`3px solid ${C.gold}`,
+    borderRadius:"0 3px 3px 0",padding:"1rem 1.1rem",marginBottom:"1.25rem"}}>
+    <div className="mono" style={{fontSize:9,color:C.gold,letterSpacing:"0.12em",marginBottom:"0.5rem"}}>
+      NEW ACCOUNT CITIZENSHIP REQUESTS{queue.length?" ("+queue.length+")":""}</div>
+    <div style={{fontSize:12.5,color:C.textD,fontStyle:"italic",lineHeight:1.6,marginBottom:queue.length?"0.85rem":0}}>
+      Accounts admitted to the Vintranet that named the Empire as their primary citizenship.
+      Accepting enters them on the registry below as a citizen.</div>
+    {queue.length===0
+      ?<div style={{fontSize:13,color:C.textDD,fontStyle:"italic",marginTop:"0.5rem"}}>No requests are waiting.</div>
+      :queue.map((a,i)=><div key={a.username} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",
+        padding:"0.55rem 0",borderBottom:i<queue.length-1?`1px solid ${C.border}`:"none"}}>
+        <img src={"https://mc-heads.net/avatar/"+encodeURIComponent(a.mcName||a.username)+"/32"} alt=""
+          width={26} height={26} style={{borderRadius:2,border:`1px solid ${C.border}`,flexShrink:0}}/>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:C.text}}>{a.displayName||a.username}</span>
+        <span className="mono" style={{fontSize:10,color:C.textD,flex:1}}>@{a.username}</span>
+        {a.citizenshipRequest.at&&<span className="mono" style={{fontSize:9,color:C.textDD}}>
+          Requested {fmtDate(a.citizenshipRequest.at)}</span>}
+        <Btn small disabled={!!busy} onClick={()=>accept(a)}>Accept</Btn>
+        <ArmBtn small label="Deny" confirmLabel="Deny?" onConfirm={()=>deny(a)}/>
+      </div>)}
+  </div>;
+}
+function CitizenshipTab({citizens,accounts,canPanel,user,myCitizenship,onRequireSignIn,onAction,notify,setProcessing}){
   const [search,setSearch]=useState("");const [filter,setFilter]=useState("all");
   const all=Object.values(citizens||{});
   const myPending=user?all.find(c=>c.claimStatus==="pending"&&(c.claimedBy||"").toLowerCase()===user.username.toLowerCase()):null;
@@ -295,6 +365,9 @@ function CitizenshipTab({citizens,user,myCitizenship,onRequireSignIn,onAction,no
   return <div className="fadeIn">
     <STitle>Citizenship Registry</STitle>
     <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>Official registry of Imperial citizens and permanent residents, maintained by the Ministry of Foreign Affairs.</div>
+
+    {canPanel&&<NewAccountRequests accounts={accounts} citizens={citizens}
+      onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
 
     {/* My status banner */}
     {!user&&<div style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"0.85rem 1.1rem",marginBottom:"1.25rem",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
@@ -1151,7 +1224,22 @@ function App(){
     else if(type==="createPassport"){const id="ppt_"+uid();const next={...passports,[id]:{...payload,id}};setRaw(r=>({...r,mfa_passports:next}));await sset("mfa_passports",next);}
     else if(type==="updatePassport"){const {id,...rest}=payload;const next={...passports,[id]:{...passports[id],...rest}};setRaw(r=>({...r,mfa_passports:next}));await sset("mfa_passports",next);}
     else if(type==="deletePassport"){const next={...passports};delete next[payload.id];setRaw(r=>({...r,mfa_passports:next}));await sset("mfa_passports",next);}
-  },[raw,countries,advisories,restrictions,visas,citizens,passports]);
+    // How the Ministry answered a request for citizenship made at registration. The
+    // account is the shared record of the whole network, so this is a single record
+    // write, not a register: the server admits only this one field, and only from
+    // the nation the request names.
+    else if(type==="citizenshipRequest"){
+      const accs=raw["mi_accounts"]||{};
+      const key=Object.keys(accs).find(k=>String((accs[k]||{}).username||k).toLowerCase()===String(payload.username||"").toLowerCase());
+      if(!key)return {ok:false,error:"That account is not on the network."};
+      const acc=accs[key];
+      const next={...acc,citizenshipRequest:{...(acc.citizenshipRequest||{}),country:"lech",
+        status:payload.status,decidedAt:Date.now(),decidedBy:(user&&user.username)||""}};
+      const res=await swrite("accounts",next);
+      if(res.ok)setRaw(r=>({...r,mi_accounts:{...(r.mi_accounts||{}),[key]:next}}));
+      return res;
+    }
+  },[raw,countries,advisories,restrictions,visas,citizens,passports,user]);
 
   const TABS=[{v:"relations",l:"Foreign Relations",icon:"+"},{v:"citizenship",l:"Citizenship",icon:"+"},{v:"visa",l:"Visa Applications",icon:"+"},{v:"passports",l:"Passports",icon:"+"},{v:"panel",l:"Panel",icon:"+"}];
 
@@ -1189,7 +1277,7 @@ function App(){
       {!loaded&&<div style={{textAlign:"center",padding:"4rem",color:C.textDD}}><div className="mono" style={{fontSize:10,letterSpacing:"0.3em",animation:"pulse 1.5s infinite"}}>Loading...</div></div>}
       {authOpen&&<SignIn onClose={()=>setAuthOpen(false)} onAuth={(u,r)=>{setUser(u);setRaw(prev=>({...prev,...r}));setAuthOpen(false);notify("Signed in as "+(u.displayName||u.username)+".",C.gold);}}/>}
       {loaded&&tab==="relations"&&<RelationsTab countries={countries} advisories={advisories} restrictions={restrictions}/>}
-      {loaded&&tab==="citizenship"&&<CitizenshipTab citizens={citizens} user={user} myCitizenship={myCitizenship} onRequireSignIn={()=>setAuthOpen(true)} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+      {loaded&&tab==="citizenship"&&<CitizenshipTab citizens={citizens} accounts={accounts} canPanel={canPanel} user={user} myCitizenship={myCitizenship} onRequireSignIn={()=>setAuthOpen(true)} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
       {loaded&&tab==="visa"&&<VisaTab countries={countries} onSubmitVisa={data=>onAction("submitVisa",data)} notify={notify} visas={visas} user={user} myCitizenship={myCitizenship} foreignPassports={foreignPassports}/>}
       {loaded&&tab==="passports"&&<PassportsTab passports={passports} visas={stampVisas} user={user}/>}
       {loaded&&tab==="panel"&&canPanel&&<PanelContent user={user} countries={countries} advisories={advisories} restrictions={restrictions} visas={visas} stampVisas={stampVisas} citizens={citizens} passports={passports} accounts={accounts} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
