@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>The Imperial Gazette</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600;1,700&family=Playfair+Display+SC:wght@400;700&family=IM+Fell+English:ital@0;1&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -135,7 +135,9 @@ function srestore(){
   }).catch(function(){return null;});            // offline/blocked — keep it, retry later
 }
 function sgetAll(){
-  return fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):"")).then(function(r){return r.json();}).then(function(d){
+  // media=1: this page draws the article photographs, which the server now
+  // keeps out of everyone else's snapshot.
+  return fetch(API+"/api/data?media=1"+(AUTH_TOKEN?"&token="+encodeURIComponent(AUTH_TOKEN):"")).then(function(r){return r.json();}).then(function(d){
     if(!d||!d.ok)return{};
     // /api/data already returns parsed values — no JSON.parse needed.
     var data=d.data||{}; var out={}; var articleMap={}; var imageMap={};
@@ -1038,9 +1040,18 @@ function App(){
     setTimeout(function(){setToast(function(t){return t.msg===msg?{msg:"",err:false}:t;});},3500);
   }
 
+  // One snapshot carries everything: the newsroom's own records plus the side
+  // data (MOW alert, wartime state, Bundeskongress budget) other offices keep.
+  // srestore() seeds AUTH_TOKEN from localStorage synchronously before its
+  // network check, so starting it first lets the one download carry the session;
+  // /api/me validates in parallel.
+  // The newsroom admits only accounts with Press credentials; others simply stay
+  // signed out here. A cached session that turns out to carry no Press
+  // credentials — or one the server has rejected outright (clearSession drops
+  // AUTH_TOKEN) — signs back out here. A null with the token still held is only
+  // an unreachable server.
   useEffect(function(){
-    // One snapshot carries everything: the newsroom's own records plus the side
-    // data (MOW alert, wartime state, Bundeskongress budget) other offices keep.
+    var restoring=srestore();
     sgetAll().then(function(r){
       setRaw(r);setLoaded(true);
       setSideRaw({
@@ -1049,17 +1060,11 @@ function App(){
         budget:r["bk_active_budget"]||null
       });
     });
+    restoring.then(function(acc){
+      if(acc&&(acc.role==="emperor"||acc.pressRole||acc.pressAccess)) setPressUser(acc);
+      else if(acc||!AUTH_TOKEN) setPressUser(null);
+    });
   },[]);
-
-  // Restore a session signed in on another page. The newsroom admits only
-  // accounts with Press credentials; others simply stay signed out here.
-  // A cached session that turns out to carry no Press credentials — or one the
-  // server has rejected outright (clearSession drops AUTH_TOKEN) — signs back out
-  // here. A null with the token still held is only an unreachable server.
-  useEffect(function(){srestore().then(function(acc){
-    if(acc&&(acc.role==="emperor"||acc.pressRole||acc.pressAccess)) setPressUser(acc);
-    else if(acc||!AUTH_TOKEN) setPressUser(null);
-  });},[]);
 
   var articles=useMemo(function(){return raw["press_articles"]||{};},[raw]);
   var breaking=useMemo(function(){return raw["press_breaking"]||null;},[raw]);

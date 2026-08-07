@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Ministry of Foreign Affairs — Empire of Lech</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{background:#080e0a;color:#ccd8cc;font-family:'Crimson Text',Georgia,serif;min-height:100vh;}
@@ -307,9 +307,9 @@ function RelationsTab({countries,advisories,restrictions}){
 }
 
 // The queue of newcomers who named the Empire at registration. It heads the
-// Citizenship page because it is the one thing here that is *waiting*: the
-// registry below it is settled, this is not. Only Ministry access sees it — for
-// everyone else the page begins where it always did.
+// Citizenship section of the Panel — the Panel is where the registry is actually
+// worked, and this is the one thing in it that is *waiting*. The public
+// Citizenship tab shows the settled registry and nothing else.
 function NewAccountRequests({accounts,citizens,onAction,notify,setProcessing}){
   const queue=useMemo(()=>newCitizenshipRequests(accounts,citizens,"lech"),[accounts,citizens]);
   const [busy,setBusy]=useState("");
@@ -353,7 +353,7 @@ function NewAccountRequests({accounts,citizens,onAction,notify,setProcessing}){
       </div>)}
   </div>;
 }
-function CitizenshipTab({citizens,accounts,canPanel,user,myCitizenship,onRequireSignIn,onAction,notify,setProcessing}){
+function CitizenshipTab({citizens,user,myCitizenship,onRequireSignIn,onAction,notify,setProcessing}){
   const [search,setSearch]=useState("");const [filter,setFilter]=useState("all");
   const all=Object.values(citizens||{});
   const myPending=user?all.find(c=>c.claimStatus==="pending"&&(c.claimedBy||"").toLowerCase()===user.username.toLowerCase()):null;
@@ -365,9 +365,6 @@ function CitizenshipTab({citizens,accounts,canPanel,user,myCitizenship,onRequire
   return <div className="fadeIn">
     <STitle>Citizenship Registry</STitle>
     <div style={{fontSize:14,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:"1.25rem"}}>Official registry of Imperial citizens and permanent residents, maintained by the Ministry of Foreign Affairs.</div>
-
-    {canPanel&&<NewAccountRequests accounts={accounts} citizens={citizens}
-      onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
 
     {/* My status banner */}
     {!user&&<div style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"0.85rem 1.1rem",marginBottom:"1.25rem",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
@@ -854,7 +851,10 @@ function PolicyDetail({country,advisories,restrictions}){
 function PanelContent({user,countries,advisories,restrictions,visas,stampVisas,citizens,passports,accounts,onAction,notify,setProcessing}){
   const [sec,setSec]=useState("countries");
   const pending=Object.values(visas||{}).filter(v=>v.status==="pending").length;
-  const secs=[["countries","Countries & Advisories"],["restrictions","Restrictions"],["visas","Visa Queue"+(pending>0?" ("+pending+")":"")],["passports","Passports"],["citizens","Citizenship"]];
+  // Newcomers who named the Empire when they registered. The count on the tab is
+  // what tells you there is work inside the Citizenship section at all.
+  const citReqs=newCitizenshipRequests(accounts,citizens,"lech").length;
+  const secs=[["countries","Countries & Advisories"],["restrictions","Restrictions"],["visas","Visa Queue"+(pending>0?" ("+pending+")":"")],["passports","Passports"],["citizens","Citizenship"+(citReqs>0?" ("+citReqs+")":"")]];
   return <div className="fadeIn">
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:"1.25rem",flexWrap:"wrap"}}><STitle style={{marginBottom:0}}>MOFA Panel</STitle><span className="mono" style={{fontSize:9,color:C.textD,marginLeft:"auto"}}>{user.displayName||user.username}</span></div>
     <div style={{display:"flex",gap:0,borderBottom:`1px solid ${C.border}`,marginBottom:"1.5rem",flexWrap:"wrap"}}>{secs.map(([v,l])=><button key={v} onClick={()=>setSec(v)} style={{fontFamily:"'Cinzel',serif",fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",padding:"0.6rem 1rem",background:"transparent",border:"none",cursor:"pointer",borderBottom:`2px solid ${sec===v?C.accent:"transparent"}`,color:sec===v?C.accent:C.textD}}>{l}</button>)}</div>
@@ -1103,6 +1103,9 @@ function PanelCitizenship({citizens,accounts,user,onAction,notify,setProcessing}
   return <div>
     <STitle>Citizenship Registry</STitle>
 
+    <NewAccountRequests accounts={accounts} citizens={citizens}
+      onAction={onAction} notify={notify} setProcessing={setProcessing}/>
+
     {reviews.length>0&&<div style={{background:"#160f1e",border:`1px solid #6a4a8a`,borderLeft:`3px solid #b89ac8`,borderRadius:"0 3px 3px 0",padding:"1rem 1.25rem",marginBottom:"1.25rem"}}>
       <div className="mono" style={{fontSize:9,color:"#b89ac8",letterSpacing:"0.15em",marginBottom:"0.75rem"}}>CITIZENSHIP REVIEW REQUESTS ({reviews.length})</div>
       {reviews.map(c=>{const cst=CITIZENSHIP_STATUSES.find(s=>s.v===c.status)||CITIZENSHIP_STATUSES[0];return <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",padding:"0.5rem 0",borderBottom:`1px solid ${C.border}`}}>
@@ -1175,13 +1178,18 @@ function App(){
     setToast({msg,color});setTimeout(()=>setToast(t=>t.msg===msg?{msg:"",color}:t),4000);
   },[]);
 
-  useEffect(()=>{sgetAll().then(r=>{setRaw(r);setLoaded(true);});},[]);
-  // Restore a session signed in on another page (validated server-side), then
-  // pull the snapshot again with the token so protected records load too.
+  // One snapshot, not two. srestore() seeds AUTH_TOKEN from localStorage
+  // synchronously before its network check, so the single sgetAll() below already
+  // carries the session and downloads everything this viewer may see; /api/me
+  // merely validates in parallel instead of gating a second full download.
   // clearSession() drops AUTH_TOKEN, so a null account with no token left means the
   // server genuinely rejected it — sign the optimistic user back out. A null with
   // the token still held is just an unreachable server; keep showing them signed in.
-  useEffect(()=>{srestore().then(acc=>{if(acc){setUser(acc);sgetAll().then(r=>setRaw(prev=>({...prev,...r})));}else if(!AUTH_TOKEN)setUser(null);});},[]);
+  useEffect(()=>{
+    const restoring=srestore();
+    sgetAll().then(r=>{setRaw(r);setLoaded(true);});
+    restoring.then(acc=>{if(acc)setUser(acc);else if(!AUTH_TOKEN)setUser(null);});
+  },[]);
 
   const accounts=useMemo(()=>{
     const out=[];const seen={};
@@ -1277,7 +1285,7 @@ function App(){
       {!loaded&&<div style={{textAlign:"center",padding:"4rem",color:C.textDD}}><div className="mono" style={{fontSize:10,letterSpacing:"0.3em",animation:"pulse 1.5s infinite"}}>Loading...</div></div>}
       {authOpen&&<SignIn onClose={()=>setAuthOpen(false)} onAuth={(u,r)=>{setUser(u);setRaw(prev=>({...prev,...r}));setAuthOpen(false);notify("Signed in as "+(u.displayName||u.username)+".",C.gold);}}/>}
       {loaded&&tab==="relations"&&<RelationsTab countries={countries} advisories={advisories} restrictions={restrictions}/>}
-      {loaded&&tab==="citizenship"&&<CitizenshipTab citizens={citizens} accounts={accounts} canPanel={canPanel} user={user} myCitizenship={myCitizenship} onRequireSignIn={()=>setAuthOpen(true)} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
+      {loaded&&tab==="citizenship"&&<CitizenshipTab citizens={citizens} user={user} myCitizenship={myCitizenship} onRequireSignIn={()=>setAuthOpen(true)} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}
       {loaded&&tab==="visa"&&<VisaTab countries={countries} onSubmitVisa={data=>onAction("submitVisa",data)} notify={notify} visas={visas} user={user} myCitizenship={myCitizenship} foreignPassports={foreignPassports}/>}
       {loaded&&tab==="passports"&&<PassportsTab passports={passports} visas={stampVisas} user={user}/>}
       {loaded&&tab==="panel"&&canPanel&&<PanelContent user={user} countries={countries} advisories={advisories} restrictions={restrictions} visas={visas} stampVisas={stampVisas} citizens={citizens} passports={passports} accounts={accounts} onAction={onAction} notify={notify} setProcessing={setProcessing}/>}

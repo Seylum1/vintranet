@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Ministry of the Interior — Empire of Lech</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&family=Playfair+Display:wght@500;700;900&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{background:#0a0808;color:#e0d4c8;font-family:'Crimson Text',Georgia,serif;min-height:100vh;}
@@ -3146,9 +3146,14 @@ function App(){
   // Restore a session saved on another page, so signing in anywhere signs you in
   // here too. Verified against the server before it is trusted.
   useEffect(()=>{(async()=>{
-    const acc=await srestore();
+    // srestore() seeds AUTH_TOKEN synchronously, so when a session is cached the
+    // snapshot downloads in parallel with the /api/me validation rather than
+    // waiting behind it. No cached token, no speculative download.
+    const restoring=srestore();
+    const dataP=AUTH_TOKEN?sgetAll():null;
+    const acc=await restoring;
     if(acc){
-      const rawData=await sgetAll();
+      const rawData=await (dataP||sgetAll());
       const accs={};
       Object.entries(rawData).forEach(([k,v])=>{ if(k.startsWith("mi_acc_")&&v) accs[v.username]=v; });
       Object.entries(rawData["mi_accounts"]||{}).forEach(([k,v])=>{ if(!accs[k]) accs[k]=v; });

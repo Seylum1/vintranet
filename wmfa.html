@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Ministry of Foreign Affairs — Wilden</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    WILDEN — MINISTRY OF FOREIGN AFFAIRS
@@ -1007,8 +1007,15 @@ function App(){
   const [busy,setBusy]=useState(null);
   const notify=useCallback((text,ok)=>{setMsg({text,ok});window.scrollTo({top:0,behavior:"smooth"});setTimeout(()=>setMsg(m=>m&&m.text===text?null:m),6000);},[]);
 
-  useEffect(()=>{sgetAll().then(r=>{setRaw(r);setLoaded(true);});},[]);
-  useEffect(()=>{srestore().then(acc=>{if(acc){setUser(acc);sgetAll().then(r=>setRaw(prev=>({...prev,...r})));}else if(!AUTH_TOKEN)setUser(null);});},[]);
+  // One snapshot, not two. srestore() seeds AUTH_TOKEN from localStorage
+  // synchronously before its network check, so the single sgetAll() below already
+  // carries the session and downloads everything this viewer may see; /api/me
+  // merely validates in parallel instead of gating a second full download.
+  useEffect(()=>{
+    const restoring=srestore();
+    sgetAll().then(r=>{setRaw(r);setLoaded(true);});
+    restoring.then(acc=>{if(acc)setUser(acc);else if(!AUTH_TOKEN)setUser(null);});
+  },[]);
 
   const accounts=useMemo(()=>Object.values(raw["mi_accounts"]||{}).filter(a=>a&&a.username)
     .sort((a,b)=>((a.displayName||a.username)||"").localeCompare((b.displayName||b.username)||"")),[raw]);

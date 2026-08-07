@@ -4,12 +4,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Imperial Electoral Commission — Empire of Lech</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:#0a0808;font-family:'EB Garamond',Georgia,serif;color:#f0ece4;min-height:100vh;-webkit-text-size-adjust:100%;}
@@ -2755,8 +2755,14 @@ function App(){
   const loadAll=useCallback(async()=>{
     const r=await sgetAll();setRaw(r);setLoading(false);return r;
   },[]);
-  useEffect(()=>{loadAll();},[loadAll]);
-  useEffect(()=>{srestore().then(acc=>{if(acc)setMe(acc);else if(!AUTH_TOKEN)setMe(null);});},[]);
+  // srestore() seeds AUTH_TOKEN from localStorage synchronously before its
+  // network check, so starting it first lets the one snapshot download carry the
+  // session; /api/me validates in parallel.
+  useEffect(()=>{
+    const restoring=srestore();
+    loadAll();
+    restoring.then(acc=>{if(acc)setMe(acc);else if(!AUTH_TOKEN)setMe(null);});
+  },[loadAll]);
 
   /* ── derive ── */
   const elections=useMemo(()=>raw["el_elections"]||{},[raw]);
@@ -2816,7 +2822,9 @@ function App(){
   useEffect(()=>{
     const anyLive=elList.some(e=>e.status==="voting"||e.status==="registration");
     if(!anyLive||view==="admin"||view==="vote")return;
-    const id=setInterval(async()=>{const r=await sgetAll();setRaw(r);},7000);
+    // Fifteen seconds keeps election night feeling live without re-downloading
+    // the whole snapshot nine times a minute.
+    const id=setInterval(async()=>{const r=await sgetAll();setRaw(r);},15000);
     return()=>clearInterval(id);
   },[elList,view]);
 

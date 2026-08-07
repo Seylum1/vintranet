@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Home Office — Wilden</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════════════
    WILDEN — HOME OFFICE
@@ -1567,9 +1567,12 @@ function App(){
     setTimeout(()=>setMsg(m=>m&&m.text===text?null:m),5000);},[]);
 
   useEffect(()=>{(async()=>{
-    const acc=await srestore();
-    if(acc)setUser(acc);
+    // srestore() seeds AUTH_TOKEN synchronously, so the snapshot download runs in
+    // parallel with the /api/me validation instead of waiting behind it.
+    const restoring=srestore();
     const d=await sgetAll();
+    const acc=await restoring;
+    if(acc)setUser(acc);
     setRaw(d);setLoaded(true);
   })();},[]);
 

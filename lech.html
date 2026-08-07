@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Imperial Network — Empire of Lech</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -1624,18 +1624,25 @@ function bkMyIds(bk){
   // sit reading "Sign in" for the length of the /api/me round trip.
   var CACHED_ACC=cachedAccount();
   if(CACHED_ACC) fabLabel(CACHED_ACC);
-  RESTORE=srestore().then(function(acc){
-    if(!acc){
-      // clearSession() drops AUTH_TOKEN, so no token left means the server rejected
-      // it — put the button back. Still holding one is only an unreachable server.
-      if(!AUTH_TOKEN) fabLabel(null);
-      return;
-    }
-    return fetchAll().then(function(raw){
-      CUR_ACC=acc; RESTORED_RAW=raw;
-      fabLabel(acc);
-    }).catch(function(){});
-  }).then(function(){RESTORE_SETTLED=true;},function(){RESTORE_SETTLED=true;});
+  // srestore() seeds AUTH_TOKEN synchronously, so when a session is cached the
+  // portal snapshot downloads in parallel with the /api/me validation rather
+  // than waiting behind it. No cached token, no speculative download.
+  RESTORE=(function(){
+    var restoring=srestore();
+    var dataP=AUTH_TOKEN?fetchAll().catch(function(){return null;}):null;
+    return restoring.then(function(acc){
+      if(!acc){
+        // clearSession() drops AUTH_TOKEN, so no token left means the server rejected
+        // it — put the button back. Still holding one is only an unreachable server.
+        if(!AUTH_TOKEN) fabLabel(null);
+        return;
+      }
+      return (dataP||fetchAll()).then(function(raw){
+        if(raw){CUR_ACC=acc; RESTORED_RAW=raw;}
+        fabLabel(acc);
+      }).catch(function(){});
+    });
+  })().then(function(){RESTORE_SETTLED=true;},function(){RESTORE_SETTLED=true;});
 })();
 </script>
 

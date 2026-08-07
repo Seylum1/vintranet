@@ -4,11 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Imperial Household Office — Empire of Lech</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{background:#0e0806;color:#e8dcc8;font-family:'Crimson Text',Georgia,serif;min-height:100vh;}
@@ -936,20 +936,23 @@ function App(){
   },[]);
 
   // One snapshot from the shared backend carries everything, the Bundeskongress's
-  // bk_* records included.
-  useEffect(()=>{
-    sgetAll().then(r=>{setRaw(r);setLoaded(true);});
-  },[]);
-  // Restore a session signed in on another page. This panel is the Emperor's
-  // alone, so only an Imperial account is admitted; anyone else stays signed out
-  // here. Validated server-side before it is trusted.
+  // bk_* records included — and only one: srestore() seeds AUTH_TOKEN from
+  // localStorage synchronously before its network check, so the single sgetAll()
+  // below already carries the session; /api/me validates in parallel instead of
+  // gating a second full download.
+  // This panel is the Emperor's alone, so only an Imperial account is admitted;
+  // anyone else stays signed out here. Validated server-side before it is trusted.
   // A cached session that turns out not to be the Throne's — or one the server has
   // rejected outright (clearSession drops AUTH_TOKEN) — closes the panel again. A
   // null with the token still held is only an unreachable server; leave it open.
-  useEffect(()=>{srestore().then(acc=>{
-    if(acc&&acc.role==="emperor"){setPanelUser(acc);sgetAll().then(r=>setRaw(prev=>({...prev,...r})));}
-    else if(acc||!AUTH_TOKEN) setPanelUser(null);
-  });},[]);
+  useEffect(()=>{
+    const restoring=srestore();
+    sgetAll().then(r=>{setRaw(r);setLoaded(true);});
+    restoring.then(acc=>{
+      if(acc&&acc.role==="emperor")setPanelUser(acc);
+      else if(acc||!AUTH_TOKEN) setPanelUser(null);
+    });
+  },[]);
 
   const bundesherren=useMemo(()=>raw["bk_bh"]||{},[raw]);
   const family=useMemo(()=>raw["ih_family"]||{},[raw]);
