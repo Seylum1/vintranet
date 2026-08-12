@@ -2575,6 +2575,17 @@ function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,citizens,partyM
   const step=el?nextStep(el,R):null;
   const pending=regs.filter(r=>r.status==="pending").length;
 
+  /* Keep the Registrar's count live on election night — the same 15-second pull
+     the public board uses. Paused while a contest editor is open, so a refresh
+     never pulls the snapshot out from under an edit in progress, and only while
+     the open contest is actually running (a poll open, or nominations open). */
+  const liveContest=!!el&&(el.status==="voting"||el.status==="registration");
+  useEffect(()=>{
+    if(editing||!liveContest)return;
+    const id=setInterval(()=>{reload();},15000);
+    return()=>clearInterval(id);
+  },[editing,liveContest,reload]);
+
   return(
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",

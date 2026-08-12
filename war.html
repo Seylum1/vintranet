@@ -328,6 +328,89 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
   .trk-status{margin-top:.1rem;font-size:.72rem;}
   footer{display:none;}
 }
+
+/* ── card system: field manual + war deck ── */
+.fm-lead{font-size:.9rem;color:var(--ink-dim);line-height:1.55;margin-bottom:.7rem;}
+.fm-lead b{color:var(--ink);font-weight:600;}
+.fm-sec{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.14em;color:var(--contest);text-transform:uppercase;margin:1.1rem 0 .5rem;padding-bottom:.25rem;border-bottom:1px solid var(--line);}
+.fm-step{display:flex;gap:.55rem;align-items:flex-start;padding:.5rem .1rem;}
+.fm-num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--bg3);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:.78rem;color:var(--contest);}
+.fm-step .fmt{font-size:.86rem;color:var(--ink-dim);line-height:1.45;}
+.fm-step .fmt b{color:var(--ink);font-weight:600;}
+.wheel{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;justify-content:center;padding:.55rem;background:var(--bg3);border:1px solid var(--line);border-radius:5px;margin-bottom:.4rem;}
+.wchip{display:flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--ink);}
+.wdot{width:9px;height:9px;border-radius:2px;flex:none;}
+.warr{color:var(--ink-faint);font-size:.85rem;}
+.ccard{border:1px solid var(--line);border-left-width:3px;border-radius:4px;background:var(--bg3);padding:.45rem .6rem;margin-bottom:.4rem;}
+.ctop{display:flex;align-items:center;gap:.4rem;}
+.cname{font-weight:600;color:var(--ink);font-size:.9rem;}
+.cbadge{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--ink-dim);border:1px solid var(--line2);border-radius:10px;padding:.03rem .45rem;white-space:nowrap;}
+.cbank{font-family:'Share Tech Mono',monospace;font-size:.76rem;color:var(--vin-bright);margin-left:.3rem;}
+.ceff{font-size:.84rem;color:var(--ink-dim);line-height:1.4;margin-top:.25rem;}
+.cneed{font-size:.75rem;color:var(--ink-faint);margin-top:.2rem;}
+.brhead{display:flex;align-items:center;gap:.4rem;font-family:'Cinzel',serif;font-size:.76rem;letter-spacing:.06em;color:var(--ink);margin:.7rem 0 .35rem;}
+.brhead .bdot{width:11px;height:11px;border-radius:2px;flex:none;}
+.brhead .bblurb{font-family:'Crimson Text',serif;font-size:.76rem;letter-spacing:0;color:var(--ink-faint);font-style:italic;}
+.deck-tools{display:flex;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap;}
+.deck-edit{border:1px solid var(--line2);border-radius:5px;background:var(--bg2);padding:.55rem;margin-bottom:.5rem;display:grid;gap:.4rem;}
+.deck-edit input,.deck-edit select,.deck-edit textarea{background:var(--bg);border:1px solid var(--line2);border-radius:3px;padding:.28rem .4rem;font-size:.85rem;width:100%;}
+.deck-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;}
+.deck-row-btns{display:flex;gap:.35rem;justify-content:flex-end;}
+/* ── in-roster draft (battle orders) ── */
+.ords{margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--line);}
+.ordhd{display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel',serif;font-size:.66rem;letter-spacing:.12em;color:var(--ink-dim);margin-bottom:.35rem;}
+.ordcp{font-family:'Share Tech Mono',monospace;color:var(--contest);letter-spacing:0;}
+.ordsealed{font-family:'Share Tech Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--vin-bright);}
+.ochips{display:flex;flex-wrap:wrap;gap:.3rem;}
+.ochip{display:inline-flex;align-items:center;gap:.25rem;font-size:.78rem;color:var(--ink);background:var(--bg2);border:1px solid var(--line2);border-radius:12px;padding:.12rem .5rem;}
+.odot{width:8px;height:8px;border-radius:2px;flex:none;}
+.ocost{font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--ink-dim);}
+.obank{font-family:'Share Tech Mono',monospace;font-size:.68rem;color:var(--vin-bright);}
+.ox{background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:.78rem;padding:0 0 0 .1rem;line-height:1;}
+.ox:hover{color:var(--danger);}
+.ordbtns{display:flex;gap:.35rem;align-items:center;margin-top:.45rem;flex-wrap:wrap;}
+.ordface{display:flex;gap:.2rem;flex-wrap:wrap;}
+.ofd{font-size:1.15rem;color:var(--ink-faint);line-height:1;}
+.picker{margin-top:.5rem;border:1px solid var(--line2);border-radius:5px;background:var(--bg);padding:.5rem;}
+.pickhd{display:flex;justify-content:space-between;align-items:center;font-size:.78rem;color:var(--ink-dim);margin-bottom:.4rem;}
+.pgrid{display:flex;flex-direction:column;gap:.3rem;max-height:260px;overflow-y:auto;}
+.pcard{display:flex;flex-direction:column;gap:.15rem;text-align:left;background:var(--bg3);border:1px solid var(--line);border-left-width:3px;border-radius:4px;padding:.35rem .5rem;cursor:pointer;color:var(--ink);}
+.pcard:hover:not(:disabled){border-color:var(--line2);background:var(--bg2);}
+.pcard:disabled{opacity:.45;cursor:not-allowed;}
+.ptop{display:flex;align-items:center;gap:.35rem;}
+.pname{font-weight:600;font-size:.82rem;flex:1;}
+.peff{font-size:.75rem;color:var(--ink-dim);line-height:1.35;}
+.pneed{font-size:.7rem;color:var(--ink-faint);}
+.pneed.bad{color:var(--contest);}
+/* ── battle conditions (grants) on the schedule form ── */
+.bf-grants{border:1px solid var(--line2);border-radius:4px;background:var(--bg);padding:.45rem .55rem;display:flex;flex-direction:column;gap:.15rem;}
+.bf-ghd{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.1em;color:var(--contest);margin-bottom:.2rem;}
+.bf-grow{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.25rem;}
+.bf-glbl{font-size:.82rem;color:var(--ink);min-width:88px;}
+.bf-grow label{display:inline-flex;align-items:center;gap:.25rem;font-size:.8rem;color:var(--ink-dim);cursor:pointer;}
+.bf-grow input[type=checkbox]{width:auto;}
+.bf-grow select{width:auto;flex:1;min-width:110px;}
+.bf-gnote{font-size:.72rem;color:var(--ink-faint);line-height:1.35;font-style:italic;}
+/* ── conclude: held time + resolution ── */
+.brtime{display:flex;gap:.5rem;margin:.35rem 0 .5rem;}
+.brtime label{flex:1;display:flex;flex-direction:column;gap:.15rem;font-size:.72rem;letter-spacing:.1em;font-family:'Cinzel',serif;}
+.brtime label.lech{color:var(--lech-bright);}
+.brtime label.vin{color:var(--vin-bright);}
+.brheld{background:var(--bg);border:1px solid var(--line2);border-radius:3px;padding:.28rem .4rem;font-size:1rem;font-family:'Share Tech Mono',monospace;color:var(--ink);width:100%;}
+.brsides{display:flex;gap:.5rem;}
+.brside{flex:1;border:1px solid var(--line);border-radius:4px;padding:.4rem .5rem;background:var(--bg3);}
+.brside.lech{border-left:3px solid var(--lech);}
+.brside.vin{border-left:3px solid var(--vin);}
+.brline{display:flex;justify-content:space-between;gap:.5rem;font-size:.76rem;color:var(--ink-dim);padding:.08rem 0;}
+.brline span:last-child{font-family:'Share Tech Mono',monospace;flex:none;}
+.brline.hd{font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.08em;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:.2rem;margin-bottom:.2rem;}
+.brline.sub em{color:var(--ink-faint);font-size:.7rem;}
+.brline.sub.dead span{color:var(--ink-faint);text-decoration:line-through;}
+.brline.tot{border-top:1px solid var(--line);margin-top:.2rem;padding-top:.2rem;color:var(--ink);}
+.brfinal{margin-top:.5rem;padding:.4rem .5rem;border-radius:4px;text-align:center;font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.04em;background:var(--bg2);border:1px solid var(--line2);}
+.brfinal.lech{color:var(--lech-bright);border-color:var(--lech-deep);}
+.brfinal.vindex{color:var(--vin-bright);border-color:var(--vin-deep);}
+.brfinal.stalemate{color:var(--contest);border-color:var(--contest-deep);}
 </style>
 </head>
 <body>
@@ -387,6 +470,8 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
       <div class="tabs">
         <div class="tab active" data-tab="territories">TERRITORIES</div>
         <div class="tab" data-tab="battles">BATTLE LOG</div>
+        <div class="tab" data-tab="manual">MANUAL</div>
+        <div class="tab" id="tabDeck" data-tab="deck" style="display:none">WAR DECK</div>
       </div>
       <div class="panel active" id="panel-territories"></div>
       <div class="panel" id="panel-battles">
@@ -402,6 +487,20 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
             <select id="bfTz" title="Timezone"></select>
           </div>
           <input type="text" id="bfLocation" placeholder="Location / front"/>
+          <div class="bf-grants">
+            <div class="bf-ghd">BATTLE CONDITIONS — what each side can bring (unlocks order cards)</div>
+            <div class="bf-grow"><span class="bf-glbl">Naval access</span>
+              <label><input type="checkbox" id="bgNavalL"/> Lech</label>
+              <label><input type="checkbox" id="bgNavalV"/> Vindex</label></div>
+            <div class="bf-gnote">This side can bring warships or coastal guns to bear on the point. Unlocks their naval cards.</div>
+            <div class="bf-grow"><span class="bf-glbl">Air access</span>
+              <label><input type="checkbox" id="bgAirL"/> Lech</label>
+              <label><input type="checkbox" id="bgAirV"/> Vindex</label></div>
+            <div class="bf-gnote">This side can fly sorties over the point from an airfield or carrier in reach. Unlocks their air cards.</div>
+            <div class="bf-grow"><span class="bf-glbl">Defending</span>
+              <select id="bgDefender"><option value="">Neither</option><option value="lech">Lech</option><option value="vindex">Vindex</option></select></div>
+            <div class="bf-gnote">The side dug in holding the point while the other attacks it. Unlocks the defensive cards — entrenchment, ambush, last stand.</div>
+          </div>
           <textarea id="bfNotes" placeholder="Notes (optional)"></textarea>
           <div class="bf-hint">The result is recorded when the battle is concluded, not now.</div>
           <div class="tcard-btns">
@@ -412,6 +511,8 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
         <div id="battleNote" class="empty-note" style="display:none">Battles are recorded by network administrators once each engagement is adjudicated.</div>
         <div id="battleList"></div>
       </div>
+      <div class="panel" id="panel-manual"></div>
+      <div class="panel" id="panel-deck"></div>
     </aside>
 
     <div id="mapArea">
@@ -545,6 +646,7 @@ let meta = JSON.parse(JSON.stringify(DEFAULT_META));
 let territories = [];   // records from lvwar_territories
 let battles = [];       // records from lvwar_battles, sorted by .at
 let rosters = {};       // records from lvwar_rosters, keyed roster_<battleId>_<side>
+let warCards = {};      // lvwar_cards singleton — the admin-curated order catalogue
 let serviceRecords = {};// vx_dod_personnel / mow_personnel — who holds a commission
 let account = null;     // signed-in account (null = spectator)
 let vxGov = {};         // vx_gov singleton (cabinet posts) — SecDef check
@@ -569,7 +671,7 @@ const viewport = $('viewport'), world = $('world'), mapImg = $('mapImg'), overla
 const gTerr = $('gTerr'), gDraw = $('gDraw'), gHandles = $('gHandles'), svgDefs = $('svgDefs');
 
 /* ══════════ BACKEND ══════════ */
-let token = localStorage.getItem(SESSION_KEY) || "";
+let token = ""; try { token = localStorage.getItem(SESSION_KEY) || ""; } catch (e) { token = ""; }
 try { account = JSON.parse(localStorage.getItem(SESSION_ACC_KEY) || "null"); } catch { account = null; }
 
 function saveSession(t, acc) {
@@ -648,6 +750,9 @@ function applySidebarVisibility() {
   if (tab) tab.style.display = canMeta ? '' : 'none';
   if (panel) panel.style.display = canMeta ? '' : 'none';
   if (!canMeta && tab && tab.classList.contains('active')) switchTab('battles');
+  const dtab = $('tabDeck');
+  if (dtab) dtab.style.display = canMeta ? '' : 'none';
+  if (!canMeta && dtab && dtab.classList.contains('active')) switchTab('battles');
 }
 function officeLabel() {
   if (!account) return '';
@@ -784,6 +889,7 @@ async function loadAll() {
     // victor yet but must still appear. Only concluded ones move the tracker.
     battles = Object.values(raw.lvwar_battles || {}).filter(b => b && b.id).sort((a, b) => (a.at || 0) - (b.at || 0));
     rosters = raw.lvwar_rosters || {};
+    warCards = (raw.lvwar_cards && typeof raw.lvwar_cards === 'object') ? raw.lvwar_cards : {};
     // Each nation's own service record, read straight from its defence site, so
     // the appointable officers here are always the ones actually commissioned.
     serviceRecords = { vx_dod_personnel: raw.vx_dod_personnel || {},
@@ -1657,6 +1763,300 @@ function myCombatant(b) {
   return null;
 }
 
+/* ══════════ BATTLE ORDERS — THE CARD SYSTEM ══════════
+   The currency of the war is TIME HELD. A battle runs 30 minutes; a point is
+   held by whoever has 65% of the force on it, and the side that holds it longest
+   wins. Order cards feed that clock in two ways only:
+     · banked seconds — a flat ± to your held-time total (naval bombardment +2:00);
+     · rule benders — they change the live fight (entrenchment lifts the enemy's
+       hold threshold to 70% while you defend; levée lifts your roster cap).
+   Each Strategy Officer drafts a hand from a shared, admin-curated catalogue,
+   spending from a fixed command-point budget, then seals it before the battle. */
+const BATTLE_SECONDS = 1800;      // a 30-minute engagement
+const HOLD_THRESHOLD = 0.65;      // 65% of the force on the point holds it
+const CP_BUDGET = 6;              // command points a side spends on its hand
+
+// Terrain a zone can carry — set by the map's keepers, read by supply rules.
+const TERRAIN = {
+  coast:    { label: 'Coastal',   icon: '⚓' },
+  airfield: { label: 'Airfield',  icon: '✈' },
+  fort:     { label: 'Fortified', icon: '🛡' },
+  urban:    { label: 'Urban',     icon: '🏙' },
+  mountain: { label: 'Mountain',  icon: '⛰' },
+  forest:   { label: 'Forest',    icon: '🌲' },
+};
+
+// The five branches. Combat branches sit on the counter wheel — air beats naval,
+// naval beats ground, ground beats air; a countered card's bonus is halved.
+// Support branches ignore the wheel and bend the rules around it.
+const BRANCHES = {
+  naval:     { name: 'Naval',     kind: 'combat',  beats: 'ground', color: '#4a86c8',
+               blurb: 'Guns from the sea. Needs a friendly coast in range.' },
+  air:       { name: 'Air',       kind: 'combat',  beats: 'naval',  color: '#7bb8e0',
+               blurb: 'Planes overhead. Needs a friendly airfield in range.' },
+  ground:    { name: 'Ground',    kind: 'combat',  beats: 'air',    color: '#c8a44a',
+               blurb: 'Boots on the point. Strongest when you defend.' },
+  logistics: { name: 'Logistics', kind: 'support', beats: '',       color: '#c88a4a',
+               blurb: 'Bends the rules — more troops, more points.' },
+  intel:     { name: 'Intel',     kind: 'support', beats: '',       color: '#9a7bc8',
+               blurb: 'Spy on the enemy hand and foul their orders.' },
+  special:   { name: 'Doctrine',  kind: 'support', beats: '',       color: '#c85a5a',
+               blurb: 'One-off tricks that swing the whole battle.' },
+};
+
+// The starting catalogue. Kept here as the seed; once an administrator saves the
+// deck (lvwar_cards) that live copy wins, exactly as the party register works on
+// the elections page. `time` is banked seconds (+/-); `needs` is a supply/role
+// requirement; `counter` names what beats it, for the card face.
+const DEFAULT_CARDS = {
+  naval_bombardment: { id: 'naval_bombardment', name: 'Naval bombardment', branch: 'naval', cost: 3, time: 120,
+    effect: '+2:00 held time if you take the field.', needs: { feature: 'coast', range: 2 }, counter: 'air_superiority' },
+  blockade: { id: 'blockade', name: 'Blockade', branch: 'naval', cost: 4, time: 0, rule: 'block',
+    effect: "Enemy roster cap −1, and their logistics cards cost +1.", needs: { feature: 'coast', range: 2 }, counter: 'air_superiority' },
+  amphibious: { id: 'amphibious', name: 'Amphibious assault', branch: 'naval', cost: 3, time: 0, rule: 'negate_entrench',
+    effect: 'As attacker, cancel the enemy’s entrenchment.', needs: { feature: 'coast', range: 1 }, counter: 'flak_battery' },
+  convoy_escort: { id: 'convoy_escort', name: 'Convoy escort', branch: 'naval', cost: 2, time: 0, rule: 'shield_log',
+    effect: 'Your logistics cards can’t be cancelled.', needs: { feature: 'coast', range: 2 }, counter: '' },
+
+  air_superiority: { id: 'air_superiority', name: 'Air superiority', branch: 'air', cost: 3, time: 60, rule: 'cancel',
+    effect: 'Cancel one enemy card; +1:00 held time.', needs: { feature: 'airfield', range: 3 }, counter: 'flak_battery' },
+  close_air_support: { id: 'close_air_support', name: 'Close air support', branch: 'air', cost: 2, time: 60, rule: 'cas',
+    effect: '+1:00 held time — bombs on the point.', needs: { feature: 'airfield', range: 3 }, counter: 'flak_battery' },
+  strategic_bombing: { id: 'strategic_bombing', name: 'Strategic bombing', branch: 'air', cost: 4, time: 0, rule: 'cp_enemy_next',
+    effect: 'Enemy has −2 command points next battle.', needs: { feature: 'airfield', range: 3 }, counter: 'air_superiority' },
+  paratroopers: { id: 'paratroopers', name: 'Paratroopers', branch: 'air', cost: 3, time: 0, rule: 'reach',
+    effect: 'Strike a zone up to 5 hops away.', needs: { feature: 'airfield', range: 5 }, counter: 'ground' },
+
+  entrenchment: { id: 'entrenchment', name: 'Entrenchment', branch: 'ground', cost: 2, time: 0, rule: 'threshold',
+    effect: 'While you defend, the enemy needs 70% (not 65%) to hold the point.', needs: { cond: 'defending' }, counter: 'air_superiority' },
+  flak_battery: { id: 'flak_battery', name: 'Flak battery', branch: 'ground', cost: 2, time: 0, rule: 'cancel_air',
+    effect: 'Cancel one enemy air card.', needs: { cond: 'holdzone' }, counter: 'naval_bombardment' },
+  forced_march: { id: 'forced_march', name: 'Forced march', branch: 'ground', cost: 2, time: 0, rule: 'reach',
+    effect: 'Attack one hop past your normal reach.', needs: null, counter: 'blockade' },
+  guerrilla_ambush: { id: 'guerrilla_ambush', name: 'Guerrilla ambush', branch: 'ground', cost: 3, time: 180, rule: 'underdog',
+    effect: '+3:00 if you fight under the roster cap.', needs: { cond: 'holdzone' }, counter: 'recon_flight' },
+
+  levee: { id: 'levee', name: 'Levée en masse', branch: 'logistics', cost: 2, time: 0, rule: 'cap',
+    effect: 'Your fielding cap +10% this battle.', needs: null, counter: 'blockade' },
+  supply_depot: { id: 'supply_depot', name: 'Supply depot', branch: 'logistics', cost: 1, time: 0, rule: 'cp_self_next',
+    effect: '+1 command point next battle if you still hold the zone.', needs: { cond: 'holdafter' }, counter: 'strategic_bombing' },
+  rapid_redeploy: { id: 'rapid_redeploy', name: 'Rapid redeploy', branch: 'logistics', cost: 2, time: 0, rule: 'swap',
+    effect: 'Swap one benched player in after the seal (once).', needs: null, counter: 'feint' },
+
+  feint: { id: 'feint', name: 'Feint', branch: 'intel', cost: 1, time: 0, rule: 'peek',
+    effect: 'Peek one enemy order before it seals.', needs: { cond: 'officer' }, counter: 'counter_intel' },
+  counter_intel: { id: 'counter_intel', name: 'Counter-intel', branch: 'intel', cost: 1, time: 0, rule: 'blank_intel',
+    effect: 'Blank every enemy intel card.', needs: null, counter: '' },
+  recon_flight: { id: 'recon_flight', name: 'Recon flight', branch: 'intel', cost: 2, time: 0, rule: 'reveal',
+    effect: 'Reveal enemy roster size and one card.', needs: null, counter: 'counter_intel' },
+  sabotage: { id: 'sabotage', name: 'Sabotage', branch: 'intel', cost: 3, time: 0, rule: 'disable',
+    effect: 'Disable one random enemy card.', needs: { cond: 'officer' }, counter: 'counter_intel' },
+
+  scorched_earth: { id: 'scorched_earth', name: 'Scorched earth', branch: 'special', cost: 3, time: 0, rule: 'deny',
+    effect: 'If you lose the zone, the enemy banks no time from it.', needs: { cond: 'holdzone' }, counter: '' },
+  war_bonds: { id: 'war_bonds', name: 'War bonds', branch: 'special', cost: 2, time: 0, rule: 'cp_self',
+    effect: 'Trade a held-zone edge for +1 command point.', needs: { cond: 'holdzone' }, counter: '' },
+  last_stand: { id: 'last_stand', name: 'Last stand', branch: 'special', cost: 0, time: 240, rule: 'trailing',
+    effect: 'A last, defiant defence. +4:00 on defence.', needs: { cond: 'defending' }, counter: '', trailingOnly: true },
+};
+
+// The live catalogue: the saved deck once one exists, else the seed.
+function cardCatalogue() { return (warCards && Object.keys(warCards).length) ? warCards : DEFAULT_CARDS; }
+function cardList() { return Object.values(cardCatalogue()).filter(c => c && c.id && c.enabled !== false); }
+function cardById(id) { return cardCatalogue()[id] || DEFAULT_CARDS[id] || null; }
+function branchMeta(b) { return BRANCHES[b] || { name: b || '—', kind: 'support', color: '#8a8f98', blurb: '' }; }
+// Banked seconds as a signed clock: +2:00, −1:30, or a dash for zero.
+function fmtBank(s) {
+  s = Math.round(Number(s) || 0);
+  if (!s) return '—';
+  const m = Math.floor(Math.abs(s) / 60), ss = Math.abs(s) % 60;
+  return (s < 0 ? '−' : '+') + m + ':' + String(ss).padStart(2, '0');
+}
+// A one-line, plain-English reading of a card's supply requirement.
+// Battle grants — the capabilities the admin marks on a battle. Naval and air are
+// per-side; the defender is one side (or neither). A card's requirement resolves
+// to one of these, and the card is only draftable if that side has been granted it.
+const GRANTS = {
+  naval: { label: 'Naval access', side: true,
+    note: 'This side can bring warships or coastal guns to bear on the point — a shore, port or river they work from. Unlocks the naval cards for them.' },
+  air:   { label: 'Air access', side: true,
+    note: 'This side can fly sorties over the point from an airfield or carrier in reach. Unlocks the air cards for them.' },
+  defender: { label: 'Defending', side: false,
+    note: 'This side is dug in holding the point while the other attacks it. Unlocks the defensive cards — entrenchment, ambush, last stand.' },
+};
+const GRANT_BLOCK = { naval: 'This side has no naval access this battle', air: 'This side has no air access this battle', defender: 'Only the defending side may play this' };
+// Which grant, if any, a card needs — reading either the new needs.grant or the
+// older feature/condition shapes so the seeded catalogue keeps working.
+function neededGrant(card) {
+  const n = card && card.needs; if (!n) return null;
+  if (n.grant) return n.grant;
+  if (n.feature === 'coast') return 'naval';
+  if (n.feature === 'airfield') return 'air';
+  if (n.cond === 'defending' || n.cond === 'holdzone') return 'defender';
+  return null;
+}
+function battleGrants(b) { return (b && b.grants) || {}; }
+function hasGrant(b, side, g) {
+  const gr = battleGrants(b);
+  return g === 'defender' ? gr.defender === side : !!(gr[side] && gr[side][g]);
+}
+function needText(c) {
+  if (c && c.needs && c.needs.cond === 'officer') return 'Needs a Strategy Officer appointed.';
+  const g = neededGrant(c);
+  if (g === 'naval') return 'Needs naval access (set on the battle).';
+  if (g === 'air') return 'Needs air access (set on the battle).';
+  if (g === 'defender') return 'Only for the defending side.';
+  if (c && c.needs && c.needs.cond === 'holdafter') return 'Pays off only if you hold the point after.';
+  return 'No requirement.';
+}
+
+/* ── drafting a hand: the Strategy Officer's selection, on the roster record ──── */
+let draftPicker = null;   // which side's card picker is open in the roster room
+function rosterCards(r) { return Array.isArray(r.cards) ? r.cards.filter(id => cardById(id)) : []; }
+function cpSpent(r) { return rosterCards(r).reduce((a, id) => a + ((cardById(id) || {}).cost || 0), 0); }
+// The side that is behind on the war tracker — the only one who may play a card
+// marked trailingOnly (the quiet comeback lifeline). Null when the war is level.
+function trailingSide() {
+  const sum = concludedBattles().reduce((a, b) => a + battleScore(b), 0);
+  return sum > 0 ? 'vindex' : sum < 0 ? 'lech' : null;
+}
+// Why a card can't be drafted right now — null means it can. Requirements read
+// off the grants the admin set on the battle, not off the map.
+function cardBlockedReason(side, b, card, r) {
+  if (card.enabled === false) return 'Not in the deck';
+  if (card.trailingOnly && trailingSide() !== side) return 'Only the side that is behind may play this';
+  if (!rosterCards(r).includes(card.id) && card.cost > CP_BUDGET - cpSpent(r)) return 'Not enough command points';
+  const n = card.needs;
+  if (n && n.cond === 'officer' && !r.strategyOfficer) return 'Appoint a Strategy Officer first';
+  const g = neededGrant(card);
+  if (g && !hasGrant(b, side, g)) return GRANT_BLOCK[g];
+  return null;
+}
+// One side's orders inside the roster column: face-down for the enemy until the
+// battle is over, editable for its own Strategy Officer while still scheduled.
+function ordersBlock(b, side) {
+  const r = rosterFor(b.id, side), ph = phaseOf(b);
+  const mine = canWorkRoster(side, b.id), concluded = ph === 'concluded';
+  const ids = rosterCards(r), spent = cpSpent(r);
+  if (!mine && !concluded) {
+    return `<div class="ords"><div class="ordhd">BATTLE ORDERS
+      <span class="ordsealed">${r.sealed ? 'SEALED' : (ids.length ? ids.length + ' drafted' : '—')}</span></div>
+      <div class="ordface">${ids.length ? ids.map(() => '<span class="ofd">🂠</span>').join('') : '<span class="rempty">no orders</span>'}</div>
+      <div class="rnote">Hidden until the battle concludes.</div></div>`;
+  }
+  const canDraft = mine && ph === 'scheduled' && !r.sealed;
+  const chips = ids.length ? ids.map(id => {
+    const c = cardById(id), bm = branchMeta(c.branch);
+    return `<span class="ochip" style="border-color:${bm.color}55"><span class="odot" style="background:${bm.color}"></span>${esc(c.name)}
+      <span class="ocost">${c.cost}p</span>${c.time ? `<span class="obank">${fmtBank(c.time)}</span>` : ''}
+      ${canDraft ? `<button class="ox" data-rmcard="${esc(id)}" data-side="${side}" title="Remove">✕</button>` : ''}</span>`;
+  }).join('') : '<span class="rempty">no orders drafted</span>';
+  let controls = '';
+  if (canDraft) {
+    controls = `<div class="ordbtns"><button class="btn" data-addcard="${side}">＋ Add order</button>
+      ${ids.length ? `<button class="btn primary" data-seal="${side}">Seal orders 🔒</button>` : ''}</div>`;
+    if (draftPicker === side) controls += pickerHTML(b, side, r);
+  } else if (mine && r.sealed && ph === 'scheduled') {
+    controls = `<div class="ordbtns"><span class="ordsealed">SEALED</span><button class="btn" data-unseal="${side}">Unseal to edit</button></div>`;
+  } else if (mine && ph !== 'scheduled' && !concluded) {
+    controls = `<div class="rnote">Orders are locked — the battle has begun.</div>`;
+  }
+  return `<div class="ords"><div class="ordhd">BATTLE ORDERS <span class="ordcp">${spent} / ${CP_BUDGET} pts</span></div>
+    <div class="ochips">${chips}</div>${controls}</div>`;
+}
+function pickerHTML(b, side, r) {
+  const have = CP_BUDGET - cpSpent(r);
+  const rows = cardList().filter(c => !rosterCards(r).includes(c.id)).map(c => {
+    const bm = branchMeta(c.branch), reason = cardBlockedReason(side, b, c, r);
+    return `<button class="pcard" ${reason ? 'disabled' : ''} data-pick="${esc(c.id)}" data-side="${side}" style="border-left-color:${bm.color}">
+      <span class="ptop"><span class="pname">${esc(c.name)}</span>${c.time ? `<span class="obank">${fmtBank(c.time)}</span>` : ''}<span class="ocost">${c.cost}p</span></span>
+      <span class="peff">${esc(c.effect || '')}</span>
+      <span class="pneed${reason ? ' bad' : ''}">${esc(reason || needText(c))}</span></button>`;
+  }).join('');
+  return `<div class="picker"><div class="pickhd">Choose orders — <b>${have}</b> pts left
+    <button class="btn" data-pickclose="1">Done</button></div><div class="pgrid">${rows}</div></div>`;
+}
+
+function fmtDur(secs) { secs = Math.max(0, Math.round(secs)); return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'); }
+
+/* ══════════ RESOLUTION — sealed hands + held time → the tracker move ══════════
+   Deterministic, in a fixed order so the same hands always resolve the same way:
+     1. counter-intel blanks the enemy's intel cards
+     2. any surviving sabotage disables one random enemy card
+     3. flak batteries shoot down enemy air cards
+     4. air superiority cancels the enemy's costliest surviving card
+     5. survivors bank their seconds — combat cards countered on the wheel are
+        halved; conditionals (urban CAS, underdog ambush, trailing last stand)
+        resolve here.
+   The banked seconds are added to the held time the Registrar entered; whoever
+   ends with more held time wins, and the minute-margin sets the tracker move. */
+function resolveOrders(b) {
+  const foe = s => s === 'lech' ? 'vindex' : 'lech';
+  const build = s => rosterCards(rosterFor(b.id, s)).map(id => cardById(id)).filter(Boolean)
+    .map(c => ({ id: c.id, branch: c.branch, alive: true, bank: c.time || 0, note: '' }));
+  const hand = { lech: build('lech'), vindex: build('vindex') };
+  const alive = s => hand[s].filter(x => x.alive);
+  const killTop = (s, pred) => {
+    const c = alive(s).filter(pred).sort((a, z) => ((cardById(z.id) || {}).cost || 0) - ((cardById(a.id) || {}).cost || 0))[0];
+    if (c) { c.alive = false; c.note = 'cancelled'; }
+  };
+  ['lech', 'vindex'].forEach(s => {
+    if (hand[s].some(x => x.id === 'counter_intel'))
+      hand[foe(s)].forEach(x => { if ((cardById(x.id) || {}).branch === 'intel') { x.alive = false; x.note = 'blanked'; } });
+  });
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'sabotage').forEach(() => {
+    const cs = alive(foe(s)); if (cs.length) { const t = cs[Math.floor(Math.random() * cs.length)]; t.alive = false; t.note = 'sabotaged'; }
+  }));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'flak_battery').forEach(() => killTop(foe(s), x => (cardById(x.id) || {}).branch === 'air')));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'air_superiority').forEach(() => killTop(foe(s), () => true)));
+  const trailing = trailingSide();
+  ['lech', 'vindex'].forEach(s => alive(s).forEach(x => {
+    const c = cardById(x.id) || {};
+    if (x.id === 'guerrilla_ambush') { const st = standing(b.id, s), fs = standing(b.id, foe(s)); if (!(st.present < fs.present)) { x.bank = 0; x.note = 'not outnumbered'; } }
+    if (c.trailingOnly && s !== trailing) { x.bank = 0; x.alive = false; x.note = 'only the trailing side'; }
+    const bm = BRANCHES[c.branch];
+    if (bm && bm.kind === 'combat' && x.bank > 0) {
+      const beatenBy = Object.keys(BRANCHES).find(k => BRANCHES[k].beats === c.branch);
+      if (beatenBy && alive(foe(s)).some(y => (cardById(y.id) || {}).branch === beatenBy)) { x.bank = Math.round(x.bank / 2); x.note = (x.note ? x.note + ', ' : '') + 'countered'; }
+    }
+  }));
+  const banked = { lech: alive('lech').reduce((a, x) => a + (x.bank || 0), 0), vindex: alive('vindex').reduce((a, x) => a + (x.bank || 0), 0) };
+  return { hand, banked, trailing };
+}
+// Coarse tracker bucket, so one 30-minute battle can't blow past the war line: a
+// tight win is a skirmish, a runaway is decisive.
+function scaleBucket(marginMin) { return marginMin <= 2 ? 1 : marginMin <= 6 ? 2 : 3; }
+function finalResult(b, heldLechMin, heldVindexMin) {
+  const res = resolveOrders(b);
+  const totalL = (Number(heldLechMin) || 0) * 60 + res.banked.lech;
+  const totalV = (Number(heldVindexMin) || 0) * 60 + res.banked.vindex;
+  const diff = totalL - totalV, marginMin = Math.round(Math.abs(diff) / 60);
+  const victor = diff > 0 ? 'lech' : diff < 0 ? 'vindex' : 'stalemate';
+  const scale = victor === 'stalemate' ? 0 : scaleBucket(Math.max(1, marginMin));
+  return { res, totalL, totalV, diff, marginMin, victor, scale };
+}
+// The live breakdown shown while the Registrar sets the held time: each side's
+// orders, what banked and what got cancelled, the totals, and the tracker move.
+function resolutionSummaryHTML(b, heldL, heldV) {
+  const R = finalResult(b, heldL, heldV);
+  const side = s => {
+    const held = (s === 'lech' ? heldL : heldV) || 0;
+    const rows = R.res.hand[s].map(x => {
+      const c = cardById(x.id) || {}, val = x.alive && x.bank ? fmtBank(x.bank) : (x.alive ? '·' : '✕');
+      return `<div class="brline sub${x.alive ? '' : ' dead'}"><span>${esc(c.name || x.id)}${x.note ? ` <em>(${esc(x.note)})</em>` : ''}</span><span>${val}</span></div>`;
+    }).join('') || '<div class="brline sub"><span>no orders</span><span>—</span></div>';
+    return `<div class="brside ${s === 'lech' ? 'lech' : 'vin'}">
+      <div class="brline hd"><span>${SIDES[s].short}</span><span>held ${held}:00</span></div>
+      ${rows}
+      <div class="brline tot"><span>+ banked</span><span>${fmtBank(R.res.banked[s])}</span></div>
+      <div class="brline tot"><span>= total</span><span>${fmtDur(s === 'lech' ? R.totalL : R.totalV)}</span></div></div>`;
+  };
+  const verdict = R.victor === 'stalemate' ? 'Inconclusive — dead level'
+    : `${SIDES[R.victor].name} hold ${R.marginMin} min longer → tracker +${R.scale} ${SIDES[R.victor].short}`;
+  return `<div class="brsides">${side('vindex')}${side('lech')}</div>
+    <div class="brfinal ${R.victor}">${esc(verdict)}</div>`;
+}
+
 /* ══════════ THE BATTLE BAR ══════════ */
 // When a battle is, written the way a person would say it. The time is given in
 // the zone it was set in — that is the announcement everybody was told — and the
@@ -1806,6 +2206,7 @@ function rosterColumn(b, side) {
     </form>` : ''}
     ${outList.length && presentOf(r) >= CAP_MIN_SIDE ? `<div class="rnote">Benched players still count toward
       your present total, so they keep the enemy's cap where it is. Remove anyone who has actually left.</div>` : ''}
+    ${ordersBlock(b, side)}
     <div class="rstamp">${r.updatedAt ? 'updated ' + fmtAgo(r.updatedAt) : 'no changes yet'}</div>
   </section>`;
 }
@@ -1907,6 +2308,49 @@ function renderRoster() {
     await persistRoster(r);
     renderRoster(); renderBattleBar();
   }));
+
+  // ── battle orders (cards) ──
+  $('rosterBox').querySelectorAll('[data-addcard]').forEach(btn => btn.addEventListener('click', () => {
+    draftPicker = draftPicker === btn.dataset.addcard ? null : btn.dataset.addcard;
+    renderRoster();
+  }));
+  $('rosterBox').querySelectorAll('[data-pickclose]').forEach(btn => btn.addEventListener('click', () => {
+    draftPicker = null; renderRoster();
+  }));
+  $('rosterBox').querySelectorAll('[data-pick]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.dataset.side;
+    if (!canWorkRoster(side, b.id) || phaseOf(b) !== 'scheduled') return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    if (r.sealed) { toast('Unseal the orders first.'); return; }
+    const c = cardById(btn.dataset.pick); if (!c) return;
+    const reason = cardBlockedReason(side, b, c, r);
+    if (reason) { toast(reason); return; }
+    if (!Array.isArray(r.cards)) r.cards = [];
+    r.cards.push(c.id);
+    await persistRoster(r); renderRoster();
+  }));
+  $('rosterBox').querySelectorAll('[data-rmcard]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.dataset.side;
+    if (!canWorkRoster(side, b.id) || phaseOf(b) !== 'scheduled') return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    r.cards = rosterCards(r).filter(id => id !== btn.dataset.rmcard);
+    await persistRoster(r); renderRoster();
+  }));
+  $('rosterBox').querySelectorAll('[data-seal]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.dataset.seal;
+    if (!canWorkRoster(side, b.id)) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    if (!rosterCards(r).length) { toast('Draft at least one order first.'); return; }
+    r.sealed = true; draftPicker = null;
+    await persistRoster(r); toast('Orders sealed.'); renderRoster();
+  }));
+  $('rosterBox').querySelectorAll('[data-unseal]').forEach(btn => btn.addEventListener('click', async () => {
+    const side = btn.dataset.unseal;
+    if (!canWorkRoster(side, b.id)) return;
+    const r = JSON.parse(JSON.stringify(rosterFor(b.id, side)));
+    r.sealed = false;
+    await persistRoster(r); renderRoster();
+  }));
 }
 function renderBattles() {
   const list = $('battleList');
@@ -1951,18 +2395,12 @@ function renderBattles() {
         <button type="button" class="btn danger" data-act="del">✕</button>` : ''}
       </div>
       <div class="bresult" hidden>
-        <div class="brl">WHO WON?</div>
-        <div class="bropts">
-          <button type="button" class="btn brw" data-victor="lech">Lech</button>
-          <button type="button" class="btn brw" data-victor="vindex">Vindex</button>
-          <button type="button" class="btn brw" data-victor="stalemate">Inconclusive</button>
+        <div class="brl">HELD TIME — minutes each side controlled the point (of 30)</div>
+        <div class="brtime">
+          <label class="vin">Vindex <input type="number" class="brheld" data-side="vindex" min="0" max="30" step="1"/></label>
+          <label class="lech">Lech <input type="number" class="brheld" data-side="lech" min="0" max="30" step="1"/></label>
         </div>
-        <div class="brl">HOW BIG?</div>
-        <div class="bropts">
-          <button type="button" class="btn brs" data-scale="1">Skirmish ±1</button>
-          <button type="button" class="btn brs" data-scale="2">Major ±2</button>
-          <button type="button" class="btn brs" data-scale="3">Decisive ±3</button>
-        </div>
+        <div class="brorders"></div>
         <div class="brfoot">
           <button type="button" class="btn" data-act="rcancel">Cancel</button>
           <button type="button" class="btn primary" data-act="rsave">Confirm result</button>
@@ -1984,23 +2422,33 @@ function renderBattles() {
       // The result is chosen here, when the fighting is over — never on the form
       // that schedules a battle that has not happened yet.
       const panel = card.querySelector('.bresult');
-      let pickVictor = b.victor || '', pickScale = b.scale || 2;
+      const heldInput = s => panel.querySelector('.brheld[data-side="' + s + '"]');
+      // Seed from the frozen result if amending, else a level 15/15 split.
+      heldInput('lech').value = b.heldLech != null ? b.heldLech : 15;
+      heldInput('vindex').value = b.heldVindex != null ? b.heldVindex : 15;
       const paint = () => {
-        panel.querySelectorAll('.brw').forEach(x => x.classList.toggle('active', x.dataset.victor === pickVictor));
-        panel.querySelectorAll('.brs').forEach(x => x.classList.toggle('active', +x.dataset.scale === +pickScale));
+        const hl = +heldInput('lech').value || 0, hv = +heldInput('vindex').value || 0;
+        panel.querySelector('.brorders').innerHTML = resolutionSummaryHTML(b, hl, hv);
       };
-      panel.querySelectorAll('.brw').forEach(x =>
-        x.addEventListener('click', () => { pickVictor = x.dataset.victor; paint(); }));
-      panel.querySelectorAll('.brs').forEach(x =>
-        x.addEventListener('click', () => { pickScale = +x.dataset.scale; paint(); }));
+      panel.querySelectorAll('.brheld').forEach(x => x.addEventListener('input', paint));
       const resBtn = card.querySelector('[data-act="result"]');
-      if (resBtn) resBtn.addEventListener('click', () => { panel.hidden = !panel.hidden; paint(); });
+      if (resBtn) resBtn.addEventListener('click', () => { panel.hidden = !panel.hidden; if (!panel.hidden) paint(); });
       card.querySelector('[data-act="rcancel"]').addEventListener('click', () => { panel.hidden = true; });
       card.querySelector('[data-act="rsave"]').addEventListener('click', () => {
-        if (!pickVictor) { toast('Choose who won first.'); return; }
+        const hl = +heldInput('lech').value || 0, hv = +heldInput('vindex').value || 0;
+        const R = finalResult(b, hl, hv);
         panel.hidden = true;
-        setPhase('concluded', { victor: pickVictor, scale: +pickScale });
-        toast('Result recorded — the roster is frozen.');
+        setPhase('concluded', {
+          victor: R.victor, scale: R.scale, heldLech: hl, heldVindex: hv,
+          resolution: {
+            banked: R.res.banked, marginMin: R.marginMin,
+            hands: {
+              lech: R.res.hand.lech.map(x => ({ id: x.id, bank: x.bank, alive: x.alive, note: x.note })),
+              vindex: R.res.hand.vindex.map(x => ({ id: x.id, bank: x.bank, alive: x.alive, note: x.note })),
+            },
+          },
+        });
+        toast(R.victor === 'stalemate' ? 'Recorded as inconclusive.' : SIDES[R.victor].name + ' win — the roster is frozen.');
       });
       const reop = card.querySelector('[data-act="reopen"]');
       if (reop) reop.addEventListener('click', () => setPhase('live'));
@@ -2018,6 +2466,7 @@ function renderBattles() {
         $('bfWorld').value = b.world || ''; $('bfLocation').value = b.location || '';
         $('bfNotes').value = b.notes || '';
         $('bfTime').value = b.startTime || ''; $('bfTz').value = b.startTz || DEFAULT_TZ;
+        fillBattleGrants(b);
         $('bfTitle').textContent = 'EDIT BATTLE';
         $('bfSubmit').textContent = 'Update';
         $('bfCancel').style.display = '';
@@ -2037,6 +2486,22 @@ function renderBattleWorldOptions() {
   const curTz = $('bfTz').value;
   $('bfTz').innerHTML = US_ZONES.map(z => `<option value="${esc(z.tz)}">${esc(z.label)}</option>`).join('');
   $('bfTz').value = curTz || DEFAULT_TZ;
+}
+// The battle grants the admin ticks — read into and out of the schedule form.
+function readBattleGrants() {
+  return {
+    lech: { naval: $('bgNavalL').checked, air: $('bgAirL').checked },
+    vindex: { naval: $('bgNavalV').checked, air: $('bgAirV').checked },
+    defender: $('bgDefender').value,
+  };
+}
+function fillBattleGrants(b) {
+  const g = (b && b.grants) || {};
+  $('bgNavalL').checked = !!(g.lech && g.lech.naval);
+  $('bgNavalV').checked = !!(g.vindex && g.vindex.naval);
+  $('bgAirL').checked = !!(g.lech && g.lech.air);
+  $('bgAirV').checked = !!(g.vindex && g.vindex.air);
+  $('bgDefender').value = g.defender || '';
 }
 function resetBattleForm() {
   editingBattleId = null;
@@ -2058,6 +2523,7 @@ $('battleForm').addEventListener('submit', e => {
     startTz: $('bfTz').value || DEFAULT_TZ,
     world: $('bfWorld').value,
     location: $('bfLocation').value.trim(),
+    grants: readBattleGrants(),
     notes: $('bfNotes').value.trim(),
   };
   let rec;
@@ -2244,9 +2710,143 @@ function renderAll() {
   renderBattleBar();
   renderTheatreTabs(); renderBattleWorldOptions();
   renderLegend(); renderTracker(); renderBattles(); renderTerritories(); renderMap();
+  renderFieldManual(); renderWarDeck();
   applySidebarVisibility();
   renderAccountNames();
   renderRoster();
+}
+
+/* ══════════ FIELD MANUAL — the plain-English explainer ══════════ */
+// One card face, shared by the manual and the deck editor's read view.
+function cardFaceHTML(c) {
+  const bm = branchMeta(c.branch);
+  const bank = c.time ? `<span class="cbank">${fmtBank(c.time)}</span>` : '';
+  const foe = c.counter && cardById(c.counter) ? `<div class="cneed">Countered by ${esc(cardById(c.counter).name)}.</div>` : '';
+  return `<div class="ccard" style="border-left-color:${bm.color}">
+    <div class="ctop"><span class="cname">${esc(c.name)}</span>${bank}<span class="cbadge">${c.cost} pt${c.cost === 1 ? '' : 's'}</span></div>
+    <div class="ceff">${esc(c.effect || '')}</div>
+    <div class="cneed">${esc(needText(c))}</div>${foe}</div>`;
+}
+function renderFieldManual() {
+  const el = $('panel-manual'); if (!el) return;
+  const wheel = `<div class="wheel">${['air', 'naval', 'ground'].map((b, i) =>
+    `${i ? '<span class="warr">→</span>' : ''}<span class="wchip"><span class="wdot" style="background:${BRANCHES[b].color}"></span>${BRANCHES[b].name}</span>`).join('')}<span class="warr">↺</span></div>
+    <div class="cneed" style="text-align:center;margin-bottom:.4rem;">Each beats the one to its right, and it loops around. Play a card the enemy counters and its bonus is halved.</div>`;
+  const groups = Object.keys(BRANCHES).map(bid => {
+    const cards = cardList().filter(c => c.branch === bid);
+    if (!cards.length) return '';
+    const bm = BRANCHES[bid];
+    return `<div class="brhead"><span class="bdot" style="background:${bm.color}"></span>${bm.name}
+      <span class="bblurb">— ${esc(bm.blurb)}</span></div>${cards.map(cardFaceHTML).join('')}`;
+  }).join('');
+  el.innerHTML = `
+    <div class="fm-lead">New to the war room? <b>This page is the whole game.</b> Read it once and you'll know exactly what to do.</div>
+    <div class="fm-sec">How a battle is won</div>
+    <div class="fm-step"><span class="fm-num">30</span><div class="fmt">Every battle lasts <b>30 minutes</b>.</div></div>
+    <div class="fm-step"><span class="fm-num">65</span><div class="fmt">You <b>hold the point</b> when 65% of the people standing on it are yours. In between, it's contested and nobody's clock runs.</div></div>
+    <div class="fm-step"><span class="fm-num">🏆</span><div class="fmt">Whoever <b>held it longest</b> when the 30 minutes are up wins. Time is the whole game — we count it in seconds.</div></div>
+    <div class="fm-sec">What the cards do</div>
+    <div class="fm-step"><span class="fm-num">＋</span><div class="fmt"><b>Banked time.</b> Some cards just hand you extra held-seconds — a head start on the clock. "+2:00" means two free minutes.</div></div>
+    <div class="fm-step"><span class="fm-num">⚙</span><div class="fmt"><b>Rule benders.</b> Others change the fight — make the enemy need 70% instead of 65%, let you field more troops, or cancel one of their cards.</div></div>
+    <div class="fm-sec">The counter wheel</div>${wheel}
+    <div class="fm-sec">Your job (Strategy Officer)</div>
+    <div class="fm-step"><span class="fm-num">1</span><div class="fmt">You get <b>${CP_BUDGET} command points</b>. Spend them on cards below — you can't take everything, so choose.</div></div>
+    <div class="fm-step"><span class="fm-num">2</span><div class="fmt">Some cards need the right ground — a <b>coast</b> or <b>airfield</b> you hold nearby. If you don't have it, the card is greyed out. That's normal.</div></div>
+    <div class="fm-step"><span class="fm-num">3</span><div class="fmt"><b>Seal your orders</b> before the battle starts. Once sealed they're locked and hidden from the enemy until it's over.</div></div>
+    <div class="fm-sec">Every card</div>${groups}`;
+}
+
+/* ══════════ WAR DECK — the administrator's catalogue editor ══════════ */
+let deckEditing = null;   // null = list · a card object = the edit form
+function deckWorkingMap() { return JSON.parse(JSON.stringify(cardCatalogue())); }
+async function persistDeck(map) {
+  noteSaving();
+  const res = await sset('lvwar_cards', map);
+  noteSaved(res.ok, res.error);
+  if (res.ok) { warCards = map; renderWarDeck(); renderFieldManual(); toast('War deck saved.'); }
+  else toast(res.error || 'Could not save the deck.');
+  return res;
+}
+function renderWarDeck() {
+  const el = $('panel-deck'); if (!el) return;
+  if (!canMeta) { el.innerHTML = '<div class="empty-note">The war deck is kept by network administrators.</div>'; return; }
+  if (deckEditing) { el.innerHTML = deckEditForm(deckEditing); wireDeckForm(); return; }
+  const groups = Object.keys(BRANCHES).map(bid => {
+    const cards = Object.values(cardCatalogue()).filter(c => c && c.branch === bid);
+    if (!cards.length) return '';
+    const bm = BRANCHES[bid];
+    return `<div class="brhead"><span class="bdot" style="background:${bm.color}"></span>${bm.name}</div>` +
+      cards.map(c => `<div class="ccard" style="border-left-color:${bm.color};${c.enabled === false ? 'opacity:.5;' : ''}">
+        <div class="ctop"><span class="cname">${esc(c.name)}</span>${c.time ? `<span class="cbank">${fmtBank(c.time)}</span>` : ''}<span class="cbadge">${c.cost} pt${c.cost === 1 ? '' : 's'}</span></div>
+        <div class="ceff">${esc(c.effect || '')}</div>
+        <div class="deck-row-btns" style="margin-top:.35rem;">
+          <button class="btn" data-dedit="${esc(c.id)}">Edit</button>
+          <button class="btn" data-dtoggle="${esc(c.id)}">${c.enabled === false ? 'Enable' : 'Disable'}</button>
+          <button class="btn danger" data-ddel="${esc(c.id)}">Delete</button>
+        </div></div>`).join('');
+  }).join('');
+  el.innerHTML = `<div class="fm-lead">The shared order catalogue. Both nations draft from this exact list, so it stays balanced. Changes save for everyone.</div>
+    <div class="deck-tools"><button class="btn primary" id="deckNew">+ New card</button>
+    ${Object.keys(warCards).length ? '<button class="btn" id="deckReset">Reset to defaults</button>' : ''}</div>
+    ${groups || '<div class="empty-note">No cards in the deck.</div>'}`;
+  $('deckNew').addEventListener('click', () => {
+    deckEditing = { id: 'card_' + uid(), name: '', branch: 'ground', cost: 2, time: 0, effect: '', needs: null, counter: '', enabled: true, _new: true };
+    renderWarDeck();
+  });
+  const rb = $('deckReset');
+  if (rb) rb.addEventListener('click', async () => {
+    if (!confirm('Reset the whole deck to the built-in defaults? Any custom cards are lost.')) return;
+    await persistDeck(JSON.parse(JSON.stringify(DEFAULT_CARDS)));
+  });
+  el.querySelectorAll('[data-dedit]').forEach(b => b.addEventListener('click', () => {
+    deckEditing = JSON.parse(JSON.stringify(cardById(b.dataset.dedit) || {})); renderWarDeck();
+  }));
+  el.querySelectorAll('[data-dtoggle]').forEach(b => b.addEventListener('click', async () => {
+    const m = deckWorkingMap();
+    const c = m[b.dataset.dtoggle] || JSON.parse(JSON.stringify(cardById(b.dataset.dtoggle)));
+    c.enabled = c.enabled === false; m[c.id] = c; await persistDeck(m);
+  }));
+  el.querySelectorAll('[data-ddel]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Delete this card from the deck?')) return;
+    const m = deckWorkingMap(); delete m[b.dataset.ddel]; await persistDeck(m);
+  }));
+}
+function deckEditForm(c) {
+  const curReq = neededGrant(c) || (c.needs && c.needs.cond === 'officer' ? 'officer' : '');
+  const reqOpts = [['', 'None'], ['naval', 'Needs naval access'], ['air', 'Needs air access'], ['defender', 'Defending side only'], ['officer', 'Needs a Strategy Officer']]
+    .map(([v, l]) => `<option value="${v}"${curReq === v ? ' selected' : ''}>${l}</option>`).join('');
+  const branchOpts = Object.keys(BRANCHES).map(b => `<option value="${b}"${c.branch === b ? ' selected' : ''}>${BRANCHES[b].name}</option>`).join('');
+  const cardOpts = '<option value="">— none —</option>' + cardList().filter(x => x.id !== c.id).map(x => `<option value="${x.id}"${c.counter === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+  return `<div class="fm-sec">${c._new ? 'New card' : 'Edit card'}</div>
+   <div class="deck-edit">
+     <div><label class="cneed">Name</label><input id="deName" value="${esc(c.name || '')}" placeholder="Card name"/></div>
+     <div class="deck-grid2">
+       <div><label class="cneed">Branch</label><select id="deBranch">${branchOpts}</select></div>
+       <div><label class="cneed">Cost (points)</label><input id="deCost" type="number" min="0" max="10" value="${c.cost == null ? 2 : c.cost}"/></div>
+     </div>
+     <div><label class="cneed">Banked time — seconds, ± (0 for none)</label><input id="deTime" type="number" step="15" value="${c.time || 0}"/></div>
+     <div><label class="cneed">What it does (plain English)</label><textarea id="deEffect" rows="2" placeholder="e.g. +2:00 held time if you take the field.">${esc(c.effect || '')}</textarea></div>
+     <div class="deck-grid2">
+       <div><label class="cneed">Requirement</label><select id="deReq">${reqOpts}</select></div>
+       <div><label class="cneed">Countered by</label><select id="deCounter">${cardOpts}</select></div>
+     </div>
+     <div class="deck-row-btns"><button class="btn" id="deCancel">Cancel</button><button class="btn primary" id="deSave">Save card</button></div>
+   </div>`;
+}
+function wireDeckForm() {
+  const c = deckEditing;
+  $('deCancel').addEventListener('click', () => { deckEditing = null; renderWarDeck(); });
+  $('deSave').addEventListener('click', async () => {
+    const name = $('deName').value.trim();
+    if (!name) { toast('Give the card a name.'); return; }
+    const rec = { id: c.id, name, branch: $('deBranch').value, cost: Math.max(0, parseInt($('deCost').value) || 0),
+      time: parseInt($('deTime').value) || 0, effect: $('deEffect').value.trim(), counter: $('deCounter').value || '', enabled: c.enabled !== false };
+    const req = $('deReq').value;
+    rec.needs = req === 'officer' ? { cond: 'officer' } : req ? { grant: req } : null;
+    const m = deckWorkingMap(); m[rec.id] = rec;
+    deckEditing = null;
+    await persistDeck(m);
+  });
 }
 // Names the roster's "add a combatant" box can complete against, so a player
 // gets linked to their real account and their own status banner works.
