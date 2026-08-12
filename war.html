@@ -1632,6 +1632,7 @@ function focusBattle() { return liveBattle() || nextScheduled(); }
 // never moves either cap. The number only changes when a person genuinely joins
 // or leaves, which is what keeps it stable in the middle of a fight.
 const CAP_RATIO = 1.25;
+const CAP_RATIO_LEVEE = 1.375;   // a levée en masse lifts the 1.25× cap by a tenth
 const CAP_MIN_SIDE = 4;
 function capAgainst(opponentPresent) {
   if (opponentPresent < CAP_MIN_SIDE) return Infinity;
@@ -1647,11 +1648,17 @@ function rosterFor(battleId, side) {
 function membersOf(r) { return Array.isArray(r.members) ? r.members : []; }
 function presentOf(r) { return membersOf(r).length; }
 function inOf(r) { return membersOf(r).filter(m => m.status !== 'benched').length; }
-// Everything one side needs to know about its own standing.
+// Everything one side needs to know about its own standing. Two order cards lift
+// a side's OWN cap — a levée en masse by a tenth, rapid redeploy by one head.
+function capBonusFor(own) {
+  const cards = rosterCards(own);
+  return { mult: cards.includes('levee') ? CAP_RATIO_LEVEE : 1, flat: cards.includes('rapid_redeploy') ? 1 : 0 };
+}
 function standing(battleId, side) {
   const own = rosterFor(battleId, side);
   const foe = rosterFor(battleId, side === 'lech' ? 'vindex' : 'lech');
-  const cap = capAgainst(presentOf(foe));
+  let cap = capAgainst(presentOf(foe));
+  if (cap !== Infinity) { const bn = capBonusFor(own); cap = Math.floor(cap * bn.mult) + bn.flat; }
   const active = inOf(own);
   return { own, foe, cap, active, present: presentOf(own),
     over: cap === Infinity ? 0 : Math.max(0, active - cap),
@@ -1812,9 +1819,9 @@ const DEFAULT_CARDS = {
   naval_bombardment: { id: 'naval_bombardment', name: 'Naval bombardment', branch: 'naval', cost: 3, time: 120,
     effect: '+2:00 held time if you take the field.', needs: { feature: 'coast', range: 2 }, counter: 'air_superiority' },
   blockade: { id: 'blockade', name: 'Blockade', branch: 'naval', cost: 4, time: 0, rule: 'block',
-    effect: "Enemy roster cap −1, and their logistics cards cost +1.", needs: { feature: 'coast', range: 2 }, counter: 'air_superiority' },
+    effect: 'Throttle the enemy’s supply — −1:30 off their banked order time.', needs: { feature: 'coast' }, counter: 'air_superiority' },
   amphibious: { id: 'amphibious', name: 'Amphibious assault', branch: 'naval', cost: 3, time: 0, rule: 'negate_entrench',
-    effect: 'As attacker, cancel the enemy’s entrenchment.', needs: { feature: 'coast', range: 1 }, counter: 'flak_battery' },
+    effect: 'Cancel the enemy’s entrenchment.', needs: { feature: 'coast' }, counter: 'flak_battery' },
   convoy_escort: { id: 'convoy_escort', name: 'Convoy escort', branch: 'naval', cost: 2, time: 0, rule: 'shield_log',
     effect: 'Your logistics cards can’t be cancelled.', needs: { feature: 'coast', range: 2 }, counter: '' },
 
@@ -1824,38 +1831,38 @@ const DEFAULT_CARDS = {
     effect: '+1:00 held time — bombs on the point.', needs: { feature: 'airfield', range: 3 }, counter: 'flak_battery' },
   strategic_bombing: { id: 'strategic_bombing', name: 'Strategic bombing', branch: 'air', cost: 4, time: 0, rule: 'cp_enemy_next',
     effect: 'Enemy has −2 command points next battle.', needs: { feature: 'airfield', range: 3 }, counter: 'air_superiority' },
-  paratroopers: { id: 'paratroopers', name: 'Paratroopers', branch: 'air', cost: 3, time: 0, rule: 'reach',
-    effect: 'Strike a zone up to 5 hops away.', needs: { feature: 'airfield', range: 5 }, counter: 'ground' },
+  paratroopers: { id: 'paratroopers', name: 'Paratroopers', branch: 'air', cost: 3, time: 120,
+    effect: '+2:00 held time — dropped straight onto the point.', needs: { feature: 'airfield' }, counter: 'ground' },
 
-  entrenchment: { id: 'entrenchment', name: 'Entrenchment', branch: 'ground', cost: 2, time: 0, rule: 'threshold',
-    effect: 'While you defend, the enemy needs 70% (not 65%) to hold the point.', needs: { cond: 'defending' }, counter: 'air_superiority' },
+  entrenchment: { id: 'entrenchment', name: 'Entrenchment', branch: 'ground', cost: 2, time: 60, rule: 'threshold',
+    effect: '+1:00 held on defence — dug in, and blunts enemy air.', needs: { cond: 'defending' }, counter: 'air_superiority' },
   flak_battery: { id: 'flak_battery', name: 'Flak battery', branch: 'ground', cost: 2, time: 0, rule: 'cancel_air',
     effect: 'Cancel one enemy air card.', needs: { cond: 'holdzone' }, counter: 'naval_bombardment' },
-  forced_march: { id: 'forced_march', name: 'Forced march', branch: 'ground', cost: 2, time: 0, rule: 'reach',
-    effect: 'Attack one hop past your normal reach.', needs: null, counter: 'blockade' },
+  forced_march: { id: 'forced_march', name: 'Forced march', branch: 'ground', cost: 2, time: 60,
+    effect: '+1:00 held time — your troops reach the point first.', needs: null, counter: 'blockade' },
   guerrilla_ambush: { id: 'guerrilla_ambush', name: 'Guerrilla ambush', branch: 'ground', cost: 3, time: 180, rule: 'underdog',
     effect: '+3:00 if you fight under the roster cap.', needs: { cond: 'holdzone' }, counter: 'recon_flight' },
 
   levee: { id: 'levee', name: 'Levée en masse', branch: 'logistics', cost: 2, time: 0, rule: 'cap',
     effect: 'Your fielding cap +10% this battle.', needs: null, counter: 'blockade' },
   supply_depot: { id: 'supply_depot', name: 'Supply depot', branch: 'logistics', cost: 1, time: 0, rule: 'cp_self_next',
-    effect: '+1 command point next battle if you still hold the zone.', needs: { cond: 'holdafter' }, counter: 'strategic_bombing' },
+    effect: '+1 command point next battle if you win here.', needs: { cond: 'holdafter' }, counter: 'strategic_bombing' },
   rapid_redeploy: { id: 'rapid_redeploy', name: 'Rapid redeploy', branch: 'logistics', cost: 2, time: 0, rule: 'swap',
-    effect: 'Swap one benched player in after the seal (once).', needs: null, counter: 'feint' },
+    effect: 'Field one extra fighter over your cap this battle.', needs: null, counter: 'feint' },
 
   feint: { id: 'feint', name: 'Feint', branch: 'intel', cost: 1, time: 0, rule: 'peek',
-    effect: 'Peek one enemy order before it seals.', needs: { cond: 'officer' }, counter: 'counter_intel' },
+    effect: 'Reveal one of the enemy’s drafted orders.', needs: { cond: 'officer' }, counter: 'counter_intel' },
   counter_intel: { id: 'counter_intel', name: 'Counter-intel', branch: 'intel', cost: 1, time: 0, rule: 'blank_intel',
     effect: 'Blank every enemy intel card.', needs: null, counter: '' },
   recon_flight: { id: 'recon_flight', name: 'Recon flight', branch: 'intel', cost: 2, time: 0, rule: 'reveal',
-    effect: 'Reveal enemy roster size and one card.', needs: null, counter: 'counter_intel' },
+    effect: 'Reveal the enemy’s numbers and one of their orders.', needs: null, counter: 'counter_intel' },
   sabotage: { id: 'sabotage', name: 'Sabotage', branch: 'intel', cost: 3, time: 0, rule: 'disable',
     effect: 'Disable one random enemy card.', needs: { cond: 'officer' }, counter: 'counter_intel' },
 
   scorched_earth: { id: 'scorched_earth', name: 'Scorched earth', branch: 'special', cost: 3, time: 0, rule: 'deny',
-    effect: 'If you lose the zone, the enemy banks no time from it.', needs: { cond: 'holdzone' }, counter: '' },
-  war_bonds: { id: 'war_bonds', name: 'War bonds', branch: 'special', cost: 2, time: 0, rule: 'cp_self',
-    effect: 'Trade a held-zone edge for +1 command point.', needs: { cond: 'holdzone' }, counter: '' },
+    effect: 'Deny the enemy their best order — cancel their highest-banked card.', needs: { cond: 'holdzone' }, counter: '' },
+  war_bonds: { id: 'war_bonds', name: 'War bonds', branch: 'special', cost: 2, time: 90, rule: 'cp_self',
+    effect: '+1:30 held time — the home front digs deep.', needs: { cond: 'holdzone' }, counter: '' },
   last_stand: { id: 'last_stand', name: 'Last stand', branch: 'special', cost: 0, time: 240, rule: 'trailing',
     effect: 'A last, defiant defence. +4:00 on defence.', needs: { cond: 'defending' }, counter: '', trailingOnly: true },
 };
@@ -1920,12 +1927,31 @@ function trailingSide() {
   const sum = concludedBattles().reduce((a, b) => a + battleScore(b), 0);
   return sum > 0 ? 'vindex' : sum < 0 ? 'lech' : null;
 }
+// The last battle settled before this one — where a strategic bombing or a supply
+// depot cashes out, one battle later.
+function prevConcluded(b) {
+  const done = concludedBattles().filter(x => x.id !== (b && b.id))
+    .sort((p, q) => (p.concludedAt || p.at || 0) - (q.concludedAt || q.at || 0));
+  return done.length ? done[done.length - 1] : null;
+}
+// A side's command-point budget for a battle: the base six, minus an enemy's
+// strategic bombing last time, plus a supply depot they held onto by winning.
+function battleCP(b, side) {
+  let cp = CP_BUDGET;
+  const prev = prevConcluded(b);
+  if (prev) {
+    const foe = side === 'lech' ? 'vindex' : 'lech';
+    if (rosterCards(rosterFor(prev.id, foe)).includes('strategic_bombing')) cp -= 2;
+    if (rosterCards(rosterFor(prev.id, side)).includes('supply_depot') && prev.victor === side) cp += 1;
+  }
+  return Math.max(1, cp);
+}
 // Why a card can't be drafted right now — null means it can. Requirements read
 // off the grants the admin set on the battle, not off the map.
 function cardBlockedReason(side, b, card, r) {
   if (card.enabled === false) return 'Not in the deck';
   if (card.trailingOnly && trailingSide() !== side) return 'Only the side that is behind may play this';
-  if (!rosterCards(r).includes(card.id) && card.cost > CP_BUDGET - cpSpent(r)) return 'Not enough command points';
+  if (!rosterCards(r).includes(card.id) && card.cost > battleCP(b, side) - cpSpent(r)) return 'Not enough command points';
   const n = card.needs;
   if (n && n.cond === 'officer' && !r.strategyOfficer) return 'Appoint a Strategy Officer first';
   const g = neededGrant(card);
@@ -1961,11 +1987,24 @@ function ordersBlock(b, side) {
   } else if (mine && ph !== 'scheduled' && !concluded) {
     controls = `<div class="rnote">Orders are locked — the battle has begun.</div>`;
   }
-  return `<div class="ords"><div class="ordhd">BATTLE ORDERS <span class="ordcp">${spent} / ${CP_BUDGET} pts</span></div>
-    <div class="ochips">${chips}</div>${controls}</div>`;
+  const budget = battleCP(b, side);
+  const cpNote = budget !== CP_BUDGET ? ` <em>(base ${CP_BUDGET}${budget > CP_BUDGET ? ' +' + (budget - CP_BUDGET) : ' −' + (CP_BUDGET - budget)})</em>` : '';
+  // Feint and recon buy a look at the enemy hand — resolved here so the officer
+  // sees it while there is still time to answer it.
+  let intel = '';
+  if (mine && !concluded) {
+    const foe = rosterFor(b.id, side === 'lech' ? 'vindex' : 'lech');
+    const fids = rosterCards(foe), one = fids[0] ? cardById(fids[0]) : null;
+    if (ids.includes('recon_flight'))
+      intel = `<div class="rnote">🔍 Recon: enemy has <b>${presentOf(foe)}</b> present and <b>${fids.length}</b> order${fids.length === 1 ? '' : 's'}${one ? `, incl. “${esc(one.name)}”` : ''}.</div>`;
+    else if (ids.includes('feint'))
+      intel = `<div class="rnote">🔍 Feint: one enemy order is “${one ? esc(one.name) : '—'}”.</div>`;
+  }
+  return `<div class="ords"><div class="ordhd">BATTLE ORDERS <span class="ordcp">${spent} / ${budget} pts${cpNote}</span></div>
+    <div class="ochips">${chips}</div>${intel}${controls}</div>`;
 }
 function pickerHTML(b, side, r) {
-  const have = CP_BUDGET - cpSpent(r);
+  const have = battleCP(b, side) - cpSpent(r);
   const rows = cardList().filter(c => !rosterCards(r).includes(c.id)).map(c => {
     const bm = branchMeta(c.branch), reason = cardBlockedReason(side, b, c, r);
     return `<button class="pcard" ${reason ? 'disabled' : ''} data-pick="${esc(c.id)}" data-side="${side}" style="border-left-color:${bm.color}">
@@ -1996,19 +2035,27 @@ function resolveOrders(b) {
     .map(c => ({ id: c.id, branch: c.branch, alive: true, bank: c.time || 0, note: '' }));
   const hand = { lech: build('lech'), vindex: build('vindex') };
   const alive = s => hand[s].filter(x => x.alive);
-  const killTop = (s, pred) => {
-    const c = alive(s).filter(pred).sort((a, z) => ((cardById(z.id) || {}).cost || 0) - ((cardById(a.id) || {}).cost || 0))[0];
-    if (c) { c.alive = false; c.note = 'cancelled'; }
+  const has = (s, id) => hand[s].some(x => x.id === id && x.alive);
+  // A convoy escort keeps this side's logistics cards off the cancel table.
+  const shielded = { lech: has('lech', 'convoy_escort'), vindex: has('vindex', 'convoy_escort') };
+  const killable = (s, x) => !(shielded[s] && (cardById(x.id) || {}).branch === 'logistics');
+  const killBy = (s, pred, metric, note) => {
+    const c = alive(s).filter(x => pred(x) && killable(s, x))
+      .sort((a, z) => metric(z) - metric(a))[0];
+    if (c) { c.alive = false; c.note = note || 'cancelled'; }
   };
+  const byCost = x => (cardById(x.id) || {}).cost || 0, byBank = x => x.bank || 0;
   ['lech', 'vindex'].forEach(s => {
-    if (hand[s].some(x => x.id === 'counter_intel'))
-      hand[foe(s)].forEach(x => { if ((cardById(x.id) || {}).branch === 'intel') { x.alive = false; x.note = 'blanked'; } });
+    if (has(s, 'counter_intel'))
+      hand[foe(s)].forEach(x => { if ((cardById(x.id) || {}).branch === 'intel' && killable(foe(s), x)) { x.alive = false; x.note = 'blanked'; } });
   });
   ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'sabotage').forEach(() => {
-    const cs = alive(foe(s)); if (cs.length) { const t = cs[Math.floor(Math.random() * cs.length)]; t.alive = false; t.note = 'sabotaged'; }
+    const cs = alive(foe(s)).filter(x => killable(foe(s), x)); if (cs.length) { const t = cs[Math.floor(Math.random() * cs.length)]; t.alive = false; t.note = 'sabotaged'; }
   }));
-  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'flak_battery').forEach(() => killTop(foe(s), x => (cardById(x.id) || {}).branch === 'air')));
-  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'air_superiority').forEach(() => killTop(foe(s), () => true)));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'flak_battery').forEach(() => killBy(foe(s), x => (cardById(x.id) || {}).branch === 'air', byCost)));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'amphibious').forEach(() => killBy(foe(s), x => x.id === 'entrenchment', byCost, 'stormed')));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'air_superiority').forEach(() => killBy(foe(s), () => true, byCost)));
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'scorched_earth').forEach(() => killBy(foe(s), x => x.bank > 0, byBank, 'denied')));
   const trailing = trailingSide();
   ['lech', 'vindex'].forEach(s => alive(s).forEach(x => {
     const c = cardById(x.id) || {};
@@ -2021,6 +2068,8 @@ function resolveOrders(b) {
     }
   }));
   const banked = { lech: alive('lech').reduce((a, x) => a + (x.bank || 0), 0), vindex: alive('vindex').reduce((a, x) => a + (x.bank || 0), 0) };
+  // A blockade throttles the enemy's supply — 90s off their banked total per blockade.
+  ['lech', 'vindex'].forEach(s => alive(s).filter(x => x.id === 'blockade').forEach(() => { banked[foe(s)] = Math.max(0, banked[foe(s)] - 90); }));
   return { hand, banked, trailing };
 }
 // Coarse tracker bucket, so one 30-minute battle can't blow past the war line: a
