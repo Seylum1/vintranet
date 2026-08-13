@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Wilden — General Election</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   WILDEN — GENERAL ELECTION (House of Commons)
+   The civic-digital register, same language as wilden.html: flat, light, plain,
+   with the accessibility furniture (yellow focus, real hit areas, generous type).
+   ═══════════════════════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --black:#0b0c0c; --crown:#0f2f33; --crownD:#0a2124;
+  --grey1:#f3f2f1; --grey2:#e8e6e4; --grey3:#b1b4b6; --grey4:#505a5f;
+  --green:#00703c; --greenD:#005a30; --greenL:#cce2d8;
+  --blue:#1d70b8; --blueD:#003078; --blueL:#d2e2f1;
+  --red:#d4351c; --redD:#942514; --redL:#f6d7d2;
+  --teal:#1e857a; --tealL:#d4ebe8;
+  --amber:#f47738; --amberL:#fcdccb;
+  --purple:#4c2c92; --purpleL:#e6def4;
+  --focus:#ffdd00; --white:#fff;
+}
+html{font-size:100%;}
+body{background:var(--white);color:var(--black);font-family:Inter,'Helvetica Neue',Arial,sans-serif;
+  font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;flex-direction:column;}
+a:focus,button:focus,input:focus,select:focus,textarea:focus,[tabindex]:focus{
+  outline:3px solid transparent;background-color:var(--focus)!important;color:var(--black)!important;
+  box-shadow:0 -2px var(--focus),0 4px var(--black);text-decoration:none!important;}
+.w{max-width:1020px;margin:0 auto;padding:0 15px;width:100%;}
+.mono{font-variant-numeric:tabular-nums;}
+.hdr{background:var(--crown);border-bottom:10px solid var(--crownD);}
+.hdr .w{display:flex;align-items:center;gap:12px;padding:10px 15px;flex-wrap:wrap;}
+.hdr .arms{width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;}
+.hdr a.brand{color:#fff;text-decoration:none;font-weight:800;font-size:19px;letter-spacing:-.01em;}
+.hdr a.brand:hover{text-decoration:underline;text-underline-offset:3px;}
+.hdr a.brand .sub{font-weight:600;font-size:14px;color:#c9d6d8;display:block;letter-spacing:0;}
+.hdr .spacer{flex:1;}
+.hdr .who{color:#c9d6d8;font-size:13px;text-align:right;line-height:1.3;}
+.hdr .who b{color:#fff;display:block;font-weight:600;font-size:14px;}
+.hdr .signout{background:none;border:0;color:#fff;font:inherit;font-size:14px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 2px;}
+.hdr .signin{background:var(--green);border:0;border-bottom:2px solid rgba(0,0,0,.28);color:#fff;font:inherit;font-weight:600;font-size:14px;padding:7px 14px;cursor:pointer;}
+.nav{background:var(--crownD);}
+.nav .w{display:flex;overflow-x:auto;padding:0 15px;}
+.nav button{background:none;border:0;border-bottom:4px solid transparent;color:#c9d6d8;font:inherit;font-weight:600;font-size:15px;padding:12px 15px;cursor:pointer;white-space:nowrap;}
+.nav button:hover{color:#fff;}
+.nav button[aria-current="page"]{color:#fff;border-bottom-color:#fff;}
+.nav .hot{color:#ffd;}
+.phase{border-bottom:1px solid var(--grey3);background:var(--grey1);}
+.phase .w{display:flex;align-items:center;gap:11px;padding:9px 15px;flex-wrap:wrap;}
+.phase p{font-size:14px;color:var(--grey4);margin:0;}
+main{flex:1;padding:26px 0 46px;}
+h1{font-size:36px;font-weight:700;letter-spacing:-.02em;line-height:1.11;margin-bottom:18px;}
+h2{font-size:24px;font-weight:700;letter-spacing:-.01em;line-height:1.2;margin:34px 0 14px;}
+h3{font-size:18px;font-weight:700;line-height:1.25;margin:22px 0 8px;}
+p{margin-bottom:14px;}
+.lede{font-size:19px;line-height:1.55;margin-bottom:20px;max-width:660px;}
+.hint{font-size:15px;color:var(--grey4);margin-bottom:12px;}
+.caption{font-size:14px;color:var(--grey4);font-weight:600;margin-bottom:2px;}
+a{color:var(--blue);text-underline-offset:2px;} a:hover{color:var(--blueD);}
+.rule{border:0;border-top:1px solid var(--grey3);margin:28px 0;}
+.rule.thick{border-top:2px solid var(--blue);}
+.tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;white-space:nowrap;}
+.tag.blue{background:var(--blueL);color:var(--blueD);} .tag.green{background:var(--greenL);color:#005a30;}
+.tag.grey{background:var(--grey2);color:#383f43;} .tag.red{background:var(--redL);color:#942514;}
+.tag.amber{background:var(--amberL);color:#8b4415;} .tag.teal{background:var(--tealL);color:#12564f;}
+.tag.purple{background:var(--purpleL);color:#4c2c92;}
+.btn{display:inline-block;font:inherit;font-weight:600;font-size:16px;padding:9px 16px;border:0;border-bottom:2px solid rgba(0,0,0,.28);background:var(--green);color:#fff;cursor:pointer;text-decoration:none;text-align:center;}
+.btn:hover{background:var(--greenD);}
+.btn.sec{background:var(--grey2);color:var(--black);border-bottom-color:#929191;} .btn.sec:hover{background:#dbdad9;}
+.btn.warn{background:var(--red);} .btn.warn:hover{background:var(--redD);}
+.btn.blue{background:var(--blue);} .btn.blue:hover{background:var(--blueD);}
+.btn.small{font-size:14px;padding:6px 12px;}
+.btn[disabled]{opacity:.55;cursor:not-allowed;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.inset{border-left:10px solid var(--grey3);padding:12px 0 12px 18px;margin:18px 0;}
+.inset.blue{border-left-color:var(--blue);} .inset.amber{border-left-color:var(--amber);}
+.notif{border:5px solid var(--blue);margin-bottom:22px;}
+.notif .head{background:var(--blue);color:#fff;padding:8px 15px;font-weight:700;font-size:15px;}
+.notif .body{padding:14px 15px;}
+.notif.ok{border-color:var(--green);} .notif.ok .head{background:var(--green);}
+.notif.warn{border-color:var(--amber);} .notif.warn .head{background:var(--amber);}
+.confirm{background:var(--green);color:#fff;padding:28px 20px;text-align:center;margin-bottom:24px;}
+.confirm .t{font-size:26px;font-weight:700;} .confirm .s{font-size:17px;margin-top:8px;}
+.sl{border-top:1px solid var(--grey3);margin-bottom:20px;}
+.sl .row{display:flex;gap:16px;border-bottom:1px solid var(--grey3);padding:11px 0;flex-wrap:wrap;}
+.sl .k{font-weight:700;width:210px;flex-shrink:0;} .sl .v{flex:1;min-width:180px;}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+th,td{text-align:left;padding:10px 14px 10px 0;border-bottom:1px solid var(--grey3);vertical-align:top;font-size:15px;}
+th{font-weight:700;} thead th{border-bottom:1px solid var(--black);}
+td.num,th.num{text-align:right;padding-right:0;}
+.grid{display:grid;gap:18px;} .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
+.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));} .g4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+.card{border:1px solid var(--grey3);border-top:4px solid var(--teal);padding:16px 18px;background:var(--white);}
+.card.muted{border-top-color:var(--grey3);background:#fafafa;}
+.card h3{margin-top:0;}
+.stat{border:1px solid var(--grey3);padding:14px 16px;} .stat .n{font-size:32px;font-weight:700;line-height:1.05;letter-spacing:-.02em;} .stat .l{font-size:14px;color:var(--grey4);margin-top:3px;}
+.person{display:flex;gap:12px;align-items:center;}
+.person img{width:40px;height:40px;image-rendering:pixelated;border:1px solid var(--grey3);flex-shrink:0;}
+.person .nm{font-weight:600;line-height:1.3;} .person .un{font-size:13px;color:var(--grey4);}
+.vacant{color:var(--grey4);font-style:italic;}
+label{display:block;font-weight:600;margin-bottom:5px;}
+input[type=text],input[type=password],input[type=date],input[type=datetime-local],input[type=number],textarea,select{
+  width:100%;font:inherit;font-size:16px;padding:8px 10px;border:2px solid var(--black);background:#fff;color:var(--black);}
+textarea{line-height:1.55;resize:vertical;}
+.field{margin-bottom:18px;max-width:560px;} .field .hint{margin-bottom:6px;}
+.err{border-left:5px solid var(--red);padding:12px 0 12px 14px;margin-bottom:18px;} .err .t{font-weight:700;color:var(--red);}
+.subnav{display:flex;gap:0;border-bottom:1px solid var(--grey3);margin-bottom:22px;overflow-x:auto;}
+.subnav button{background:none;border:0;border-bottom:4px solid transparent;font:inherit;font-weight:600;font-size:15px;color:var(--blue);padding:9px 14px;cursor:pointer;white-space:nowrap;}
+.subnav button[aria-current="true"]{color:var(--black);border-bottom-color:var(--black);}
+/* pipeline */
+.pipe{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 6px;}
+.pipe .st{flex:1 1 130px;min-width:110px;border-top:4px solid var(--grey3);padding:7px 4px 0;opacity:.5;}
+.pipe .st.done{opacity:1;border-top-color:var(--green);} .pipe .st.now{opacity:1;border-top-color:var(--blue);}
+.pipe .st .n{font-size:12px;font-weight:700;color:var(--grey4);} .pipe .st.now .n{color:var(--blue);}
+.pipe .st .l{font-size:13px;font-weight:600;}
+/* result bars */
+.res{display:flex;flex-direction:column;gap:2px;}
+.res .r{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--grey3);}
+.res .r.win{background:#f4faf6;}
+.res .rank{width:28px;text-align:center;font-weight:700;color:var(--grey4);flex:none;}
+.res .who{flex:1;min-width:0;}
+.res .who .nm{font-weight:600;} .res .who .pt{font-size:13px;color:var(--grey4);}
+.res .barwrap{flex:2;min-width:120px;}
+.res .bar{height:16px;background:var(--grey2);overflow:hidden;} .res .bar span{display:block;height:100%;background:var(--blue);}
+.res .r.win .bar span{background:var(--green);}
+.res .vt{width:120px;text-align:right;flex:none;font-variant-numeric:tabular-nums;}
+.res .vt b{font-size:18px;} .res .vt .pc{font-size:13px;color:var(--grey4);}
+/* ballot */
+.ballot{border:2px solid var(--black);max-width:640px;}
+.ballot .bh{background:var(--black);color:#fff;padding:14px 18px;} .ballot .bh .t{font-weight:700;font-size:20px;} .ballot .bh .s{font-size:14px;color:#c9d6d8;}
+.ballot .opts{padding:6px 18px 18px;}
+.opt{display:flex;align-items:center;gap:14px;border:2px solid var(--grey3);padding:12px 14px;margin-top:12px;cursor:pointer;background:#fff;}
+.opt:hover{border-color:var(--black);} .opt.sel{border-color:var(--green);background:#f4faf6;}
+.opt .rad{width:22px;height:22px;border:2px solid var(--black);border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;}
+.opt.sel .rad{border-color:var(--green);} .opt.sel .rad::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--green);}
+.opt .nm{font-weight:600;font-size:17px;} .opt .pt{font-size:13px;color:var(--grey4);}
+.ballot .bf{padding:16px 18px;background:var(--grey1);border-top:2px solid var(--black);}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9000;background:var(--black);color:#fff;padding:12px 20px;font-weight:600;max-width:90vw;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.35);}
+.toast.bad{background:var(--red);} .toast.ok{background:var(--green);}
+.modal-bg{position:fixed;inset:0;z-index:9500;background:rgba(11,12,12,.55);display:flex;align-items:flex-start;justify-content:center;padding:6vh 15px;overflow:auto;}
+.modal{background:#fff;max-width:440px;width:100%;border-top:8px solid var(--crown);}
+.modal .mh{padding:18px 22px 4px;} .modal .mb{padding:8px 22px 22px;}
+.live{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:var(--red);font-size:14px;}
+.live .dot{width:9px;height:9px;border-radius:50%;background:var(--red);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}55%{opacity:.25}}
+.ftr{border-top:1px solid var(--grey3);background:var(--grey1);padding:22px 0 26px;margin-top:auto;}
+.ftr .w{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-end;}
+.ftr .lic{font-size:14px;color:var(--grey4);max-width:520px;} .ftr .lic a{color:var(--blue);}
+@media(max-width:640px){ h1{font-size:28px;} h2{font-size:21px;} .lede{font-size:17px;} .sl .k{width:100%;} .res .barwrap{display:none;} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useMemo,useCallback}=React;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WILDEN GENERAL ELECTION — the House of Commons (Constitution of Wilden §17-18)
+   Seven seats, one vote per citizen, the seven with the most votes returned.
+   A SECRET ballot: the raw vote (who → whom) is written admin-only on the server
+   and never leaves it to anyone else — not even the Sovereign, who is the
+   Returning Officer. The live count runs off a public tally the ballot box keeps,
+   so everyone sees the numbers and the turnout, but only a system administrator
+   can see how any one citizen voted.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── backend / session (shared Vintranet account) ──────────────────────────── */
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+const API="https://lech-backend.onrender.com";
+let AUTH_TOKEN=null;
+const SESSION_KEY="lech_session", SESSION_ACC_KEY="lech_session_acc";
+function saveSession(t,acc){try{if(t)localStorage.setItem(SESSION_KEY,t);if(acc)localStorage.setItem(SESSION_ACC_KEY,JSON.stringify(acc));}catch(e){}}
+function cachedAccount(){try{const t=localStorage.getItem(SESSION_KEY);if(!t)return null;const a=localStorage.getItem(SESSION_ACC_KEY);if(!a)return null;AUTH_TOKEN=t;return JSON.parse(a);}catch(e){return null;}}
+function clearSession(){try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(SESSION_ACC_KEY);}catch(e){}AUTH_TOKEN=null;}
+function forgetSession(){const t=AUTH_TOKEN;clearSession();try{if(t)fetch(API+"/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:t})});}catch(e){}}
+async function srestore(){let t=null;try{t=localStorage.getItem(SESSION_KEY);}catch(e){}if(!t)return null;AUTH_TOKEN=t;
+  try{const r=await fetch(API+"/api/me?token="+encodeURIComponent(t));const d=await r.json();
+    if(d&&d.ok&&d.account){saveSession(t,d.account);return d.account;}clearSession();return null;}catch(e){return null;}}
+async function sgetAll(){try{const r=await fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):""));const d=await r.json();return (d&&d.ok)?(d.data||{}):{};}catch(e){return{};}}
+async function sset(k,v){try{const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch(e){return {ok:false,error:"Connection error."};}}
+async function sdel(k){try{await fetch(API+"/api/unset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k})});}catch(e){}}
+async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
+
+/* ── roles (mirrors wilden.html + the server) ──────────────────────────────── */
+const wxRole=u=>String((u&&u.wxRole)||"");
+const isSysAdminU=u=>!!u&&(u.role==="emperor"||u.sysAdmin===true);
+const isSovereign=u=>wxRole(u)==="sovereign";
+// The Returning Officer runs the election: the Sovereign, or a network admin.
+const isRegistrar=u=>!!u&&(isSovereign(u)||isSysAdminU(u));
+
+/* ── the contest ───────────────────────────────────────────────────────────── */
+const SEATS=7;                                   // §17 — seven elected members
+const DEFAULT_ELIGIBILITY=["citizen","naturalised"];
+const CIT_STATUS={citizen:"Citizen",naturalised:"Naturalised",resident:"Resident",
+  alien:"Registered alien",revoked:"Revoked",renounced:"Renounced"};
+const STAGES=[
+  {id:"draft",         label:"Draft",            tag:"grey",  blurb:"Being prepared. Not yet public."},
+  {id:"registration",  label:"Nominations open", tag:"blue",  blurb:"Citizens may put themselves forward as candidates."},
+  {id:"reg_closed",    label:"Ballot set",       tag:"amber", blurb:"Nominations are closed and the ballot paper is settled."},
+  {id:"voting",        label:"Poll open",        tag:"green", blurb:"The poll is open. Each citizen has one vote."},
+  {id:"voting_closed", label:"Poll closed",      tag:"amber", blurb:"Voting has ended. The Returning Officer is settling the count."},
+  {id:"certified",     label:"Declared",         tag:"green", blurb:"The result is declared and entered in the record."},
+];
+const stage=id=>STAGES.find(s=>s.id===id)||STAGES[0];
+const stageIdx=id=>Math.max(0,STAGES.findIndex(s=>s.id===id));
+const hasCount=st=>stageIdx(st)>=stageIdx("voting");
+const isLive=st=>st==="voting";
+const isFinal=st=>st==="certified";
+
+function fmtDate(d){if(!d)return"—";const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d).trim());
+  const x=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(d);if(isNaN(x))return String(d);
+  return x.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});}
+function fmtWhen(d){if(!d)return"—";const x=new Date(d);if(isNaN(x))return String(d);
+  return x.toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function pct(n,d){return d>0?(n/d*100):0;}
+function mcFace(n){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"steve")+"/48";}
+function blankElection(){return{id:"wxel_"+uid(),name:"",description:"",date:new Date().toISOString().slice(0,10),
+  status:"draft",seatsTotal:SEATS,eligibility:[...DEFAULT_ELIGIBILITY],
+  regClosesAt:"",voteOpensAt:"",voteClosesAt:"",createdAt:Date.now()};}
+
+/* The ballot count comes from the PUBLIC tally the server keeps, never from the
+   raw ballots — those the server only ever hands to a system administrator. */
+function useResults(el,regs,tally){
+  return useMemo(()=>{
+    const seats=Number(el&&el.seatsTotal)||SEATS;
+    const counts=(tally&&tally.counts)||{};
+    const approved=(regs||[]).filter(r=>r.status==="approved");
+    const cands=approved.map(r=>({id:r.username,username:r.username,
+      name:r.ballotName||r.displayName||r.username,party:(r.party||"").trim(),blurb:r.blurb||"",
+      votes:Number(counts[r.username])||0})).sort((a,b)=>b.votes-a.votes||a.name.localeCompare(b.name));
+    const totalVotes=(tally&&Number(tally.total))||cands.reduce((s,c)=>s+c.votes,0);
+    const elected=new Set(cands.slice(0,seats).filter(c=>c.votes>0).map(c=>c.id));
+    const rows=cands.map((c,i)=>({...c,rank:i+1,elected:elected.has(c.id),share:pct(c.votes,totalVotes)}));
+    const votedCount=(tally&&Array.isArray(tally.voted))?tally.voted.length:0;
+    return{seats,cands:rows,totalVotes,elected,votedCount,filled:elected.size};
+  },[el,regs,tally]);
+}
+function useElectorate(citizens,el,votedCount){
+  return useMemo(()=>{
+    const allow=new Set((el&&el.eligibility&&el.eligibility.length?el.eligibility:DEFAULT_ELIGIBILITY));
+    const roll=(citizens||[]).filter(c=>allow.has(c.status||"citizen"));
+    return{roll,size:roll.length,turnout:roll.length>0?pct(votedCount||0,roll.length):0,
+      label:[...allow].map(s=>CIT_STATUS[s]||s).join(", ")};
+  },[citizens,el,votedCount]);
+}
+
+/* ── small UI atoms ────────────────────────────────────────────────────────── */
+function Tag({tag,children}){return <span className={"tag "+(tag||"grey")}>{children}</span>;}
+function Pipeline({status}){
+  const cur=stageIdx(status);
+  return <div className="pipe">{STAGES.map((s,i)=>(
+    <div key={s.id} className={"st"+(i<cur?" done":"")+(i===cur?" now":"")}>
+      <div className="n">{i<cur?"✓ ":i===cur?"▸ ":String(i+1).padStart(2,"0")+" "}STEP {i+1}</div>
+      <div className="l">{s.label}</div>
+    </div>))}</div>;
+}
+function Stat({n,l}){return <div className="stat"><div className="n mono">{n}</div><div className="l">{l}</div></div>;}
+function Notice({title,body,tone,children}){
+  return <div className={"notif "+(tone||"")}><div className="head">{title}</div><div className="body">
+    {body&&<p style={{margin:0}}>{body}</p>}{children}</div></div>;
+}
+
+/* ── results board (public — reads the tally) ──────────────────────────────── */
+function ResultBoard({R}){
+  if(R.cands.length===0)return <p className="hint">No candidate stands in this contest yet.</p>;
+  const max=Math.max(1,...R.cands.map(c=>c.votes));
+  return <div className="res">
+    {R.cands.map(c=>(
+      <div key={c.id} className={"r"+(c.elected?" win":"")}>
+        <div className="rank">{c.rank}</div>
+        <div className="who"><div className="nm">{c.name} {c.elected&&<Tag tag="green">Elected</Tag>}</div>
+          <div className="pt">{c.party||"Independent"}{c.blurb?" — "+c.blurb:""}</div></div>
+        <div className="barwrap"><div className="bar"><span style={{width:pct(c.votes,max)+"%"}}/></div></div>
+        <div className="vt"><b>{c.votes.toLocaleString()}</b> <span className="pc">{c.share.toFixed(1)}%</span></div>
+      </div>))}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HEADER / NAV / SIGN-IN
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Header({me,onSignIn,onSignOut}){
+  return <header className="hdr"><div className="w">
+    <span className="arms" aria-hidden>♔</span>
+    <a className="brand" href="wilden.html">Wilden<span className="sub">Electoral Commission</span></a>
+    <span className="spacer"/>
+    {me?<><div className="who"><b>{me.displayName||me.username}</b>{isRegistrar(me)?"Returning Officer":"Signed in"}</div>
+        <button className="signout" onClick={onSignOut}>Sign out</button></>
+      :<button className="signin" onClick={onSignIn}>Sign in</button>}
+  </div></header>;
+}
+function Nav({view,setView,tabs}){
+  return <nav className="nav"><div className="w">{tabs.map(t=>(
+    <button key={t.id} onClick={()=>setView(t.id)} aria-current={view===t.id?"page":undefined}
+      className={t.hot?"hot":""}>{t.label}</button>))}</div></nav>;
+}
+function SignIn({onClose,onAuth,reason}){
+  const [u,setU]=useState(""),[p,setP]=useState(""),[err,setErr]=useState(""),[busy,setBusy]=useState(false);
+  const go=async()=>{if(!u.trim()||!p){setErr("Enter your Vintranet username and password.");return;}
+    setBusy(true);setErr("");const r=await slogin(u,p);setBusy(false);
+    if(!r.ok){setErr(r.error||"Sign in was refused.");return;}onAuth(r.account);};
+  return <div className="modal-bg" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <div className="mh"><h2 style={{margin:"6px 0"}}>Sign in</h2>
+      <p className="hint">{reason||"One Vintranet account across every service. Signing in here signs you in everywhere."}</p></div>
+    <div className="mb">
+      {err&&<div className="err"><div className="t">{err}</div></div>}
+      <div className="field"><label>Username</label><input value={u} onChange={e=>setU(e.target.value)} autoFocus/></div>
+      <div className="field"><label>Password</label><input type="password" value={p} onChange={e=>setP(e.target.value)}
+        onKeyDown={e=>{if(e.key==="Enter")go();}}/></div>
+      <div className="btn-row"><button className="btn" onClick={go} disabled={busy}>{busy?"Signing in…":"Sign in"}</button>
+        <button className="btn sec" onClick={onClose}>Cancel</button></div>
+    </div></div></div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE ELECTION BOARD (public)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function BoardView({el,elList,onSwitch,R,electorate,me,onGoVote,onGoStand,alreadyVoted}){
+  const showCount=hasCount(el.status);
+  return <div>
+    {elList.length>1&&<div className="btn-row" style={{marginBottom:18}}>
+      {elList.map(e=><button key={e.id} className={"btn small "+(e.id===el.id?"":"sec")} onClick={()=>onSwitch(e.id)}>
+        {e.name} <Tag tag={stage(e.status).tag}>{stage(e.status).label}</Tag></button>)}</div>}
+
+    <div style={{display:"flex",gap:12,alignItems:"baseline",flexWrap:"wrap"}}>
+      <span className="caption">{isFinal(el.status)?"Declared result":"General election"}{el.date?" · "+fmtDate(el.date):""}</span>
+      {isLive(el.status)&&<span className="live"><span className="dot"/>POLL OPEN — LIVE COUNT</span>}
+    </div>
+    <h1>{el.name}</h1>
+    {el.description&&<p className="lede">{el.description}</p>}
+
+    <div className="inset blue"><b>{stage(el.status).label}.</b> {stage(el.status).blurb}</div>
+    <Pipeline status={el.status}/>
+
+    {(el.status==="registration"||el.status==="voting")&&
+      <div className="btn-row" style={{margin:"18px 0"}}>
+        {el.status==="registration"&&<button className="btn" onClick={onGoStand}>Stand for election</button>}
+        {el.status==="voting"&&!alreadyVoted&&<button className="btn" onClick={onGoVote}>Cast your vote</button>}
+        {el.status==="voting"&&alreadyVoted&&<Tag tag="green">✓ Your vote has been recorded</Tag>}
+      </div>}
+
+    {showCount?<>
+      <h2>The count</h2>
+      <div className="grid g4" style={{marginBottom:22}}>
+        <Stat n={R.votedCount.toLocaleString()} l="Votes cast"/>
+        <Stat n={electorate.turnout.toFixed(1)+"%"} l="Turnout"/>
+        <Stat n={R.filled+" / "+R.seats} l="Seats filled"/>
+        <Stat n={electorate.size.toLocaleString()} l="On the register"/>
+      </div>
+      <ResultBoard R={R}/>
+      <p className="hint">{isLive(el.status)?"The count refreshes automatically as votes come in.":
+        isFinal(el.status)?"This is the declared result.":"The poll has closed — awaiting the declaration."}
+        {" "}The seven candidates with the most votes are returned (Constitution of Wilden §18).</p>
+    </>:<>
+      <h2>{el.status==="reg_closed"?"The ballot paper":"Candidates"}</h2>
+      {R.cands.length===0
+        ?<p className="hint">{el.status==="registration"?"No candidacy has been confirmed yet. Papers filed are with the Returning Officer."
+          :"No candidate stands in this contest."}</p>
+        :<div className="res">{R.cands.map(c=>(
+            <div key={c.id} className="r"><div className="rank">•</div>
+              <div className="who"><div className="nm">{c.name}</div><div className="pt">{c.party||"Independent"}{c.blurb?" — "+c.blurb:""}</div></div>
+            </div>))}</div>}
+      <div className="grid g4" style={{marginTop:22}}>
+        <Stat n={R.seats} l="Seats"/><Stat n="1" l="Vote per citizen"/>
+        <Stat n={R.cands.length} l="Candidates"/><Stat n={electorate.size.toLocaleString()} l="On the register"/>
+      </div>
+    </>}
+    <hr className="rule"/>
+    <p className="hint"><b>Secret ballot.</b> How you vote is private. The running total and turnout are public,
+      but the record of who voted for whom is sealed and visible only to a system administrator — not to the
+      Returning Officer, and not to the Crown.</p>
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STAND FOR ELECTION
+   ══════════════════════════════════════════════════════════════════════════════ */
+function StandView({el,me,myCitizen,electorate,mine,onFile,onWithdraw,note}){
+  const open=el.status==="registration";
+  const locked=!!mine&&mine.status!=="pending";
+  const [editing,setEditing]=useState(false);
+  const [ballotName,setBallotName]=useState("");const [party,setParty]=useState("");const [blurb,setBlurb]=useState("");
+  const [busy,setBusy]=useState(false);
+  const hydrate=useCallback(()=>{
+    if(mine){setBallotName(mine.ballotName||"");setParty(mine.party||"");setBlurb(mine.blurb||"");}
+    else{setBallotName((me&&(me.displayName||me.username))||"");setParty("");setBlurb("");}
+  },[mine,me]);
+  useEffect(()=>{hydrate();},[hydrate]);
+
+  if(!me)return <Notice title="Sign in to stand for election"
+    body="Candidacy is filed against your Vintranet account, so the Returning Officer knows who is standing. Sign in above and return here."/>;
+  if(!open&&!mine)return <Notice title="Nominations are not open" tone="warn"
+    body={el.status==="draft"?"This contest has not yet opened for nominations.":"The nomination period has closed. Follow the count on the main page."}/>;
+  if(!myCitizen)return <Notice title="No Wildenian citizenship on file" tone="warn"
+    body="Standing for the House of Commons requires a record on the Wilden citizenship register linked to your account. Register through the Wilden government service, then return here."/>;
+  if(!electorate.roll.some(c=>c.id===myCitizen.id))return <Notice title="You may not stand in this contest" tone="warn"
+    body={"Your record lists you as "+(CIT_STATUS[myCitizen.status||"citizen"])+". This election is open to: "+electorate.label+"."}/>;
+
+  const showForm=open&&(!mine||editing);
+  const canFile=ballotName.trim().length>1;
+  const file=async()=>{
+    if(!canFile||busy)return;setBusy(true);
+    const rec={elId:el.id,username:String(me.username||"").toLowerCase(),displayName:me.displayName||me.username,
+      citizenId:myCitizen.id,ballotName:ballotName.trim(),party:party.trim(),blurb:blurb.trim(),
+      status:"pending",filedAt:(mine&&mine.filedAt)||Date.now(),updatedAt:Date.now()};
+    const r=await onFile(rec);setBusy(false);
+    if(r.ok){setEditing(false);note(mine?"Your nomination has been amended.":"Your papers are filed with the Returning Officer.","ok");}
+    else note(r.error||"The filing was refused.","bad");
+  };
+  const decCol={approved:"green",denied:"red",pending:"amber"};
+  const decLbl={approved:"Approved",denied:"Refused",pending:"With the Returning Officer"};
+
+  return <div>
+    <span className="caption">{el.name}</span>
+    <h1>Stand for election</h1>
+    <p className="lede">Put yourself forward as a candidate for the House of Commons. The Returning Officer rules on
+      every nomination; the seven candidates with the most votes are returned.</p>
+
+    {mine&&<div className="card" style={{marginBottom:20,borderTopColor:"var(--"+decCol[mine.status]+")"}}>
+      <h3>Your nomination</h3>
+      <div className="sl"><div className="row"><div className="k">Candidacy</div>
+        <div className="v"><Tag tag={decCol[mine.status]}>{decLbl[mine.status]}</Tag>
+          {mine.status==="denied"&&mine.reason?<div className="hint" style={{marginTop:6}}>{mine.reason}</div>:null}</div></div>
+        <div className="row"><div className="k">Name on the ballot</div><div className="v">{mine.ballotName}</div></div>
+        {mine.party&&<div className="row"><div className="k">Party / standing</div><div className="v">{mine.party}</div></div>}</div>
+      {!locked&&open&&<div className="btn-row">
+        <button className="btn sec small" onClick={()=>{hydrate();setEditing(true);}}>Amend papers</button>
+        <button className="btn warn small" onClick={async()=>{const r=await onWithdraw();note(r.ok?"Your candidacy is withdrawn.":(r.error||"Could not withdraw."),r.ok?"ok":"bad");}}>Withdraw</button>
+      </div>}
+      {locked&&<p className="hint" style={{margin:0}}>The Returning Officer has ruled on this paper, so it can no longer be changed here.</p>}
+    </div>}
+
+    {showForm&&<div className="card">
+      <div className="field"><label>Name on the ballot paper</label>
+        <p className="hint">How your name appears to voters.</p>
+        <input value={ballotName} onChange={e=>setBallotName(e.target.value)} placeholder="e.g. Eleanor Ashford"/></div>
+      <div className="field"><label>Party or standing (optional)</label>
+        <input value={party} onChange={e=>setParty(e.target.value)} placeholder="e.g. Independent, or a party name"/></div>
+      <div className="field"><label>One line beside your name (optional)</label>
+        <input value={blurb} onChange={e=>setBlurb(e.target.value)} placeholder="e.g. For the eastern shires"/></div>
+      <p className="hint">Filed by <b>{me.username}</b> · citizenship record <b>{myCitizen.name}</b></p>
+      <div className="btn-row">
+        <button className="btn" onClick={file} disabled={!canFile||busy}>{busy?"Filing…":mine?"Amend my papers":"File my papers"}</button>
+        {mine&&<button className="btn sec" onClick={()=>setEditing(false)}>Cancel</button>}
+      </div>
+    </div>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CAST YOUR VOTE (one vote, secret)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function VoteView({el,me,myCitizen,electorate,R,alreadyVoted,onCast,onBack,note}){
+  const [choice,setChoice]=useState("");const [busy,setBusy]=useState(false);const [done,setDone]=useState(false);
+  if(!me)return <Notice title="Sign in to vote"
+    body="Voting is verified through your Vintranet account, which must be linked to a Wilden citizenship record. Sign in above and return here."/>;
+  if(el.status!=="voting")return <Notice title={el.status==="voting_closed"||isFinal(el.status)?"The poll has closed":"The poll is not yet open"} tone="warn"
+    body="You can follow the count on the main page."><button className="btn" onClick={onBack}>View the count</button></Notice>;
+  if(!myCitizen)return <Notice title="No Wildenian citizenship on file" tone="warn"
+    body="Voting requires a record on the Wilden citizenship register linked to your account. Register through the Wilden government service, then return here."/>;
+  if(!electorate.roll.some(c=>c.id===myCitizen.id))return <Notice title="You are not enfranchised for this election" tone="warn"
+    body={"Your record lists you as "+(CIT_STATUS[myCitizen.status||"citizen"])+". This election is open to: "+electorate.label+"."}/>;
+  if(alreadyVoted||done)return <div className="confirm"><div className="t">Your vote has been recorded</div>
+    <div className="s">{myCitizen.name}, your vote in “{el.name}” is counted and cannot be changed. How you voted is secret.</div>
+    <div style={{marginTop:16}}><button className="btn sec" onClick={onBack}>Watch the live count</button></div></div>;
+  if(R.cands.length===0)return <Notice title="No candidates on the ballot" tone="warn"
+    body="No candidacy has been confirmed for this contest yet."/>;
+
+  const submit=async()=>{
+    if(!choice||busy)return;setBusy(true);
+    const r=await onCast(choice);setBusy(false);
+    if(r.ok){setDone(true);note("Ballot recorded. Thank you for voting.","ok");}
+    else note(r.error||"The ballot box refused your paper.","bad");
+  };
+  return <div style={{maxWidth:640}}>
+    <button className="btn sec small" onClick={onBack} style={{marginBottom:16}}>← Back to the count</button>
+    <div className="ballot">
+      <div className="bh"><div className="t">Official ballot paper</div>
+        <div className="s">{el.name} — vote for one candidate · voting as {myCitizen.name}</div></div>
+      <div className="opts">
+        {R.cands.map(c=>(
+          <div key={c.id} className={"opt"+(choice===c.id?" sel":"")} onClick={()=>setChoice(c.id)}
+            role="radio" aria-checked={choice===c.id} tabIndex={0}
+            onKeyDown={e=>{if(e.key===" "||e.key==="Enter"){e.preventDefault();setChoice(c.id);}}}>
+            <span className="rad"/><span><span className="nm">{c.name}</span>
+              <span className="pt" style={{display:"block"}}>{c.party||"Independent"}{c.blurb?" — "+c.blurb:""}</span></span>
+          </div>))}
+      </div>
+      <div className="bf">
+        <p className="hint">You have one vote. Once cast it cannot be changed or withdrawn, and how you voted is secret.</p>
+        <button className="btn" onClick={submit} disabled={!choice||busy}>{busy?"Recording…":"Cast my vote"}</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ELECTION HISTORY (declared results)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function ArchiveView({elList,onOpen}){
+  const done=elList.filter(e=>isFinal(e.status)&&e.result);
+  if(done.length===0)return <Notice title="No declared results yet"
+    body="Declared results are entered here the moment the Returning Officer certifies them."/>;
+  return <div><h1>Election history</h1>
+    <p className="lede">{done.length} declared {done.length===1?"contest":"contests"} on the record.</p>
+    {done.map(e=>{const r=e.result;return <div key={e.id} className="card" style={{marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"baseline"}}>
+        <h3 style={{margin:0}}>{e.name}</h3>
+        <span className="hint">{fmtDate(e.date)} · {(r.votedCount||0).toLocaleString()} votes · turnout {(r.turnout||0).toFixed(1)}%</span></div>
+      <table><thead><tr><th>Rank</th><th>Candidate</th><th>Party</th><th className="num">Votes</th><th></th></tr></thead>
+        <tbody>{(r.candidates||[]).map(c=><tr key={c.username}><td>{c.rank}</td><td>{c.name}</td>
+          <td>{c.party||"Independent"}</td><td className="num mono">{(c.votes||0).toLocaleString()}</td>
+          <td>{c.elected?<Tag tag="green">Elected</Tag>:""}</td></tr>)}</tbody></table>
+      <div className="btn-row"><button className="btn sec small" onClick={()=>onOpen(e.id)}>Open the full board</button>
+        <span className="hint" style={{margin:0}}>Declared {fmtWhen(r.at)}{r.by?" by "+r.by:""}</span></div>
+    </div>;})}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RETURNING OFFICER — the Sovereign's console (results + turnout; NO ballot log)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function nextStep(el,R){
+  const s=el.status;
+  if(s==="draft")        return{to:"registration",label:"Open nominations"};
+  if(s==="registration") return{to:"reg_closed",label:"Close nominations"};
+  if(s==="reg_closed")   return{to:"voting",label:"Open the poll",disabled:R.cands.length<1,
+    warn:R.cands.length<1?"Approve at least one candidate before opening the poll.":""};
+  if(s==="voting")       return{to:"voting_closed",label:"Close the poll"};
+  if(s==="voting_closed")return{to:"certified",label:"Declare the result"};
+  return null;
+}
+function OfficerView({me,elList,elections,regsByEl,tallyByEl,citizens,onSave,onDelete,onStatus,onCertify,onRule,onClear,note,reload}){
+  const admin=isSysAdminU(me);
+  const delEl=e=>{if(confirm("Delete “"+e.name+"” and all its nominations and ballots? This cannot be undone."))onDelete(e);};
+  const [openId,setOpenId]=useState(null);
+  const [editing,setEditing]=useState(null);
+  useEffect(()=>{if(!openId||!elections[openId])setOpenId(elList[0]?elList[0].id:null);},[elList,elections,openId]);
+  const el=openId?elections[openId]:null;
+  const regs=el?(regsByEl[el.id]||[]):[];
+  const tally=el?tallyByEl[el.id]:null;
+  const R=useResults(el||{},regs,tally);
+  const electorate=useElectorate(citizens,el||{},R.votedCount);
+  const step=el?nextStep(el,R):null;
+  const pending=regs.filter(r=>r.status==="pending").length;
+
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
+      <div><span className="caption">Returning Officer · {(me.displayName||me.username)}</span>
+        <h1 style={{marginBottom:6}}>The Returning Officer</h1></div>
+      <div className="btn-row"><button className="btn sec small" onClick={reload}>Refresh</button>
+        <button className="btn small" onClick={()=>setEditing(blankElection())}>New election</button></div>
+    </div>
+
+    {elList.length>0&&<div className="btn-row" style={{margin:"6px 0 20px"}}>
+      {elList.map(e=>{const p=(regsByEl[e.id]||[]).filter(r=>r.status==="pending").length;
+        return <button key={e.id} className={"btn small "+(openId===e.id?"":"sec")} onClick={()=>setOpenId(e.id)}>
+          {e.name} <Tag tag={stage(e.status).tag}>{stage(e.status).label}</Tag>{p>0?" · "+p+" pending":""}</button>;})}</div>}
+
+    {!el?<Notice title="No election on the books" body="Create one to begin."/>:<>
+      <div className="card" style={{marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"baseline"}}>
+          <h3 style={{margin:0}}>{el.name}</h3>
+          <div className="btn-row"><Tag tag={stage(el.status).tag}>{stage(el.status).label}</Tag>
+            <button className="btn sec small" onClick={()=>setEditing(el)}>Edit</button>
+            {admin&&<button className="btn warn small" onClick={()=>{delEl(el);setOpenId(null);}}>Delete election</button>}</div></div>
+        <p className="hint">{fmtDate(el.date)} · {el.seatsTotal||SEATS} seats · register {electorate.size} · open to {electorate.label}</p>
+        <Pipeline status={el.status}/>
+        <div className="btn-row" style={{marginTop:12}}>
+          {step&&<button className="btn" disabled={step.disabled} onClick={()=>{
+            if(step.to==="certified")onCertify(el,R,electorate);else onStatus(el,step.to);}}>{step.label} →</button>}
+          {stageIdx(el.status)>0&&<button className="btn sec small" onClick={()=>onStatus(el,STAGES[stageIdx(el.status)-1].id)}>Step back</button>}
+          {el.status==="registration"&&pending>0&&<span className="hint" style={{margin:0}}>{pending} paper{pending===1?"":"s"} awaiting your ruling</span>}
+        </div>
+        {step&&step.warn&&<p className="hint" style={{color:"var(--red)",marginTop:8,marginBottom:0}}>{step.warn}</p>}
+        {el.status==="voting_closed"&&<p className="hint" style={{marginTop:8,marginBottom:0}}>
+          Declaring freezes the count into the record exactly as it stands.</p>}
+      </div>
+
+      <h2>Nominations</h2>
+      {regs.length===0?<p className="hint">No papers have been filed.</p>:
+        <table><thead><tr><th>Candidate</th><th>Party</th><th>Status</th><th></th></tr></thead><tbody>
+          {regs.slice().sort((a,b)=>({pending:0,approved:1,denied:2}[a.status]-{pending:0,approved:1,denied:2}[b.status])||(a.filedAt||0)-(b.filedAt||0)).map(r=>(
+            <tr key={r.username}><td><b>{r.ballotName||r.displayName}</b><div className="un" style={{fontSize:13,color:"var(--grey4)"}}>@{r.username}</div>
+              {r.blurb&&<div className="hint" style={{margin:"3px 0 0"}}>“{r.blurb}”</div>}</td>
+              <td>{r.party||"Independent"}</td>
+              <td><Tag tag={{approved:"green",denied:"red",pending:"amber"}[r.status]}>{{approved:"Approved",denied:"Refused",pending:"Pending"}[r.status]}</Tag></td>
+              <td><div className="btn-row">
+                {r.status!=="approved"&&<button className="btn small" onClick={()=>onRule(r,"approved")}>Approve</button>}
+                {r.status!=="denied"&&<button className="btn warn small" onClick={()=>{const reason=prompt("Reason shown to the candidate (optional):")||"";onRule(r,"denied",reason);}}>Refuse</button>}
+                {r.status!=="pending"&&<button className="btn sec small" onClick={()=>onRule(r,"pending")}>Reset</button>}
+              </div></td></tr>))}
+        </tbody></table>}
+
+      {hasCount(el.status)&&<>
+        <h2>The count</h2>
+        <div className="grid g4" style={{marginBottom:18}}>
+          <Stat n={R.votedCount.toLocaleString()} l="Votes cast"/>
+          <Stat n={electorate.turnout.toFixed(1)+"%"} l="Turnout"/>
+          <Stat n={R.filled+" / "+R.seats} l="Seats filled"/>
+          <Stat n={electorate.size.toLocaleString()} l="On the register"/></div>
+        <ResultBoard R={R}/>
+        <div className="inset amber"><b>You see the totals, not the votes.</b> The tally and turnout are yours to certify,
+          but the record of who voted for whom is sealed to a system administrator — it is not shown to the Returning Officer
+          or to the Crown. This is a secret ballot.</div>
+        <div className="btn-row"><button className="btn warn small" onClick={()=>{if(confirm("Clear every ballot in this election? This resets the count and cannot be undone."))onClear(el,tally);}}>Clear all ballots</button></div>
+      </>}
+    </>}
+
+    {editing&&<ElectionEditor el={editing} onClose={()=>setEditing(null)}
+      onSave={async x=>{const r=await onSave(x);if(r.ok){setOpenId(x.id);setEditing(null);note("Election saved.","ok");}else note(r.error||"Could not save.","bad");}}/>}
+  </div>;
+}
+
+function ElectionEditor({el,onClose,onSave}){
+  const [g,setG]=useState({...el});
+  const set=(k,v)=>setG(p=>({...p,[k]:v}));
+  const elig=new Set(g.eligibility||DEFAULT_ELIGIBILITY);
+  const toggle=s=>setG(p=>{const c=new Set(p.eligibility||DEFAULT_ELIGIBILITY);c.has(s)?c.delete(s):c.add(s);return{...p,eligibility:[...c]};});
+  return <div className="modal-bg" onClick={onClose}><div className="modal" style={{maxWidth:560}} onClick={e=>e.stopPropagation()}>
+    <div className="mh"><h2 style={{margin:"6px 0"}}>{el.name?"Edit election":"New election"}</h2></div>
+    <div className="mb">
+      <div className="field"><label>Name of the contest</label>
+        <input value={g.name||""} onChange={e=>set("name",e.target.value)} placeholder="e.g. 2026 General Election"/></div>
+      <div className="field"><label>Description</label>
+        <textarea rows={2} value={g.description||""} onChange={e=>set("description",e.target.value)} placeholder="What is being decided."/></div>
+      <div className="field" style={{maxWidth:260}}><label>Polling date</label>
+        <input type="date" value={g.date||""} onChange={e=>set("date",e.target.value)}/></div>
+      <div className="field"><label>Who may vote and stand</label>
+        <div className="btn-row">{Object.entries(CIT_STATUS).map(([v,l])=>(
+          <button key={v} className={"btn small "+(elig.has(v)?"":"sec")} onClick={()=>toggle(v)}>{elig.has(v)?"✓ ":""}{l}</button>))}</div></div>
+      <p className="hint">Seven seats are filled by the candidates with the most votes (§17–18). Each elector has one vote.</p>
+      <div className="btn-row"><button className="btn" disabled={!g.name} onClick={()=>onSave({...g,
+        eligibility:(g.eligibility&&g.eligibility.length?g.eligibility:DEFAULT_ELIGIBILITY)})}>Save election</button>
+        <button className="btn sec" onClick={onClose}>Cancel</button></div>
+    </div></div></div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE BALLOT LOG — system administrator only. The one place who-voted-for-whom
+   appears. Non-admins never receive these records from the server at all.
+   ══════════════════════════════════════════════════════════════════════════════ */
+function BallotLogView({elList,elections,ballotsByEl,regsByEl,citizens}){
+  const [openId,setOpenId]=useState(null);
+  useEffect(()=>{if(!openId||!elections[openId])setOpenId(elList[0]?elList[0].id:null);},[elList,elections,openId]);
+  const el=openId?elections[openId]:null;
+  const ballots=el?(ballotsByEl[el.id]||[]):[];
+  const regs=el?(regsByEl[el.id]||[]):[];
+  const citById=useMemo(()=>{const m={};citizens.forEach(c=>{m[c.id]=c;});return m;},[citizens]);
+  const candByUser=useMemo(()=>{const m={};regs.forEach(r=>{m[r.username]=r.ballotName||r.displayName||r.username;});return m;},[regs]);
+
+  return <div>
+    <span className="caption">System administrator only</span>
+    <h1>Ballot log</h1>
+    <div className="notif warn"><div className="head">Restricted — secret ballot</div>
+      <div className="body"><p style={{margin:0}}>This page shows how each citizen voted. It is visible only to a system
+        administrator; the server never sends these records to anyone else, including the Returning Officer and the Sovereign.
+        Handle accordingly.</p></div></div>
+
+    {elList.length>0&&<div className="btn-row" style={{marginBottom:18}}>
+      {elList.map(e=><button key={e.id} className={"btn small "+(openId===e.id?"":"sec")} onClick={()=>setOpenId(e.id)}>{e.name}</button>)}</div>}
+
+    {!el?<p className="hint">No election selected.</p>:
+      ballots.length===0?<p className="hint">No ballots have been cast in this contest.</p>:
+      <><p className="lede">{ballots.length.toLocaleString()} {ballots.length===1?"ballot":"ballots"} cast in “{el.name}”.</p>
+      <table><thead><tr><th>Voter</th><th>Citizen record</th><th>Voted for</th><th>At</th></tr></thead><tbody>
+        {ballots.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map((b,i)=>{const c=citById[b.citizenId];
+          return <tr key={i}><td>{c?<div className="person"><img src={mcFace(c.username||c.name)} alt=""/>
+              <div><div className="nm">{c.name||c.citizenId}</div><div className="un">@{c.username||"—"}</div></div></div>:b.citizenId}</td>
+            <td className="mono">{b.citizenId}</td>
+            <td><b>{candByUser[b.choice]||b.choice||"—"}</b></td>
+            <td className="hint" style={{margin:0}}>{fmtWhen(b.at)}</td></tr>;})}
+      </tbody></table></>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   APP
+   ══════════════════════════════════════════════════════════════════════════════ */
+function App(){
+  const [raw,setRaw]=useState({});
+  const [loading,setLoading]=useState(true);
+  const [me,setMe]=useState(()=>cachedAccount());
+  const [view,setView]=useState("board");
+  const [selId,setSelId]=useState(null);
+  const [signIn,setSignIn]=useState(null);
+  const [toast,setToast]=useState(null);
+  const note=useCallback((m,c)=>{setToast({m,c:c||""});setTimeout(()=>setToast(null),3400);},[]);
+
+  const loadAll=useCallback(async()=>{const r=await sgetAll();setRaw(r);setLoading(false);return r;},[]);
+  useEffect(()=>{loadAll();},[loadAll]);
+  useEffect(()=>{srestore().then(a=>{if(a)setMe(a);else if(!AUTH_TOKEN)setMe(null);});},[]);
+
+  const elections=useMemo(()=>raw["wx_el_elections"]||{},[raw]);
+  const elList=useMemo(()=>Object.values(elections).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||(b.createdAt||0)-(a.createdAt||0)),[elections]);
+  const citizens=useMemo(()=>Object.entries(raw["wx_state_citizens"]||{}).map(([id,c])=>({...c,id:c.id||id})),[raw]);
+  const regsByEl=useMemo(()=>{const m={};Object.entries(raw).forEach(([k,v])=>{
+    if(k.indexOf("wx_el_reg_")===0&&v&&v.elId)(m[v.elId]=m[v.elId]||[]).push(v);});return m;},[raw]);
+  const tallyByEl=useMemo(()=>{const m={};Object.entries(raw).forEach(([k,v])=>{
+    if(k.indexOf("wx_el_tally_")===0&&v)m[k.slice("wx_el_tally_".length)]=v;});return m;},[raw]);
+  const ballotsByEl=useMemo(()=>{const m={};Object.entries(raw).forEach(([k,v])=>{        // sysAdmin only
+    if(k.indexOf("wx_el_ballot_")===0&&v&&v.elId)(m[v.elId]=m[v.elId]||[]).push(v);});return m;},[raw]);
+
+  const registrar=isRegistrar(me);
+  const admin=isSysAdminU(me);
+  const myCitizen=useMemo(()=>{if(!me)return null;const u=String(me.username||"").toLowerCase();
+    return citizens.find(c=>String(c.username||"").trim().toLowerCase()===u)||null;},[me,citizens]);
+
+  useEffect(()=>{if(loading)return;const ids=new Set(elList.map(e=>e.id));
+    if(!selId||!ids.has(selId)){const pick=elList.find(e=>e.status==="voting")||elList.find(e=>e.status==="registration")
+      ||elList.find(e=>e.status==="voting_closed")||elList.find(e=>e.status==="reg_closed")||elList.find(e=>isFinal(e.status))||elList[0]||null;
+      setSelId(pick?pick.id:null);}},[loading,elList,selId]);
+  const el=selId?elections[selId]:null;
+
+  useEffect(()=>{const anyLive=elList.some(e=>e.status==="voting"||e.status==="registration");
+    if(!anyLive||view==="vote"||view==="officer")return;
+    const id=setInterval(async()=>{const r=await sgetAll();setRaw(r);},8000);return()=>clearInterval(id);},[elList,view]);
+
+  const regs=el?(regsByEl[el.id]||[]):[];
+  const tally=el?tallyByEl[el.id]:null;
+  const R=useResults(el||{},regs,tally);
+  const electorate=useElectorate(citizens,el||{},R.votedCount);
+  const myReg=useMemo(()=>{if(!el||!me)return null;const u=String(me.username||"").toLowerCase();
+    return (regsByEl[el.id]||[]).find(r=>String(r.username||"").toLowerCase()===u)||null;},[el,me,regsByEl]);
+  const alreadyVoted=!!(el&&myCitizen&&tally&&Array.isArray(tally.voted)&&tally.voted.includes(myCitizen.id));
+
+  const patchRaw=(k,v)=>setRaw(r=>({...r,[k]:v}));
+  const saveElection=useCallback(async next=>{const map={...(raw["wx_el_elections"]||{}),[next.id]:next};
+    patchRaw("wx_el_elections",map);const r=await sset("wx_el_elections",map);if(!r.ok)await loadAll();return r;},[raw,loadAll]);
+  const setStatus=useCallback(async(e,to)=>{const r=await saveElection({...e,status:to,
+    openedAt:to==="voting"?Date.now():e.openedAt,closedAt:to==="voting_closed"?Date.now():e.closedAt});
+    note(r.ok?stage(to).label+".":(r.error||"Refused."),r.ok?"ok":"bad");},[saveElection,note]);
+  const certify=useCallback(async(e,Res,elec)=>{
+    const result={at:Date.now(),by:me?(me.displayName||me.username):"",seats:Res.seats,totalVotes:Res.totalVotes,
+      votedCount:Res.votedCount,electorate:elec.size,turnout:elec.turnout,
+      candidates:Res.cands.map(c=>({name:c.name,username:c.username,party:c.party,votes:c.votes,elected:c.elected,rank:c.rank}))};
+    const r=await saveElection({...e,status:"certified",result});
+    note(r.ok?"The result is declared and entered in the record.":(r.error||"Refused."),r.ok?"ok":"bad");},[saveElection,me,note]);
+  const deleteElection=useCallback(async e=>{const map={...(raw["wx_el_elections"]||{})};delete map[e.id];
+    const r=await sset("wx_el_elections",map);if(!r.ok){note(r.error||"Refused.","bad");return;}
+    const keys=Object.keys(raw).filter(k=>k.indexOf("wx_el_reg_"+e.id+"_")===0||k.indexOf("wx_el_ballot_"+e.id+"_")===0);
+    for(const k of keys)await sdel(k);await sdel("wx_el_tally_"+e.id);await loadAll();note("Election deleted.","ok");},[raw,loadAll,note]);
+  const clearBallots=useCallback(async(e,t)=>{
+    // We can delete every ballot by key using the public turnout list, without ever seeing a choice.
+    const voters=(t&&Array.isArray(t.voted))?t.voted:[];
+    for(const cid of voters)await sdel("wx_el_ballot_"+e.id+"_"+cid);
+    await sdel("wx_el_tally_"+e.id);await loadAll();note("Ballots cleared.","ok");},[loadAll,note]);
+  const ruleReg=useCallback(async(reg,decision,reason)=>{
+    const key="wx_el_reg_"+reg.elId+"_"+String(reg.username||"").toLowerCase();
+    const next={...reg,status:decision,reason:decision==="denied"?(reason||""):"",decidedBy:me?me.username:"",decidedAt:Date.now()};
+    const r=await sset(key,next);if(r.ok)patchRaw(key,next);else await loadAll();
+    if(!r.ok)note(r.error||"The ruling was refused.","bad");},[me,loadAll,note]);
+  const fileReg=useCallback(async rec=>{const key="wx_el_reg_"+rec.elId+"_"+rec.username;
+    const r=await sset(key,rec);if(r.ok)patchRaw(key,rec);else await loadAll();return r;},[loadAll]);
+  const withdrawReg=useCallback(async()=>{if(!el||!me)return{ok:false};
+    const key="wx_el_reg_"+el.id+"_"+String(me.username||"").toLowerCase();await sdel(key);await loadAll();return{ok:true};},[el,me,loadAll]);
+  const castBallot=useCallback(async choice=>{if(!el||!myCitizen)return{ok:false,error:"Not eligible."};
+    const r=await sset("wx_el_ballot_"+el.id+"_"+myCitizen.id,{elId:el.id,citizenId:myCitizen.id,choice});
+    if(r.ok)await loadAll();return r;},[el,myCitizen,loadAll]);
+
+  const canStand=!!el&&el.status==="registration";
+  const canVote=!!el&&el.status==="voting";
+  useEffect(()=>{if(view==="officer"&&!registrar)setView("board");if(view==="log"&&!admin)setView("board");
+    if(view==="stand"&&!canStand)setView("board");if(view==="vote"&&!canVote)setView("board");},[view,registrar,admin,canStand,canVote]);
+  const need=reason=>{if(me)return true;setSignIn({reason});return false;};
+
+  const tabs=[{id:"board",label:"The election"},
+    canStand&&{id:"stand",label:"Stand for election"},
+    canVote&&{id:"vote",label:"Cast your vote",hot:true},
+    {id:"archive",label:"Election history"},
+    registrar&&{id:"officer",label:"Returning Officer"},
+    admin&&{id:"log",label:"Ballot log"}].filter(Boolean);
+
+  return <>
+    <Header me={me} onSignIn={()=>setSignIn({})}
+      onSignOut={()=>{forgetSession();setMe(null);setView("board");note("Signed out.","");}}/>
+    <Nav view={view} setView={setView} tabs={tabs}/>
+    <main><div className="w">
+      {loading?<p className="hint" style={{padding:"40px 0"}}>Opening the electoral register…</p>
+        :view==="officer"&&registrar
+        ?<OfficerView me={me} elList={elList} elections={elections} regsByEl={regsByEl} tallyByEl={tallyByEl}
+           citizens={citizens} onSave={saveElection} onDelete={deleteElection} onStatus={setStatus} onCertify={certify}
+           onRule={ruleReg} onClear={clearBallots} note={note} reload={loadAll}/>
+        :view==="log"&&admin
+        ?<BallotLogView elList={elList} elections={elections} ballotsByEl={ballotsByEl} regsByEl={regsByEl} citizens={citizens}/>
+        :!el
+        ?<div><h1>Wilden General Election</h1>
+           <p className="lede">The election of the seven members of the House of Commons. When the Returning Officer calls
+             a contest, the timetable, the candidates and the live count appear here, and every enfranchised citizen may take part.</p>
+           {registrar&&<button className="btn" onClick={()=>setView("officer")}>Open the Returning Officer's console</button>}</div>
+        :view==="stand"
+        ?<StandView el={el} me={me} myCitizen={myCitizen} electorate={electorate} mine={myReg}
+           onFile={fileReg} onWithdraw={withdrawReg} note={note}/>
+        :view==="vote"
+        ?<VoteView el={el} me={me} myCitizen={myCitizen} electorate={electorate} R={R} alreadyVoted={alreadyVoted}
+           onCast={castBallot} onBack={()=>setView("board")} note={note}/>
+        :view==="archive"
+        ?<ArchiveView elList={elList} onOpen={id=>{setSelId(id);setView("board");}}/>
+        :<BoardView el={el} elList={elList} onSwitch={setSelId} R={R} electorate={electorate} me={me} alreadyVoted={alreadyVoted}
+           onGoVote={()=>{if(need("Voting is verified through your Vintranet account. Sign in to cast your vote."))setView("vote");}}
+           onGoStand={()=>{if(need("Candidacy is filed against your Vintranet account. Sign in to stand."))setView("stand");}}/>}
+    </div></main>
+    <footer className="ftr"><div className="w"><div className="lic">
+      <b>Wilden Electoral Commission.</b> The House of Commons is elected under the Constitution of Wilden (§17–18):
+      seven seats, one vote per citizen, the seven with the most votes returned. Voting is by secret ballot.
+    </div></div></footer>
+    {signIn&&<SignIn reason={signIn.reason} onClose={()=>setSignIn(null)}
+      onAuth={a=>{setMe(a);setSignIn(null);loadAll();note("Signed in as "+(a.displayName||a.username)+".","ok");}}/>}
+    {toast&&<div className={"toast "+(toast.c)}>{toast.m}</div>}
+  </>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
