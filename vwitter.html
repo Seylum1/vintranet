@@ -118,7 +118,16 @@ svg.ic{display:block;flex:none;}
 .field input:focus,.field textarea:focus{border-color:var(--brand);}
 .inline-in{background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font:inherit;outline:none;}
 .inline-in:focus{border-color:var(--brand);}
-.cover{height:74px;background:linear-gradient(120deg,var(--panelH),var(--panel));border-bottom:1px solid var(--line);}
+.coverwrap{position:relative;}
+.cover{height:140px;background:linear-gradient(120deg,var(--panelH),var(--panel));border-bottom:1px solid var(--line);background-size:cover;background-position:center;}
+.coverctl{position:absolute;right:10px;bottom:10px;display:flex;gap:8px;}
+.bstate{position:absolute;left:10px;top:10px;font-family:var(--mono);font-size:11px;border-radius:999px;padding:3px 10px;background:rgba(13,15,19,.82);}
+.bstate.wait{color:var(--amber);border:1px solid rgba(255,176,32,.5);}
+.bstate.no{color:var(--red);border:1px solid rgba(244,52,78,.5);}
+.pickrow{display:flex;gap:12px;align-items:flex-start;}
+.prev{width:210px;min-height:70px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;flex:none;}
+.banrow{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:flex-start;}
+.banprev{width:190px;height:58px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);background-size:cover;background-position:center;flex:none;}
 .profhd{padding:0 16px 16px;border-bottom:1px solid var(--line);}
 .profhd .top{display:flex;align-items:flex-end;gap:14px;margin-top:-28px;}
 .profhd .nm{font-size:22px;font-weight:900;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
@@ -347,11 +356,54 @@ function dayLabel(ts){const d=new Date(ts||0),now=new Date();
   return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}).toUpperCase();}
 function mcFace(n,s){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"steve")+"/"+(s||48);}
 
+/* ── images ────────────────────────────────────────────────────────────────────
+   Banners and office pictures are shrunk in the browser before they ever reach
+   the server: cover-cropped to a fixed frame and re-encoded until they are small
+   enough to sit in the same record store as everything else. */
+const BANNER_W=1200,BANNER_H=360,PFP_SIZE=256,IMG_CAP=360000;
+function readFileDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();
+  r.onload=()=>res(r.result);r.onerror=()=>rej(new Error("Could not read that file."));r.readAsDataURL(file);});}
+function loadImg(src){return new Promise((res,rej)=>{const i=new Image();
+  i.onload=()=>res(i);i.onerror=()=>rej(new Error("That file isn't an image."));i.src=src;});}
+async function shrinkImage(file,w,h,q){
+  if(!file)return "";
+  if(!/^image\//.test(file.type||""))throw new Error("Choose an image file (JPG, PNG, GIF or WebP).");
+  const img=await loadImg(await readFileDataURL(file));
+  const c=document.createElement("canvas");c.width=w;c.height=h;
+  const g=c.getContext("2d");g.fillStyle="#171a20";g.fillRect(0,0,w,h);
+  const s=Math.max(w/img.width,h/img.height),dw=img.width*s,dh=img.height*s;
+  g.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
+  let qq=q||0.78,out=c.toDataURL("image/jpeg",qq);
+  while(out.length>IMG_CAP&&qq>0.3){qq-=0.12;out=c.toDataURL("image/jpeg",qq);}
+  if(out.length>IMG_CAP)throw new Error("That image is too large even compressed — try a smaller one.");
+  return out;
+}
+
 /* ── UI atoms ──────────────────────────────────────────────────────────────── */
 function Avatar({p,size=44,onClick}){
   if(!p)return <div className="av" style={{width:size,height:size}}/>;
-  if(p.office)return <div className="av office" style={{width:size,height:size,fontSize:size*0.42,borderRadius:Math.round(size*0.27)}} onClick={onClick}>{(p.handle||"O").replace(/^@/,"")[0].toUpperCase()}</div>;
+  if(p.office){
+    const r=Math.round(size*0.27);
+    if(p.img)return <img className="av" src={p.img} style={{width:size,height:size,borderRadius:r,imageRendering:"auto"}} alt="" onClick={onClick}/>;
+    return <div className="av office" style={{width:size,height:size,fontSize:size*0.42,borderRadius:r}} onClick={onClick}>{(p.handle||"O").replace(/^@/,"")[0].toUpperCase()}</div>;
+  }
   return <img className="av" src={mcFace(p.mc||p.handle,size)} style={{width:size,height:size}} alt="" onClick={onClick}/>;
+}
+function ImagePick({label,hint,value,height,onPick,onClear,busy}){
+  const ref=useRef(null);
+  return <div className="field">
+    <label>{label}</label>
+    <div className="pickrow">
+      <div className="prev" style={{height:height||70,backgroundImage:value?"url("+value+")":"none"}}>{!value&&<span className="hint">nothing set</span>}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-start"}}>
+        <button className="btn sec sm" disabled={busy} onClick={()=>ref.current&&ref.current.click()}>{busy?"Working…":(value?"Replace image":"Choose image")}</button>
+        {value&&<button className="btn warn sm" onClick={onClear}>Remove</button>}
+        <span className="hint">{hint}</span>
+      </div>
+    </div>
+    <input ref={ref} type="file" accept="image/*" style={{display:"none"}}
+      onChange={e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)onPick(f);}}/>
+  </div>;
 }
 function Confirm({open,title,body,confirmLabel,danger,onYes,onNo}){
   if(!open)return null;
@@ -521,13 +573,13 @@ function Thread({id,ctx,acts}){
   </div>;
 }
 
-function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,onMessage,note}){
+function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onSaveBanner,onVerify,onMessage,note}){
   // office=true → an office account handle; else a person username
   const oa=office?ctx.officeByHandle(handle):null;
   const acc=office?null:ctx.accounts[String(handle||"").toLowerCase()];
   const name=office?(oa?oa.displayName:handle):((acc&&(acc.displayName||acc.username))||handle);
   const bio=office?(oa?oa.bio:""):ctx.bioOf(handle);
-  const p=office?{office:true,handle:oa?oa.handle:handle,name}:{handle,name,mc:(acc&&(acc.mcName||acc.username))||handle};
+  const p=office?{office:true,handle:oa?oa.handle:handle,name,img:oa&&oa.avatar}:{handle,name,mc:(acc&&(acc.mcName||acc.username))||handle};
   const badges=office?ctx.officeBadges(oa):ctx.userBadges(handle);
   const isMe=!office&&me&&String(handle||"").toLowerCase()===String(me.username||"").toLowerCase();
   const verified=!office&&ctx.verifiedSet.has(String(handle||"").toLowerCase());
@@ -544,6 +596,25 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,onMessage,n
   const heldOfficeLabels=useMemo(()=>{const out=[];held.forEach(o=>(o.offices||[]).forEach(id=>{if(vwOfficeMatches(id,acc,ctx.data))out.push(vwOfficeLabel(id));}));return [...new Set(out)];},[held,acc,ctx.data]);
   const holder=office&&oa?(oa.offices||[]).map(id=>vwOfficeHolder(id,ctx.data,ctx.accounts)).filter(Boolean)[0]:"";
 
+  /* banners: a player uploads one, an administrator approves it. The approval
+     records the exact upload it applies to, so replacing the image sends the new
+     one back through review instead of inheriting the old permission. */
+  const rec=office?null:ctx.profileRec(u);
+  const bannerData=office?(oa&&oa.banner)||"":(rec&&rec.banner)||"";
+  const bannerAt=(rec&&rec.bannerAt)||0;
+  const appr=office?null:ctx.banners[u];
+  const approved=!!appr&&appr.approvedAt===bannerAt&&!!bannerAt;
+  const rejected=!!appr&&appr.rejectedAt===bannerAt&&!!bannerAt;
+  const bannerState=office?"":(!bannerData?"none":approved?"ok":rejected?"rejected":"pending");
+  const coverShown=office?!!bannerData:(!!bannerData&&(approved||isMe||admin));
+  const [banBusy,setBanBusy]=useState(false);
+  const fileRef=useRef(null);
+  const pickBanner=async f=>{setBanBusy(true);
+    try{const data=await shrinkImage(f,BANNER_W,BANNER_H,0.78);const r=await onSaveBanner(data);
+      note(r.ok?"Banner uploaded — an administrator will review it.":(r.error||"Refused"),r.ok?"ok":"bad");}
+    catch(e){note(e.message||"Could not use that image.","bad");}
+    setBanBusy(false);};
+
   const shown=useMemo(()=>{
     let list;
     if(tab==="posts")list=mine.filter(pp=>!pp.replyTo&&!(pp.repostOf&&!String(pp.text||"").trim()));
@@ -553,7 +624,18 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,onMessage,n
     return list.slice().sort((a,b)=>(b.at||0)-(a.at||0));},[mine,asOfficePosts,tab]);
 
   return <div>
-    <div className="cover"/>
+    <div className="coverwrap">
+      <div className="cover" style={coverShown?{backgroundImage:"url("+bannerData+")"}:null}/>
+      {bannerState==="pending"&&(isMe||admin)&&<span className="bstate wait">AWAITING APPROVAL — ONLY YOU AND ADMINISTRATORS SEE THIS</span>}
+      {bannerState==="rejected"&&(isMe||admin)&&<span className="bstate no">REFUSED BY AN ADMINISTRATOR — TRY ANOTHER IMAGE</span>}
+      {isMe&&<div className="coverctl">
+        <button className="btn sec sm" disabled={banBusy} onClick={()=>fileRef.current&&fileRef.current.click()}>
+          <span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="image" s={15}/>{banBusy?"Uploading…":(bannerData?"Change banner":"Add banner")}</span></button>
+        {bannerData&&<button className="btn sec sm" disabled={banBusy} onClick={async()=>{const r=await onSaveBanner("");note(r.ok?"Banner removed.":(r.error||"Refused"),r.ok?"ok":"bad");}}>Remove</button>}
+        <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}}
+          onChange={e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)pickBanner(f);}}/>
+      </div>}
+    </div>
     <div className="profhd">
       <div className="top">
         <div style={{border:"3px solid var(--bg)",borderRadius:office?18:"50%",lineHeight:0}}><Avatar p={p} size={80}/></div>
@@ -682,7 +764,7 @@ function Search({q,ctx,acts,onQuery}){
       <div className="grp" style={{margin:"4px 0 2px"}}>Offices</div>
       {offices.map(o=>{const holder=(o.offices||[]).map(id=>vwOfficeHolder(id,ctx.data,ctx.accounts)).filter(Boolean)[0];
         return <button key={o.id} className="uitem" onClick={()=>acts.profile({office:true,handle:o.handle})}>
-          <Avatar p={{office:true,handle:o.handle}} size={40}/>
+          <Avatar p={{office:true,handle:o.handle,img:o.avatar}} size={40}/>
           <span><span className="nm">{o.displayName}<Badge check="verified" globe={isWorldLeaderOffice(o)}/></span>
             <span className="hn" style={{display:"block"}}>@{o.handle}{holder?" · held by @"+holder:" · vacant"}</span></span>
         </button>;})}
@@ -786,13 +868,23 @@ function Messages({ctx,me,onSend,onRead,seenDM,initialOpen,note}){
 /* ══════════════════════════════════════════════════════════════════════════════
    ADMIN — office accounts, verification, word filter
    ══════════════════════════════════════════════════════════════════════════════ */
-function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
+function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,onSetBanner,ask,note}){
   const accounts=ctx.officeAccounts;
   const [tab,setTab]=useState("offices");
   const [edit,setEdit]=useState(null);   // null | office-account object
   const [newWord,setNewWord]=useState("");
   const [newVer,setNewVer]=useState("");
   const [filter,setFilter]=useState("");
+  const [imgBusy,setImgBusy]=useState("");
+  const bans=ctx.banners;
+  const pendingBanners=ctx.profileRecs.filter(({u,rec})=>rec.banner&&rec.bannerAt&&
+    !(bans[u]&&(bans[u].approvedAt===rec.bannerAt||bans[u].rejectedAt===rec.bannerAt)));
+  const liveBanners=ctx.profileRecs.filter(({u,rec})=>rec.banner&&rec.bannerAt&&bans[u]&&bans[u].approvedAt===rec.bannerAt);
+  const nameOfU=u=>{const a=ctx.accounts[u];return (a&&(a.displayName||a.username))||u;};
+  const pickFor=async(file,which,w,h,q)=>{setImgBusy(which);
+    try{const data=await shrinkImage(file,w,h,q);setEdit(e=>({...e,[which]:data}));}
+    catch(err){note(err.message||"Could not use that image.","bad");}
+    setImgBusy("");};
   const avail=useMemo(()=>vwAvailableOffices(ctx.data),[ctx.data]);
   const pick=useMemo(()=>{
     if(!edit)return avail;
@@ -832,6 +924,7 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
   const subnav=<div className="subnav">
     <button className={tab==="offices"?"on":""} onClick={()=>{setTab("offices");setEdit(null);}}><Ic n="landmark" s={15}/>Offices <span style={{opacity:.7}}>{list.length}</span></button>
     <button className={tab==="verified"?"on":""} onClick={()=>setTab("verified")}><Ic n="badge-check" s={15}/>Verified <span style={{opacity:.7}}>{verifiedList.length}</span></button>
+    <button className={tab==="banners"?"on":""} onClick={()=>setTab("banners")}><Ic n="image" s={15}/>Banners{pendingBanners.length>0&&<span style={{background:"var(--brand)",color:"#fff",borderRadius:999,padding:"0 7px",fontSize:11}}>{pendingBanners.length}</span>}</button>
     <button className={tab==="words"?"on":""} onClick={()=>setTab("words")}><Ic n="filter" s={15}/>Word filter <span style={{opacity:.7}}>{words.length}</span></button>
     {tab==="offices"&&!edit&&<button style={{marginLeft:"auto",background:"var(--brand)",color:"#fff",fontWeight:800}} onClick={()=>setEdit(blank())}><Ic n="plus" s={15}/>New office</button>}
   </div>;
@@ -850,6 +943,44 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
           onYes:async()=>{const r=await onSetVerified(u,false);if(!r.ok)note(r.error||"Refused","bad");else note("Removed.","");}})}>Remove</button></div>;})}
   </div></div>;
 
+  if(tab==="banners")return <div>{subnav}<div style={{padding:"16px 16px 0"}}>
+    <h2 style={{fontSize:20,fontWeight:800}}>Profile banners</h2>
+    <p style={{fontSize:14,color:"var(--ink2)",marginBottom:6}}>Players upload a banner from their own profile; it stays hidden from everybody else until you approve it here. Approval applies to that exact image — if the player replaces it, the new one comes back for review.</p>
+  </div>
+    <div className="grp" style={{margin:"14px 16px 4px"}}>Waiting for approval — {pendingBanners.length}</div>
+    {pendingBanners.length===0?<div className="empty" style={{padding:"26px 16px"}}>Nothing waiting.</div>
+      :pendingBanners.map(({u,rec})=><div key={u} className="banrow">
+        <div className="banprev" style={{backgroundImage:"url("+rec.banner+")"}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <button className="uitem" style={{padding:0}} onClick={()=>ctx.goProfile(u)}>
+            <Avatar p={{handle:u,mc:u}} size={28}/>
+            <span><span className="nm">{nameOfU(u)}</span><span className="hn" style={{display:"block"}}>@{u}</span></span>
+          </button>
+          <div className="meta" style={{marginTop:6,fontSize:12}}><span><Ic n="clock" s={13}/>uploaded {timeAgo(rec.bannerAt)} ago</span>
+            {bans[u]&&bans[u].rejectedAt?<span style={{color:"var(--amber)"}}>a previous upload was refused</span>:null}</div>
+        </div>
+        <div style={{display:"flex",gap:8,flex:"none"}}>
+          <button className="btn sm" onClick={async()=>{const r=await onSetBanner(u,"approve",rec.bannerAt);note(r.ok?"Banner approved.":(r.error||"Refused"),r.ok?"ok":"bad");}}>Approve</button>
+          <button className="btn warn sm" onClick={()=>ask({title:"Refuse this banner?",body:"@"+u+" will be told to try another image. Nothing else on their profile changes.",
+            confirmLabel:"Refuse",danger:true,onYes:async()=>{const r=await onSetBanner(u,"reject",rec.bannerAt);note(r.ok?"Refused.":(r.error||"Refused"),r.ok?"":"bad");}})}>Refuse</button>
+        </div>
+      </div>)}
+    <div className="grp" style={{margin:"18px 16px 4px"}}>Live on profiles — {liveBanners.length}</div>
+    {liveBanners.length===0?<div className="empty" style={{padding:"26px 16px"}}>None approved yet.</div>
+      :liveBanners.map(({u,rec})=><div key={u} className="banrow">
+        <div className="banprev" style={{backgroundImage:"url("+rec.banner+")"}}/>
+        <div style={{flex:1,minWidth:0}}>
+          <button className="uitem" style={{padding:0}} onClick={()=>ctx.goProfile(u)}>
+            <Avatar p={{handle:u,mc:u}} size={28}/>
+            <span><span className="nm">{nameOfU(u)}</span><span className="hn" style={{display:"block"}}>@{u}</span></span>
+          </button>
+          <div className="meta" style={{marginTop:6,fontSize:12}}><span className="state ok">APPROVED</span></div>
+        </div>
+        <button className="btn warn sm" style={{flex:"none"}} onClick={()=>ask({title:"Take this banner down?",body:"@"+u+"'s banner stops showing to everyone else until it is approved again.",
+          confirmLabel:"Take down",danger:true,onYes:async()=>{const r=await onSetBanner(u,"revoke",rec.bannerAt);note(r.ok?"Taken down.":(r.error||"Refused"),r.ok?"":"bad");}})}>Take down</button>
+      </div>)}
+  </div>;
+
   if(tab==="words")return <div>{subnav}<div style={{padding:16}}>
     <h2 style={{fontSize:20,fontWeight:800}}>Word filter</h2>
     <p style={{fontSize:14,color:"var(--ink2)",marginBottom:14}}>Posts and replies containing any of these words (whole-word, case-insensitive) are refused. The list is visible only to administrators.</p>
@@ -866,6 +997,10 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
     <div className="field"><label>Handle</label><input value={edit.handle} onChange={e=>setEdit({...edit,handle:e.target.value})} placeholder="e.g. HomeOffice"/></div>
     <div className="field"><label>Display name</label><input value={edit.displayName} maxLength={DNAME_MAX} onChange={e=>setEdit({...edit,displayName:e.target.value})} placeholder="e.g. The Home Office"/></div>
     <div className="field"><label>Bio</label><textarea value={edit.bio} maxLength={BIO_MAX} onChange={e=>setEdit({...edit,bio:e.target.value})} style={{minHeight:60,resize:"vertical"}} placeholder="What this account is."/></div>
+    <ImagePick label="Profile picture" hint="Square. Shown wherever this office posts." height={110} value={edit.avatar||""} busy={imgBusy==="avatar"}
+      onPick={f=>pickFor(f,"avatar",PFP_SIZE,PFP_SIZE,0.86)} onClear={()=>setEdit({...edit,avatar:""})}/>
+    <ImagePick label="Banner" hint="Wide. Shown at the top of the office profile. Office images need no approval — you are setting them." height={70} value={edit.banner||""} busy={imgBusy==="banner"}
+      onPick={f=>pickFor(f,"banner",BANNER_W,BANNER_H,0.78)} onClear={()=>setEdit({...edit,banner:""})}/>
     <div className="field"><label>Which office may post as this account</label>
       <p style={{fontSize:13,color:"var(--ink2)",marginBottom:8}}>Whoever currently holds a ticked office can sign in as this account and post as it. Cabinet and ministerial posts are read live from each nation's register — the current holder is named beside each one, so you can see at a glance whether ticking it reaches anybody.</p>
       {Object.entries(groups).map(([g,l])=><div key={g}><div className="grp">{g}</div>
@@ -885,7 +1020,7 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
     {list.length===0?<div className="empty">No office accounts yet. Create one for an office.</div>
       :rows.length===0?<div className="empty">Nothing matches that filter.</div>
       :rows.map(({oa,ids,holders,filled,posts})=><div key={oa.id} className="post" style={{alignItems:"flex-start"}}>
-        <Avatar p={{office:true,handle:oa.handle}} size={40}/>
+        <Avatar p={{office:true,handle:oa.handle,img:oa.avatar}} size={40}/>
         <div className="body">
           <div className="phead">
             <span className="nm" onClick={()=>ctx.goOffice(oa.handle)}>{oa.displayName}</span>
@@ -965,6 +1100,11 @@ function App(){
   const postMap=useMemo(()=>{const m={};posts.forEach(p=>{m[p.id]=p;});return m;},[posts]);
   const bioOf=useCallback(u=>{const r=raw["vw_profile_"+String(u||"").toLowerCase()];return (r&&r.bio)||"";},[raw]);
   const verifiedSet=useMemo(()=>new Set(Object.entries(raw["vw_verified"]||{}).filter(([,v])=>v).map(([k])=>String(k).toLowerCase())),[raw]);
+  const bannerApprovals=useMemo(()=>raw["vw_banners"]||{},[raw]);
+  const profileRecs=useMemo(()=>Object.entries(raw).filter(([k])=>k.indexOf("vw_profile_")===0)
+    .map(([k,v])=>({u:k.slice(11),rec:v||{}})).filter(x=>x.u),[raw]);
+  const pendingBanners=useMemo(()=>profileRecs.filter(({u,rec})=>rec.banner&&rec.bannerAt&&
+    !(bannerApprovals[u]&&(bannerApprovals[u].approvedAt===rec.bannerAt||bannerApprovals[u].rejectedAt===rec.bannerAt))),[profileRecs,bannerApprovals]);
 
   const myOffices=useMemo(()=>me?Object.values(officeAccounts).filter(oa=>vwUserControls(me,oa,raw)):[],[me,officeAccounts,raw]);
   const identities=useMemo(()=>{if(!me)return [];
@@ -977,9 +1117,11 @@ function App(){
 
   const ctx=useMemo(()=>({
     me,accounts,officeAccounts,posts,dms,data:raw,verifiedSet,goProfile,goOffice,
+    banners:bannerApprovals,profileRecs,
+    profileRec:u=>raw["vw_profile_"+String(u||"").toLowerCase()]||{},
     byId:id=>postMap[id],
     poster:post=>{if(post.asOffice&&officeAccounts[post.asOffice]){const oa=officeAccounts[post.asOffice];
-        return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle,check:"verified",globe:isWorldLeaderOffice(oa)};}
+        return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle,img:oa.avatar||"",check:"verified",globe:isWorldLeaderOffice(oa)};}
       const a=accounts[String(post.author||"").toLowerCase()];
       return {handle:post.author,name:(a&&(a.displayName||a.username))||post.author,mc:(a&&(a.mcName||a.username))||post.author,
         check:userCheck(a,verifiedSet),globe:a?isWorldLeaderUser(a,raw):false};},
@@ -991,7 +1133,7 @@ function App(){
     iRepostedOf:id=>!!(me&&posts.find(p=>p.repostOf===id&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase())),
     officeByHandle:h=>Object.values(officeAccounts).find(o=>String(o.handle||"").toLowerCase()===String(h||"").replace(/^@/,"").toLowerCase()),
     bioOf,
-  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw,verifiedSet,goProfile,goOffice]);
+  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw,verifiedSet,goProfile,goOffice,bannerApprovals,profileRecs]);
 
   const patch=(k,v)=>setRaw(r=>({...r,[k]:v}));
   const cooldown=lastPost?Math.max(0,Math.ceil((RATE_MS-(nowTick-lastPost))/1000)):0;
@@ -1013,8 +1155,20 @@ function App(){
   const del=useCallback(post=>{ask({title:"Delete this post?",
     body:String(post.text||"").slice(0,140)||"This repost will be removed.",confirmLabel:"Delete",danger:true,
     onYes:async()=>{const r=await sdel("vw_post_"+post.id);if(r.ok){await loadAll();note("Deleted.","");}else note(r.error||"Refused","bad");}});},[loadAll,note,ask]);
-  const saveBio=useCallback(async bio=>{if(!me)return{ok:false};const key="vw_profile_"+String(me.username||"").toLowerCase();
-    const rec={bio,updatedAt:Date.now()};const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
+  const saveProfile=useCallback(async fields=>{if(!me)return{ok:false};
+    const u=String(me.username||"").toLowerCase(),key="vw_profile_"+u;
+    const rec={...(raw[key]||{}),...fields,updatedAt:Date.now()};
+    const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me,raw]);
+  const saveBio=useCallback(bio=>saveProfile({bio}),[saveProfile]);
+  // a fresh upload always resets approval, because the approval is tied to bannerAt
+  const saveBanner=useCallback(data=>saveProfile(data?{banner:data,bannerAt:Date.now()}:{banner:"",bannerAt:0}),[saveProfile]);
+  const setBannerApproval=useCallback(async(username,mode,bannerAt)=>{
+    const u=String(username||"").toLowerCase();if(!u)return{ok:false};
+    const map={...(raw["vw_banners"]||{})};const by=String((me&&me.username)||"").toLowerCase();
+    if(mode==="approve")map[u]={approvedAt:bannerAt,at:Date.now(),by};
+    else if(mode==="reject")map[u]={rejectedAt:bannerAt,at:Date.now(),by};
+    else delete map[u];
+    const r=await sset("vw_banners",map);if(r.ok)patch("vw_banners",map);else await loadAll();return r;},[raw,me,loadAll]);
   const sendDM=useCallback(async(to,text)=>{if(!me)return{ok:false};const id="d_"+uid();const key="vw_dm_"+id;
     const rec={id,from:String(me.username||"").toLowerCase(),fromOffice:"",to:String(to||"").toLowerCase(),text,at:Date.now()};
     const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
@@ -1050,7 +1204,7 @@ function App(){
     {id:"messages",ic:"mail",label:"Messages",count:dmUnseen},
     {id:"search",ic:"search",label:"Explore"},
     me&&{id:"myprofile",ic:"user",label:"Profile"},
-    admin&&{id:"admin",ic:"wrench",label:"Administration"}
+    admin&&{id:"admin",ic:"wrench",label:"Administration",count:pendingBanners.length}
   ].filter(Boolean);
   const goNav=id=>{setMenu(false);
     if(id==="myprofile"){if(me)setRoute({name:"profile",handle:me.username});else setSignIn(true);return;}
@@ -1073,7 +1227,7 @@ function App(){
     const nm=route.office?(ctx.officeByHandle(route.handle)||{}).displayName||route.handle:((accounts[String(route.handle).toLowerCase()]||{}).displayName||route.handle);
     header=<><button className="back" onClick={()=>setRoute({name:"home"})} title="Back"><Ic n="arrow-left" s={17}/></button>
       <div><h1 style={{fontSize:17}}>{nm}</h1><div className="sub">@{route.handle}</div></div>{searchBox}</>;
-    content=<Profile handle={route.handle} office={route.office} ctx={ctx} acts={acts} me={me} admin={admin} onSaveBio={saveBio} onVerify={setVerified}
+    content=<Profile handle={route.handle} office={route.office} ctx={ctx} acts={acts} me={me} admin={admin} onSaveBio={saveBio} onSaveBanner={saveBanner} onVerify={setVerified}
       onMessage={u=>setRoute({name:"messages",dm:u})} note={note}/>;}
   else if(route.name==="messages"){
     header=<><h1>Messages</h1>{dmUnseen>0&&<span className="badge" style={{background:"var(--brand)",color:"#fff",fontSize:12,fontWeight:700,borderRadius:999,padding:"1px 8px"}}>{dmUnseen} unread</span>}</>;
@@ -1087,7 +1241,7 @@ function App(){
     content=<Search q={route.q!==undefined?route.q:query} ctx={ctx} acts={acts} onQuery={runSearch}/>;}
   else if(route.name==="admin"){
     header=<><h1>Administration</h1><span className="state" style={{color:"var(--red)",border:"1px solid rgba(244,52,78,.5)"}}>ADMIN ONLY</span>{searchBox}</>;
-    content=admin?<AdminOffices ctx={ctx} onSave={saveOffices} onSaveProfanity={saveProfanity} onSetVerified={setVerified} ask={ask} note={note}/>
+    content=admin?<AdminOffices ctx={ctx} onSave={saveOffices} onSaveProfanity={saveProfanity} onSetVerified={setVerified} onSetBanner={setBannerApproval} ask={ask} note={note}/>
       :<div className="empty">Administrators only.</div>;}
   else {
     header=<><h1>Home</h1>
@@ -1148,7 +1302,7 @@ function App(){
         {officeList.length===0?<div style={{color:"var(--ink3)",fontSize:14}}>None yet.</div>
           :officeList.slice(0,6).map(oa=>{const holder=(oa.offices||[]).map(id=>vwOfficeHolder(id,raw,accounts)).filter(Boolean)[0];
             return <button key={oa.id} className="uitem" onClick={()=>goOffice(oa.handle)}>
-              <Avatar p={{office:true,handle:oa.handle}} size={38}/>
+              <Avatar p={{office:true,handle:oa.handle,img:oa.avatar}} size={38}/>
               <span><span className="nm">{oa.displayName}<Badge check="verified" globe={isWorldLeaderOffice(oa)}/></span>
                 <span className="hn" style={{display:"block"}}>{holder?"held by @"+holder:<span style={{color:"var(--amber)"}}>vacant</span>}</span></span>
             </button>;})}
