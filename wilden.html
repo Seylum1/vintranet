@@ -549,6 +549,12 @@ function HomeTab({sovereign,pm,speaker,commons,lords,justices,bills,onGo,me}){
     <p className="lede">Wilden is a sovereign, independent and democratic constitutional monarchy.
       Use this service to follow Parliament, the Government and the courts.</p>
 
+    <div className="card" style={{borderTopColor:"var(--blue)",marginBottom:22}}>
+      <h3 style={{marginTop:0}}><a href="welections.html">General election — the House of Commons ↗</a></h3>
+      <p style={{fontSize:15,marginBottom:0}}>Stand as a candidate, cast your vote, and follow the live count for the
+        seven seats of the House of Commons. Each citizen has one vote; the seven with the most votes are returned. <Cite>s17–18</Cite></p>
+    </div>
+
     {me&&<MyStanding {...me}/>}
 
     {forAssent>0&&<Notif title="Awaiting the Royal Assent">
@@ -1220,11 +1226,14 @@ function GovRail({sections,tab,onTab,gov,current}){
           {open&&WX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current} sub/>)}
         </React.Fragment>;
       })}
+      <div className="grail-grp">Take part</div>
+      <a className="grail-i" href="welections.html"><span className="grail-dot" style={{background:"var(--blue)"}}/>General election<span className="grail-ar">↗</span></a>
     </>}
     {!hub&&<>
       <div className="grail-grp">Departments</div>
       <a className="grail-i" href="wilden.html">← Government services</a>
       {WX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current}/>)}
+      <a className="grail-i" href="welections.html"><span className="grail-dot" style={{background:"var(--blue)"}}/>General election<span className="grail-ar">↗</span></a>
     </>}
   </nav>;
 }
