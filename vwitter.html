@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -17,6 +18,7 @@
   --ink:#e7e9ea; --ink2:#9aa4b0; --ink3:#6b7480;
   --brand:#6d5cff; --brandD:#5646e0; --brandL:#9d90ff;
   --blue:#4a9eff; --green:#00ba7c; --red:#f4344e; --amber:#ffb020;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 html,body{height:100%;}
 body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif;
@@ -24,101 +26,162 @@ body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,syste
 button{font-family:inherit;cursor:pointer;}
 a{color:var(--brandL);text-decoration:none;} a:hover{text-decoration:underline;}
 ::-webkit-scrollbar{width:10px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
-.shell{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:0;min-height:100vh;}
+.shell{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:236px minmax(0,1fr) 300px;gap:0;min-height:100vh;}
+svg.ic{display:block;flex:none;}
 /* ── left rail ── */
-.rail{border-right:1px solid var(--line);padding:14px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;}
-.logo{font-size:26px;font-weight:900;letter-spacing:-.03em;color:var(--brandL);padding:8px 12px 14px;display:flex;align-items:center;gap:8px;}
-.logo .v{background:var(--brand);color:#fff;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;}
-.navi{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:999px;font-size:17px;font-weight:600;color:var(--ink);background:none;border:0;width:100%;text-align:left;}
-.navi:hover{background:var(--panelH);}
-.navi.on{font-weight:800;}
-.navi .ic{font-size:20px;width:22px;text-align:center;}
-.navi .badge{margin-left:auto;background:var(--brand);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:1px 7px;}
-.postbtn{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:13px;font-size:16px;font-weight:800;margin-top:10px;width:100%;}
+.rail{border-right:1px solid var(--line);padding:14px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:2px;}
+.logo{font-size:24px;font-weight:900;letter-spacing:-.03em;color:var(--ink);padding:8px 12px 16px;display:flex;align-items:center;gap:10px;}
+.logo .v{background:var(--brand);color:#fff;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;}
+.navi{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:10px;font-size:16px;font-weight:600;color:var(--ink2);background:none;border:0;width:100%;text-align:left;}
+.navi:hover{background:var(--panelH);color:var(--ink);}
+.navi.on{font-weight:800;color:var(--ink);background:var(--panelH);}
+.navi .badge{margin-left:auto;background:var(--brand);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;}
+.postbtn{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:800;margin-top:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;}
 .postbtn:hover{background:var(--brandD);}
-.railfoot{margin-top:auto;padding:8px 6px;}
-.me-chip{display:flex;align-items:center;gap:10px;padding:9px;border-radius:999px;background:none;border:0;width:100%;text-align:left;}
-.me-chip:hover{background:var(--panelH);}
-.me-chip .nm{font-weight:700;font-size:14px;line-height:1.2;} .me-chip .hn{font-size:13px;color:var(--ink2);}
+.railfoot{margin-top:auto;position:relative;}
+.me-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);width:100%;text-align:left;color:var(--ink);}
+.me-chip:hover{border-color:var(--lineL);}
+.me-chip .nm{font-weight:700;font-size:14px;line-height:1.2;} .me-chip .hn{font-size:12px;color:var(--ink2);}
+.me-chip .caret{margin-left:auto;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;background:var(--panelH);color:var(--ink2);flex:none;}
+.menu{position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:var(--bg2);border:1px solid var(--lineL);border-radius:12px;padding:6px;z-index:60;box-shadow:0 14px 44px rgba(0,0,0,.55);}
+.menu .mlabel{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink3);padding:5px 8px 6px;}
+.menu button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;color:var(--ink);font-size:14px;font-weight:600;padding:8px;border-radius:8px;text-align:left;}
+.menu button:hover{background:var(--panelH);}
+.menu button.danger{color:var(--red);}
 /* ── centre column ── */
 .col{border-right:1px solid var(--line);min-height:100vh;}
-.colhd{position:sticky;top:0;z-index:5;background:rgba(13,15,19,.82);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
-  padding:14px 16px;display:flex;align-items:center;gap:14px;}
-.colhd h1{font-size:19px;font-weight:800;} .colhd .sub{font-size:13px;color:var(--ink2);}
-.colhd .back{background:none;border:0;color:var(--ink);font-size:20px;padding:2px 6px;border-radius:999px;}
+.colhd{position:sticky;top:0;z-index:5;background:rgba(13,15,19,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+  padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.colhd h1{font-size:19px;font-weight:800;} .colhd .sub{font-size:12px;color:var(--ink3);}
+.colhd .back{background:var(--bg2);border:1px solid var(--line);color:var(--ink);display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;flex:none;}
 .colhd .back:hover{background:var(--panelH);}
+.hdsearch{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;min-width:210px;}
+.hdsearch:focus-within{border-color:var(--brand);}
+.hdsearch input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font:inherit;font-size:14px;outline:none;}
+.seg{display:flex;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:2px;}
+.seg button{background:none;border:0;color:var(--ink2);font-size:13px;font-weight:600;padding:4px 12px;border-radius:999px;}
+.seg button.on{background:var(--brand);color:#fff;font-weight:700;}
 /* ── avatars ── */
 .av{border-radius:50%;flex:none;object-fit:cover;image-rendering:pixelated;background:var(--panelH);}
 .av.office{border-radius:12px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;}
 /* ── composer ── */
 .composer{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);}
-.composer textarea{flex:1;background:none;border:0;color:var(--ink);font:inherit;font-size:19px;resize:none;outline:none;min-height:52px;padding-top:8px;}
-.composer .foot{display:flex;align-items:center;gap:12px;margin-top:8px;justify-content:flex-end;}
+.composer textarea{width:100%;background:none;border:0;color:var(--ink);font:inherit;font-size:19px;resize:none;outline:none;min-height:52px;padding-top:4px;}
+.composer .foot{display:flex;align-items:center;gap:12px;margin-top:6px;}
 .count{font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums;} .count.over{color:var(--red);}
-.idsel{background:var(--panelH);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;}
+.idents{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.idents .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink3);}
+.pill{display:flex;align-items:center;gap:7px;background:none;border:1px solid var(--lineL);border-radius:999px;padding:3px 11px 3px 3px;font-size:13px;font-weight:600;color:var(--ink2);}
+.pill:hover{border-color:var(--brandL);color:var(--ink);}
+.pill.on{background:var(--panelH);border-color:var(--brand);color:var(--ink);font-weight:700;}
+.pill .sq{width:22px;height:22px;border-radius:7px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none;}
+.hint{font-size:12px;color:var(--ink3);font-family:var(--mono);}
 .btn{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:9px 18px;font-weight:800;font-size:15px;}
 .btn:hover{background:var(--brandD);} .btn[disabled]{opacity:.5;cursor:default;}
 .btn.sec{background:var(--panelH);color:var(--ink);border:1px solid var(--lineL);} .btn.sec:hover{background:var(--line);}
 .btn.warn{background:none;color:var(--red);border:1px solid var(--red);} .btn.warn:hover{background:rgba(244,52,78,.12);}
-.btn.sm{padding:6px 13px;font-size:13px;}
+.btn.sm{padding:7px 15px;font-size:13px;}
+.iconbtn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--panelH);border:1px solid var(--lineL);color:var(--ink2);}
+.iconbtn:hover{color:var(--ink);} .iconbtn.danger{background:none;border-color:rgba(244,52,78,.45);color:var(--red);}
 /* ── post ── */
-.post{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);}
+.post{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);}
 .post:hover{background:#0f1216;} .post.clk{cursor:pointer;}
+.post .gutter{display:flex;flex-direction:column;align-items:center;flex:none;gap:6px;}
+.post .rail2{width:2px;flex:1;background:var(--line);border-radius:1px;min-height:8px;}
 .post .body{flex:1;min-width:0;}
-.post .rp{font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.rp{font-size:13px;color:var(--ink2);font-weight:500;margin-bottom:5px;display:flex;align-items:center;gap:6px;}
 .phead{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px;}
-.phead .nm{font-weight:700;color:var(--ink);} .phead .nm:hover{text-decoration:underline;}
-.phead .off{background:var(--brand);color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;letter-spacing:.02em;}
-.badges{display:inline-flex;align-items:center;gap:2px;vertical-align:middle;margin-left:1px;}
-.badges .bdg{flex:none;display:block;}
+.phead .nm{font-weight:700;color:var(--ink);cursor:pointer;} .phead .nm:hover{text-decoration:underline;}
+.phead .off{display:inline-flex;align-items:center;background:rgba(109,92,255,.18);color:var(--brandL);font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;letter-spacing:.03em;border:1px solid rgba(109,92,255,.45);}
+.phead .by{font-family:var(--mono);font-size:12px;color:var(--ink3);}
+.badges{display:inline-flex;align-items:center;gap:2px;vertical-align:middle;}
 .phead .hn{color:var(--ink2);} .phead .dot{color:var(--ink3);} .phead .tm{color:var(--ink2);}
-.ptext{font-size:15px;white-space:pre-wrap;word-wrap:break-word;margin:2px 0 4px;line-height:1.5;}
+.ptext{font-size:15px;white-space:pre-wrap;word-wrap:break-word;margin:3px 0 4px;line-height:1.5;}
 .quote{border:1px solid var(--lineL);border-radius:14px;padding:11px 13px;margin:8px 0;}
-.actions{display:flex;gap:6px;max-width:420px;justify-content:space-between;margin-top:6px;}
-.act{display:flex;align-items:center;gap:6px;background:none;border:0;color:var(--ink2);font-size:13px;padding:5px 8px;border-radius:999px;}
+.actions{display:flex;gap:4px;max-width:460px;justify-content:space-between;margin-top:8px;}
+.act{display:flex;align-items:center;gap:7px;background:none;border:0;color:var(--ink2);font-size:13px;padding:5px 9px;border-radius:999px;font-variant-numeric:tabular-nums;}
 .act:hover{color:var(--brandL);background:rgba(109,92,255,.12);}
 .act.rt:hover{color:var(--green);background:rgba(0,186,124,.12);} .act.rt.on{color:var(--green);}
 .act.del:hover{color:var(--red);background:rgba(244,52,78,.12);}
+.stats{display:flex;gap:18px;margin-top:12px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:14px;color:var(--ink2);}
+.stats strong{color:var(--ink);}
 /* ── right rail / generic ── */
-.side{padding:14px;position:sticky;top:0;height:100vh;overflow:auto;}
-.widget{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:16px;}
-.widget h3{font-size:17px;font-weight:800;margin-bottom:10px;}
-.searchbox{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:10px 16px;font:inherit;outline:none;margin-bottom:16px;}
-.searchbox:focus{border-color:var(--brand);}
-.uitem{display:flex;align-items:center;gap:10px;padding:8px 0;}
-.uitem .nm{font-weight:700;font-size:14px;} .uitem .hn{font-size:13px;color:var(--ink2);}
+.side{padding:14px;position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:14px;}
+.widget{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+.widget h3{font-size:16px;font-weight:800;margin-bottom:8px;}
+.uitem{display:flex;align-items:center;gap:10px;padding:7px 0;width:100%;background:none;border:0;text-align:left;color:var(--ink);}
+.uitem:hover .nm{text-decoration:underline;}
+.uitem .nm{font-weight:700;font-size:14px;display:flex;align-items:center;gap:3px;} .uitem .hn{font-size:12px;color:var(--ink2);}
 .empty{text-align:center;color:var(--ink3);padding:44px 16px;font-size:15px;}
 .field{margin-bottom:16px;} .field label{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
 .field input,.field textarea,.field select{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font:inherit;outline:none;}
 .field input:focus,.field textarea:focus{border-color:var(--brand);}
-.profhd{padding:16px;border-bottom:1px solid var(--line);}
-.profhd .row{display:flex;gap:16px;align-items:flex-start;}
-.profhd .nm{font-size:22px;font-weight:900;} .profhd .hn{color:var(--ink2);font-size:15px;}
-.profhd .bio{margin-top:10px;font-size:15px;white-space:pre-wrap;}
+.inline-in{background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font:inherit;outline:none;}
+.inline-in:focus{border-color:var(--brand);}
+.cover{height:74px;background:linear-gradient(120deg,var(--panelH),var(--panel));border-bottom:1px solid var(--line);}
+.profhd{padding:0 16px 16px;border-bottom:1px solid var(--line);}
+.profhd .top{display:flex;align-items:flex-end;gap:14px;margin-top:-28px;}
+.profhd .nm{font-size:22px;font-weight:900;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.profhd .hn{color:var(--ink2);font-size:15px;}
+.profhd .bio{margin-top:10px;font-size:15px;white-space:pre-wrap;line-height:1.5;}
+.meta{display:flex;gap:16px;margin-top:12px;font-size:13px;color:var(--ink2);font-family:var(--mono);flex-wrap:wrap;}
+.meta span{display:flex;align-items:center;gap:6px;}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;align-items:center;}
+.chip{display:inline-flex;align-items:center;gap:6px;background:rgba(109,92,255,.14);border:1px solid rgba(109,92,255,.45);color:var(--brandL);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;}
 .tabs{display:flex;border-bottom:1px solid var(--line);}
-.tabs button{flex:1;background:none;border:0;color:var(--ink2);font-weight:700;font-size:15px;padding:14px;position:relative;}
-.tabs button.on{color:var(--ink);} .tabs button.on::after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:4px;background:var(--brand);border-radius:2px;}
-.conv{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);align-items:center;}
-.conv:hover{background:#0f1216;cursor:pointer;} .conv.on{background:var(--panelH);}
-.conv .nm{font-weight:700;} .conv .pv{font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.bubble{max-width:74%;padding:9px 13px;border-radius:18px;margin:3px 16px;font-size:15px;white-space:pre-wrap;word-wrap:break-word;}
+.tabs button{flex:1;background:none;border:0;color:var(--ink2);font-weight:700;font-size:14px;padding:13px 8px;position:relative;}
+.tabs button.on{color:var(--ink);} .tabs button.on::after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:3px;background:var(--brand);border-radius:2px;}
+.subnav{display:flex;gap:2px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap;}
+.subnav button{display:flex;align-items:center;gap:7px;background:none;border:0;color:var(--ink2);font-size:13px;font-weight:600;padding:6px 12px;border-radius:8px;}
+.subnav button.on{background:var(--brand);color:#fff;font-weight:700;}
+.subnav button:hover:not(.on){background:var(--panelH);color:var(--ink);}
+.filterbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);}
+.filterbar .box{flex:1;display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;}
+.filterbar .box:focus-within{border-color:var(--brand);}
+.filterbar input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font:inherit;font-size:13px;outline:none;}
+.state{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:1px 8px;letter-spacing:.02em;}
+.state.ok{color:var(--green);border:1px solid rgba(0,186,124,.4);background:rgba(0,186,124,.1);}
+.state.vac{color:var(--amber);border:1px solid rgba(255,176,32,.45);background:rgba(255,176,32,.1);}
+.notif{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;color:var(--ink);align-items:flex-start;}
+.notif:hover{background:#0f1216;} .notif.unread{background:rgba(109,92,255,.07);}
+.notif .ni{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--panelH);color:var(--brandL);flex:none;}
+/* ── messages ── */
+.dmsplit{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:calc(100vh - 55px);}
+.dmlist{border-right:1px solid var(--line);display:flex;flex-direction:column;}
+.dmpane{display:flex;flex-direction:column;}
+.conv{display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;color:var(--ink);}
+.conv:hover{background:#0f1216;} .conv.on{background:var(--panelH);}
+.conv .nm{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.conv .pv{font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.conv .when{margin-left:auto;color:var(--ink3);font-size:11px;font-family:var(--mono);}
+.unreaddot{width:7px;height:7px;border-radius:50%;background:var(--brand);flex:none;}
+.daysep{text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink3);margin:10px 0;}
+.bubble{max-width:74%;padding:9px 13px;border-radius:16px;font-size:14px;white-space:pre-wrap;word-wrap:break-word;line-height:1.45;}
 .bubble.me{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:5px;}
 .bubble.them{background:var(--panelH);border-bottom-left-radius:5px;}
-.dmfoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--bg);}
-.dmfoot input{flex:1;background:var(--panelH);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:10px 16px;font:inherit;outline:none;}
+.bubble .bt{font-size:10px;opacity:.75;margin-top:4px;font-family:var(--mono);}
+.dmfoot{display:flex;gap:10px;padding:10px 14px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--bg);}
+.dmfoot input{flex:1;min-width:0;background:var(--panelH);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:9px 14px;font:inherit;outline:none;}
+.dmfoot input:focus{border-color:var(--brand);}
 .grp{font-size:12px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;}
 .chk{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;font-size:14px;}
 .chk:hover{background:var(--panelH);} .chk input{width:16px;height:16px;accent-color:var(--brand);}
+.chk .who{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3);}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9000;background:var(--panel);border:1px solid var(--lineL);color:var(--ink);
   padding:12px 20px;border-radius:12px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:90vw;text-align:center;}
 .toast.bad{border-color:var(--red);color:#ffb4bf;} .toast.ok{border-color:var(--green);}
 .modal-bg{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px;overflow:auto;}
-.modal{background:var(--bg);border:1px solid var(--line);border-radius:18px;max-width:600px;width:100%;}
+.modal{background:var(--bg);border:1px solid var(--lineL);border-radius:18px;max-width:600px;width:100%;box-shadow:0 20px 70px rgba(0,0,0,.6);}
 .modal .mh{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line);}
 .modal .mh h2{font-size:18px;font-weight:800;} .modal .mb{padding:16px;}
 .tag{display:inline-block;background:var(--panelH);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;color:var(--ink2);margin:2px 4px 2px 0;}
-@media(max-width:1000px){.shell{grid-template-columns:70px minmax(0,1fr);} .side{display:none;} .logo span,.navi span,.me-chip .txt{display:none;} .navi{justify-content:center;} .postbtn{font-size:0;padding:14px;} .postbtn::after{content:"+";font-size:22px;}}
-@media(max-width:640px){.shell{grid-template-columns:1fr;} .rail{position:sticky;bottom:0;top:auto;height:auto;flex-direction:row;border-right:0;border-top:1px solid var(--line);order:2;} .logo,.railfoot,.postbtn{display:none;} .navi{flex:1;}}
+@media(max-width:1000px){.shell{grid-template-columns:70px minmax(0,1fr);} .side{display:none;} .logo span:not(.v),.navi span:not(.badge),.me-chip .txt{display:none;}
+  .navi{justify-content:center;} .postbtn span{display:none;} .menu{left:0;right:auto;width:210px;}
+  .hdsearch{min-width:0;width:150px;}
+  .railfoot .btn{font-size:0;padding:12px;} .railfoot .btn::after{content:"→";font-size:18px;}}
+@media(max-width:760px){.dmsplit{grid-template-columns:1fr;} .dmsplit.open .dmlist{display:none;} .dmsplit:not(.open) .dmpane{display:none;}}
+@media(max-width:640px){.shell{grid-template-columns:1fr;} .rail{position:sticky;bottom:0;top:auto;height:auto;flex-direction:row;border-right:0;border-top:1px solid var(--line);order:2;z-index:50;background:var(--bg);}
+  .logo,.railfoot,.postbtn{display:none;} .navi{flex:1;}}
 </style>
 </head>
 <body>
@@ -152,6 +215,14 @@ async function sdel(k){try{const r=await fetch(API+"/api/unset",{method:"POST",h
 async function slogin(u,p){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(u||"").trim(),password:p})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 
 const POST_MAX=280, BIO_MAX=160, DM_MAX=800, DNAME_MAX=40;
+const RATE_MS=60000;
+
+/* local view-state: what you have already seen. Never touches other keys. */
+const SEEN_NOTIF="vw_notif_seen", SEEN_DM="vw_dm_seen";
+function readSeenNotif(){try{return Number(localStorage.getItem(SEEN_NOTIF)||0);}catch(e){return 0;}}
+function writeSeenNotif(ts){try{localStorage.setItem(SEEN_NOTIF,String(ts));}catch(e){}}
+function readSeenDM(){try{return JSON.parse(localStorage.getItem(SEEN_DM)||"{}")||{};}catch(e){return {};}}
+function writeSeenDM(m){try{localStorage.setItem(SEEN_DM,JSON.stringify(m));}catch(e){}}
 
 /* Office catalogue — individually-held offices, MUST match server.js. Fixed
    single-role offices match a role field; cabinet/ministerial offices are read
@@ -185,6 +256,18 @@ function vwOfficeMatches(id,account,data){
   if(id.indexOf("cab:")===0){const p=id.split(":"),gov=p[1],post=p.slice(2).join(":");const cab=((data&&data[gov])||{}).cabinet||{};return String(cab[u]||"").toLowerCase()===String(post).toLowerCase();}
   return false;
 }
+/* Who currently holds an office — the reverse lookup of vwOfficeMatches. Used to
+   show, everywhere an office appears, the person answerable for it. */
+function vwOfficeHolder(id,data,accounts){
+  const f=FIXED_OFFICES.find(o=>o.id===id);
+  if(f){const hit=Object.values(accounts||{}).find(a=>f.values.map(String).includes(String(a[f.field]||"")));
+    return hit?String(hit.username||"").toLowerCase():"";}
+  if(id==="lech:chancellor")return String(((data&&data.bk_officials)||{}).chancellor_username||"").toLowerCase();
+  if(id.indexOf("lechmin:")===0){const m=((data&&data.bk_officials)||{}).minister_usernames||{};return String(m[id.slice(8)]||"").toLowerCase();}
+  if(id.indexOf("cab:")===0){const p=id.split(":"),gov=p[1],post=p.slice(2).join(":");const cab=((data&&data[gov])||{}).cabinet||{};
+    const hit=Object.entries(cab).find(([,v])=>String(v||"").toLowerCase()===String(post).toLowerCase());return hit?String(hit[0]).toLowerCase():"";}
+  return "";
+}
 function vwUserControls(account,oa,data){if(!account||!oa)return false;if(isAdmin(account))return true;
   return (oa.offices||[]).some(id=>vwOfficeMatches(id,account,data));}
 // The offices an admin may attach, built from the live registers.
@@ -198,6 +281,30 @@ function vwAvailableOffices(data){
     [...new Set(Object.values(cab).filter(Boolean))].forEach(post=>out.push({id:"cab:"+gov+":"+post,label:post+" ("+short+")",group:grp}));
   });
   return out;
+}
+
+/* ── icons ─────────────────────────────────────────────────────────────────────
+   Drawn from the Lucide set loaded in <head>, rendered as React elements (no DOM
+   swapping), so they inherit colour and can be hovered. Replaces the emoji the
+   page used to use, which rendered differently on every operating system. */
+const ICON_FALLBACK={"message-circle":"↩","repeat-2":"⇄","quote":"❝","link":"∞","trash-2":"×","more-horizontal":"…","bell":"!","mail":"✉","home":"⌂","search":"⌕","user":"○","landmark":"▣","wrench":"⚙","send":"→","plus":"+","pencil":"✎","arrow-left":"←","log-out":"→","chevron-up":"^","chevron-down":"v","badge-check":"✓","filter":"≡","clock":"◷","calendar":"▦","pen-line":"✎","reply":"↩","external-link":"↗","shield-check":"✓","users":"○","file-text":"▤"};
+function lucideNode(name){
+  const L=(typeof window!=="undefined"&&window.lucide)||{};
+  const pascal=String(name).replace(/(^|-)([a-z0-9])/g,(m,a,b)=>b.toUpperCase());
+  const src=L.icons||L;
+  const node=src[pascal]||src[name]||null;
+  if(!Array.isArray(node))return null;
+  // the set ships icons either as ["svg",attrs,children] or as a bare list of parts
+  const parts=(typeof node[0]==="string"&&node[0].toLowerCase()==="svg")?(node[2]||[]):node;
+  return parts.filter(p=>Array.isArray(p)&&typeof p[0]==="string");
+}
+function Ic({n,s=18,sw=1.9,style}){
+  const parts=lucideNode(n);
+  if(!parts||!parts.length)return <span style={{width:s,textAlign:"center",fontSize:s*0.8,lineHeight:1,...(style||{})}}>{ICON_FALLBACK[n]||"•"}</span>;
+  return <svg className="ic" viewBox="0 0 24 24" width={s} height={s} fill="none" stroke="currentColor" strokeWidth={sw}
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
+    {parts.map((part,i)=>React.createElement(part[0],{key:i,...(part[1]||{})}))}
+  </svg>;
 }
 
 /* ── verification tags ─────────────────────────────────────────────────────────
@@ -219,10 +326,10 @@ const CHECK_TITLE={admin:"System Administrator",mod:"System Moderator",verified:
 function Badge({check,globe}){
   if(!check&&!globe)return null;
   return <span className="badges">
-    {check&&<svg className="bdg" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label={CHECK_TITLE[check]}><title>{CHECK_TITLE[check]}</title>
+    {check&&<svg className="ic" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label={CHECK_TITLE[check]}><title>{CHECK_TITLE[check]}</title>
       <circle cx="12" cy="12" r="11" fill={CHECK_COLOR[check]}/>
       <path d="M6.6 12.4l3.1 3.2 7-7.2" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-    {globe&&<svg className="bdg" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label="World Leader"><title>World Leader</title>
+    {globe&&<svg className="ic" viewBox="0 0 24 24" width="15" height="15" role="img" aria-label="World Leader"><title>World Leader</title>
       <circle cx="12" cy="12" r="11" fill="#e6b325"/>
       <g fill="none" stroke="#6d5200" strokeWidth="1.25"><circle cx="12" cy="12" r="7"/><ellipse cx="12" cy="12" rx="3" ry="7"/><path d="M5 12h14M6.2 8.7h11.6M6.2 15.3h11.6"/></g></svg>}
   </span>;
@@ -232,36 +339,67 @@ function timeAgo(ts){if(!ts)return"";const s=Math.floor((Date.now()-ts)/1000);
   if(s<60)return s+"s";if(s<3600)return Math.floor(s/60)+"m";if(s<86400)return Math.floor(s/3600)+"h";
   if(s<604800)return Math.floor(s/86400)+"d";return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"});}
 function fmtWhen(ts){if(!ts)return"";return new Date(ts).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function fmtClock(ts){if(!ts)return"";return new Date(ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});}
+function dayKey(ts){const d=new Date(ts||0);return d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate();}
+function dayLabel(ts){const d=new Date(ts||0),now=new Date();
+  if(dayKey(ts)===dayKey(now.getTime()))return "TODAY";
+  if(dayKey(ts)===dayKey(now.getTime()-86400000))return "YESTERDAY";
+  return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}).toUpperCase();}
 function mcFace(n,s){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"steve")+"/"+(s||48);}
 
 /* ── UI atoms ──────────────────────────────────────────────────────────────── */
 function Avatar({p,size=44,onClick}){
   if(!p)return <div className="av" style={{width:size,height:size}}/>;
-  if(p.office)return <div className="av office" style={{width:size,height:size,fontSize:size*0.42}} onClick={onClick}>{(p.handle||"O").replace(/^@/,"")[0].toUpperCase()}</div>;
+  if(p.office)return <div className="av office" style={{width:size,height:size,fontSize:size*0.42,borderRadius:Math.round(size*0.27)}} onClick={onClick}>{(p.handle||"O").replace(/^@/,"")[0].toUpperCase()}</div>;
   return <img className="av" src={mcFace(p.mc||p.handle,size)} style={{width:size,height:size}} alt="" onClick={onClick}/>;
+}
+function Confirm({open,title,body,confirmLabel,danger,onYes,onNo}){
+  if(!open)return null;
+  return <div className="modal-bg" onClick={onNo}><div className="modal" style={{maxWidth:420}} onClick={e=>e.stopPropagation()}>
+    <div className="mh"><h2>{title}</h2></div>
+    <div className="mb">
+      <p style={{color:"var(--ink2)",fontSize:14,lineHeight:1.55,marginBottom:16}}>{body}</p>
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+        <button className="btn sec sm" onClick={onNo}>Cancel</button>
+        <button className={"btn sm"+(danger?" warn":"")} onClick={onYes}>{confirmLabel||"Confirm"}</button>
+      </div>
+    </div></div></div>;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   COMPOSER
+   COMPOSER — identities are pills, not a dropdown, so you can always see whether
+   you are about to speak for yourself or for the state. The rate limit counts
+   down on the button instead of refusing you after the fact.
    ══════════════════════════════════════════════════════════════════════════════ */
-function Composer({me,identities,activeId,setActiveId,onPost,placeholder,replyTo,onDone,autoFocus}){
+function Composer({me,identities,activeId,setActiveId,onPost,placeholder,replyTo,quoted,ctx,onDone,autoFocus,cooldown}){
   const [text,setText]=useState("");const [busy,setBusy]=useState(false);
   const ref=useRef(null);
   useEffect(()=>{if(autoFocus&&ref.current)ref.current.focus();},[autoFocus]);
   const left=POST_MAX-text.length;
   const ident=identities.find(i=>i.id===activeId)||identities[0];
-  const go=async()=>{if(!text.trim()||left<0||busy)return;setBusy(true);
-    const r=await onPost({text:text.trim(),asOffice:ident.office?ident.id:"",replyTo:replyTo||""});
+  const waiting=!replyTo&&cooldown>0;
+  const go=async()=>{if(!text.trim()||left<0||busy||waiting)return;setBusy(true);
+    const r=await onPost({text:text.trim(),asOffice:ident&&ident.office?ident.id:"",replyTo:replyTo||"",repostOf:quoted?quoted.id:""});
     setBusy(false);if(r.ok){setText("");if(onDone)onDone();}};
+  const label=replyTo?"Reply":(quoted?"Quote":"Post");
   return <div className="composer">
-    <Avatar p={ident} size={44}/>
-    <div style={{flex:1}}>
-      {identities.length>1&&<select className="idsel" value={activeId} onChange={e=>setActiveId(e.target.value)} style={{marginBottom:8}}>
-        {identities.map(i=><option key={i.id} value={i.id}>{i.office?"🏛 "+i.name+" (@"+i.handle+")":"Posting as yourself"}</option>)}</select>}
-      <textarea ref={ref} value={text} onChange={e=>setText(e.target.value)} placeholder={placeholder||"What's happening?"}/>
+    <Avatar p={ident} size={replyTo?40:44}/>
+    <div style={{flex:1,minWidth:0}}>
+      {identities.length>1&&<div className="idents">
+        <span className="lbl">{replyTo?"REPLYING AS":"POST AS"}</span>
+        {identities.map(i=><button key={i.id} className={"pill"+(i.id===activeId?" on":"")} onClick={()=>setActiveId(i.id)} title={"@"+i.handle}>
+          {i.office?<span className="sq">{(i.handle||"O")[0].toUpperCase()}</span>:<img className="av" src={mcFace(i.mc||i.handle,22)} style={{width:22,height:22}} alt=""/>}
+          {i.office?i.name:"Yourself"}
+        </button>)}
+      </div>}
+      <textarea ref={ref} value={text} onChange={e=>setText(e.target.value)} placeholder={placeholder||"What's happening?"}
+        onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))go();}}/>
+      {quoted&&<div className="quote"><QuotedPost post={quoted} ctx={ctx}/></div>}
       <div className="foot">
-        <span className={"count"+(left<0?" over":"")}>{left}</span>
-        <button className="btn sm" disabled={!text.trim()||left<0||busy} onClick={go}>{busy?"…":(replyTo?"Reply":"Post")}</button>
+        <span className="hint">{ident&&ident.office?"Posting as an office — everyone can see you signed it":"Visible to everyone on the Vintranet"}</span>
+        <span className={"count"+(left<0?" over":"")} style={{marginLeft:"auto"}}>{left}</span>
+        <button className="btn sm" disabled={!text.trim()||left<0||busy||waiting} onClick={go}
+          title={waiting?"Rate limit: one post a minute":undefined}>{busy?"…":(waiting?"Wait "+cooldown+"s":label)}</button>
       </div>
     </div>
   </div>;
@@ -270,29 +408,41 @@ function Composer({me,identities,activeId,setActiveId,onPost,placeholder,replyTo
 /* ══════════════════════════════════════════════════════════════════════════════
    A POST
    ══════════════════════════════════════════════════════════════════════════════ */
-function PostCard({post,ctx,onOpen,onReply,onRepost,onDelete,onProfile,compact}){
+function PostCard({post,ctx,onOpen,onReply,onRepost,onQuote,onDelete,onProfile,compact,thread}){
   const p=ctx.poster(post);
-  const mine=ctx.me&&String(post.author||"").toLowerCase()===String(ctx.me.username||"").toLowerCase();
   const replies=ctx.repliesTo(post.id).length;
   const reposts=ctx.repostsOf(post.id).length;
   const iReposted=ctx.iRepostedOf(post.id);
+  const parent=post.replyTo?ctx.byId(post.replyTo):null;
+  const parentWho=parent?ctx.poster(parent):null;
   return <div className={"post"+(onOpen?" clk":"")} onClick={onOpen?()=>onOpen(post.id):undefined}>
-    <Avatar p={p} size={44} onClick={e=>{if(onProfile){e.stopPropagation();onProfile(p);}}}/>
+    <div className="gutter">
+      <Avatar p={p} size={44} onClick={e=>{if(onProfile){e.stopPropagation();onProfile(p);}}}/>
+      {thread&&<span className="rail2"/>}
+    </div>
     <div className="body">
+      {post.replyTo&&<div className="rp">
+        <Ic n="reply" s={14}/>
+        {parentWho?<span>Replying to <a href="#" onClick={e=>{e.preventDefault();e.stopPropagation();if(onProfile)onProfile(parentWho);}}>@{parentWho.handle}</a></span>
+          :<span>Replying to a post that has been deleted</span>}
+      </div>}
       <div className="phead">
         <span className="nm" onClick={e=>{if(onProfile){e.stopPropagation();onProfile(p);}}}>{p.name}</span>
         <Badge check={p.check} globe={p.globe}/>
         {p.office&&<span className="off">OFFICE</span>}
         <span className="hn">@{p.handle}</span><span className="dot">·</span><span className="tm">{timeAgo(post.at)}</span>
+        {p.office&&post.author&&<span className="by">signed by @{post.author}</span>}
       </div>
       {post.text&&<div className="ptext">{post.text}</div>}
       {post.repostOf&&ctx.byId(post.repostOf)&&<div className="quote">
         <QuotedPost post={ctx.byId(post.repostOf)} ctx={ctx}/></div>}
       {post.repostOf&&!ctx.byId(post.repostOf)&&<div className="quote"><span style={{color:"var(--ink3)"}}>This post is unavailable.</span></div>}
       {!compact&&<div className="actions" onClick={e=>e.stopPropagation()}>
-        <button className="act" onClick={()=>onReply(post)}>💬 <span>{replies||""}</span></button>
-        <button className={"act rt"+(iReposted?" on":"")} onClick={()=>onRepost(post)}>🔁 <span>{reposts||""}</span></button>
-        {ctx.canDelete(post)&&<button className="act del" onClick={()=>onDelete(post)}>🗑</button>}
+        <button className="act" onClick={()=>onReply(post)} title="Reply"><Ic n="message-circle" s={17}/><span>{replies||""}</span></button>
+        <button className={"act rt"+(iReposted?" on":"")} onClick={()=>onRepost(post)} title={iReposted?"Undo repost":"Repost"}><Ic n="repeat-2" s={17}/><span>{reposts||""}</span></button>
+        <button className="act" onClick={()=>onQuote(post)} title="Quote with your own words"><Ic n="quote" s={16}/><span>Quote</span></button>
+        <button className="act" onClick={()=>onOpen&&onOpen(post.id)} title="Open thread"><Ic n="link" s={16}/></button>
+        {ctx.canDelete(post)&&<button className="act del" onClick={()=>onDelete(post)} title="Delete"><Ic n="trash-2" s={16}/></button>}
       </div>}
     </div>
   </div>;
@@ -308,42 +458,70 @@ function QuotedPost({post,ctx}){
 /* ══════════════════════════════════════════════════════════════════════════════
    FEED / THREAD / PROFILE
    ══════════════════════════════════════════════════════════════════════════════ */
-function Feed({ctx,acts}){
-  const items=useMemo(()=>ctx.posts.filter(p=>!p.replyTo).sort((a,b)=>(b.at||0)-(a.at||0)),[ctx.posts]);
+function Feed({ctx,acts,filter}){
+  const items=useMemo(()=>ctx.posts.filter(p=>!p.replyTo).filter(p=>filter==="offices"?!!p.asOffice:true)
+    .sort((a,b)=>(b.at||0)-(a.at||0)),[ctx.posts,filter]);
   return <div>
     <Composer {...acts.composerProps}/>
-    {items.length===0?<div className="empty">No posts yet. Be the first to say something.</div>
-      :items.map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+    {items.length===0?<div className="empty">{filter==="offices"?"No office has posted yet.":"No posts yet. Be the first to say something."}</div>
+      :items.map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
   </div>;
 }
 function Thread({id,ctx,acts}){
   const post=ctx.byId(id);
+  const [sort,setSort]=useState("old");
   if(!post)return <div className="empty">This post is unavailable.</div>;
   const parent=post.replyTo?ctx.byId(post.replyTo):null;
-  const replies=ctx.repliesTo(id).sort((a,b)=>(a.at||0)-(b.at||0));
-  const [replyOpen,setReplyOpen]=useState(true);
+  const parentWho=parent?ctx.poster(parent):null;
+  const p=ctx.poster(post);
+  const replies=ctx.repliesTo(id).slice().sort((a,b)=>{
+    if(sort==="offices"){const ao=a.asOffice?0:1,bo=b.asOffice?0:1;if(ao!==bo)return ao-bo;}
+    return (a.at||0)-(b.at||0);});
+  const quotes=ctx.posts.filter(q=>q.repostOf===id&&q.text).length;
   return <div>
-    {parent&&<PostCard post={parent} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>}
-    <div style={{padding:"14px 16px",borderBottom:"1px solid var(--line)"}}>
-      <div className="phead" style={{marginBottom:8}}>
-        {(()=>{const p=ctx.poster(post);return <><Avatar p={p} size={44}/><div style={{marginLeft:4}}>
-          <div className="nm" style={{display:"flex",alignItems:"center",gap:4}}>{p.name}<Badge check={p.check} globe={p.globe}/>{p.office&&<span className="off">OFFICE</span>}</div><div className="hn">@{p.handle}</div></div></>;})()}
+    {parent&&<div className="post" style={{paddingBottom:4,cursor:"pointer"}} onClick={()=>acts.open(parent.id)}>
+      <div className="gutter"><Avatar p={parentWho} size={32}/><span className="rail2"/></div>
+      <div className="body" style={{paddingBottom:8}}>
+        <div className="phead" style={{fontSize:14}}><span className="nm">{parentWho.name}</span><Badge check={parentWho.check} globe={parentWho.globe}/>
+          <span className="hn">@{parentWho.handle}</span><span className="dot">·</span><span className="tm">{timeAgo(parent.at)}</span></div>
+        {parent.text&&<div className="ptext" style={{fontSize:14,color:"var(--ink2)"}}>{parent.text}</div>}
       </div>
-      {post.text&&<div className="ptext" style={{fontSize:22,lineHeight:1.4}}>{post.text}</div>}
+    </div>}
+    <div style={{padding:"8px 16px 16px",borderBottom:"1px solid var(--line)",background:"#0f1216"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+        <Avatar p={p} size={46}/>
+        <div style={{minWidth:0}}>
+          <div className="nm" style={{display:"flex",alignItems:"center",gap:5,fontWeight:700,flexWrap:"wrap"}}>{p.name}<Badge check={p.check} globe={p.globe}/>{p.office&&<span className="off">OFFICE</span>}</div>
+          <div className="hn" style={{color:"var(--ink2)",fontSize:14}}>@{p.handle}{p.office&&post.author?<span className="by" style={{marginLeft:6}}>signed by @{post.author}</span>:null}</div>
+        </div>
+      </div>
+      {post.text&&<div className="ptext" style={{fontSize:21,lineHeight:1.45}}>{post.text}</div>}
       {post.repostOf&&ctx.byId(post.repostOf)&&<div className="quote"><QuotedPost post={ctx.byId(post.repostOf)} ctx={ctx}/></div>}
-      <div className="hn" style={{marginTop:10,color:"var(--ink2)"}}>{fmtWhen(post.at)}</div>
-      <div className="actions" style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--line)"}}>
-        <button className="act" onClick={()=>setReplyOpen(true)}>💬 <span>{replies.length||""}</span></button>
-        <button className={"act rt"+(ctx.iRepostedOf(post.id)?" on":"")} onClick={()=>acts.repost(post)}>🔁 <span>{ctx.repostsOf(post.id).length||""}</span></button>
-        {ctx.canDelete(post)&&<button className="act del" onClick={()=>acts.del(post)}>🗑</button>}
+      <div className="meta" style={{marginTop:12}}><span><Ic n="clock" s={14}/>{fmtWhen(post.at)}</span></div>
+      <div className="stats">
+        <span><strong>{ctx.repostsOf(post.id).length}</strong> reposts</span>
+        <span><strong>{ctx.repliesTo(post.id).length}</strong> replies</span>
+        <span><strong>{quotes}</strong> quotes</span>
+      </div>
+      <div className="actions" style={{marginTop:6}}>
+        <button className="act" onClick={()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();}}><Ic n="message-circle" s={18}/><span>Reply</span></button>
+        <button className={"act rt"+(ctx.iRepostedOf(post.id)?" on":"")} onClick={()=>acts.repost(post)}><Ic n="repeat-2" s={18}/><span>{ctx.iRepostedOf(post.id)?"Reposted":"Repost"}</span></button>
+        <button className="act" onClick={()=>acts.quote(post)}><Ic n="quote" s={17}/><span>Quote</span></button>
+        {ctx.canDelete(post)&&<button className="act del" onClick={()=>acts.del(post)}><Ic n="trash-2" s={17}/></button>}
       </div>
     </div>
-    {ctx.me&&replyOpen&&<Composer {...acts.composerProps} replyTo={id} placeholder="Post your reply" autoFocus/>}
+    {ctx.me&&<Composer {...acts.composerProps} replyTo={id} placeholder={"Reply to @"+p.handle+"…"} autoFocus/>}
+    <div className="subnav">
+      <span className="lbl" style={{fontFamily:"var(--mono)",fontSize:11,letterSpacing:".08em",color:"var(--ink3)",marginRight:6}}>REPLIES</span>
+      <button className={sort==="old"?"on":""} onClick={()=>setSort("old")}>Oldest first</button>
+      <button className={sort==="offices"?"on":""} onClick={()=>setSort("offices")}>Offices first</button>
+    </div>
     {replies.length===0?<div className="empty">No replies yet.</div>
-      :replies.map(r=><PostCard key={r.id} post={r} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+      :replies.map(r=><PostCard key={r.id} post={r} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
   </div>;
 }
-function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,note}){
+
+function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,onMessage,note}){
   // office=true → an office account handle; else a person username
   const oa=office?ctx.officeByHandle(handle):null;
   const acc=office?null:ctx.accounts[String(handle||"").toLowerCase()];
@@ -353,43 +531,180 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onVerify,note}){
   const badges=office?ctx.officeBadges(oa):ctx.userBadges(handle);
   const isMe=!office&&me&&String(handle||"").toLowerCase()===String(me.username||"").toLowerCase();
   const verified=!office&&ctx.verifiedSet.has(String(handle||"").toLowerCase());
-  const posts=useMemo(()=>ctx.posts.filter(pp=>office?pp.asOffice&&oa&&ctx.officeByHandle(handle)&&pp.asOffice===oa.id
-      :(!pp.asOffice&&String(pp.author||"").toLowerCase()===String(handle||"").toLowerCase()))
-    .sort((a,b)=>(b.at||0)-(a.at||0)),[ctx.posts,handle,office,oa]);
+  const u=String(handle||"").toLowerCase();
+  const [tab,setTab]=useState("posts");
   const [editing,setEditing]=useState(false);const [draft,setDraft]=useState(bio||"");
   useEffect(()=>{setDraft(bio||"");},[bio]);
+  useEffect(()=>{setTab("posts");setEditing(false);},[handle,office]);
+
+  const mine=useMemo(()=>ctx.posts.filter(pp=>office?(pp.asOffice&&oa&&pp.asOffice===oa.id)
+      :(!pp.asOffice&&String(pp.author||"").toLowerCase()===u)),[ctx.posts,u,office,oa]);
+  const asOfficePosts=useMemo(()=>office?[]:ctx.posts.filter(pp=>pp.asOffice&&String(pp.author||"").toLowerCase()===u),[ctx.posts,u,office]);
+  const held=useMemo(()=>office?[]:Object.values(ctx.officeAccounts).filter(o=>(o.offices||[]).some(id=>vwOfficeMatches(id,acc,ctx.data))),[ctx.officeAccounts,acc,ctx.data,office]);
+  const heldOfficeLabels=useMemo(()=>{const out=[];held.forEach(o=>(o.offices||[]).forEach(id=>{if(vwOfficeMatches(id,acc,ctx.data))out.push(vwOfficeLabel(id));}));return [...new Set(out)];},[held,acc,ctx.data]);
+  const holder=office&&oa?(oa.offices||[]).map(id=>vwOfficeHolder(id,ctx.data,ctx.accounts)).filter(Boolean)[0]:"";
+
+  const shown=useMemo(()=>{
+    let list;
+    if(tab==="posts")list=mine.filter(pp=>!pp.replyTo&&!(pp.repostOf&&!String(pp.text||"").trim()));
+    else if(tab==="replies")list=mine.filter(pp=>!!pp.replyTo);
+    else if(tab==="reposts")list=mine.filter(pp=>pp.repostOf&&!String(pp.text||"").trim());
+    else list=asOfficePosts;
+    return list.slice().sort((a,b)=>(b.at||0)-(a.at||0));},[mine,asOfficePosts,tab]);
+
   return <div>
+    <div className="cover"/>
     <div className="profhd">
-      <div className="row"><Avatar p={p} size={80}/>
-        <div style={{flex:1}}>
-          <div className="nm" style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>{name}<Badge check={badges.check} globe={badges.globe}/>{office&&<span className="off">OFFICE</span>}</div>
-          <div className="hn">@{p.handle}</div>
-          {!editing&&bio&&<div className="bio">{bio}</div>}
-          {admin&&!office&&<button className="btn sec sm" style={{marginTop:10}}
-            onClick={async()=>{const r=await onVerify(handle,!verified);note(r.ok?(verified?"Verification removed.":"Verified."):(r.error||"Refused"),r.ok?"ok":"bad");}}>{verified?"Remove verification":"Verify this account"}</button>}
-          {isMe&&!editing&&<button className="btn sec sm" style={{marginTop:10,marginLeft:admin?8:0}} onClick={()=>setEditing(true)}>Edit bio</button>}
-          {isMe&&editing&&<div style={{marginTop:10}}>
-            <textarea value={draft} maxLength={BIO_MAX} onChange={e=>setDraft(e.target.value)}
-              style={{width:"100%",background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:10,font:"inherit",resize:"vertical",minHeight:60}}/>
-            <div style={{display:"flex",gap:10,alignItems:"center",marginTop:6}}>
-              <span className="count">{BIO_MAX-draft.length}</span>
-              <button className="btn sm" onClick={async()=>{const r=await onSaveBio(draft.trim());if(r.ok){setEditing(false);note("Bio saved.","ok");}else note(r.error||"Refused","bad");}}>Save</button>
-              <button className="btn sec sm" onClick={()=>{setEditing(false);setDraft(bio||"");}}>Cancel</button>
-            </div></div>}
+      <div className="top">
+        <div style={{border:"3px solid var(--bg)",borderRadius:office?18:"50%",lineHeight:0}}><Avatar p={p} size={80}/></div>
+        <div style={{marginLeft:"auto",marginBottom:6,display:"flex",gap:8,flexWrap:"wrap"}}>
+          {!office&&!isMe&&me&&<button className="btn sec sm" onClick={()=>onMessage(u)}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="mail" s={15}/>Message</span></button>}
+          {isMe&&!editing&&<button className="btn sec sm" onClick={()=>setEditing(true)}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="pencil" s={15}/>Edit bio</span></button>}
+          {admin&&!office&&<button className="btn sec sm"
+            onClick={async()=>{const r=await onVerify(handle,!verified);note(r.ok?(verified?"Verification removed.":"Verified."):(r.error||"Refused"),r.ok?"ok":"bad");}}>{verified?"Remove verification":"Verify account"}</button>}
+        </div>
+      </div>
+      <div style={{marginTop:10}}>
+        <div className="nm">{name}<Badge check={badges.check} globe={badges.globe}/>{office&&<span className="off">OFFICE</span>}</div>
+        <div className="hn">@{p.handle}</div>
+        {!editing&&bio&&<div className="bio">{bio}</div>}
+        {editing&&<div style={{marginTop:10}}>
+          <textarea value={draft} maxLength={BIO_MAX} onChange={e=>setDraft(e.target.value)}
+            style={{width:"100%",background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:10,font:"inherit",resize:"vertical",minHeight:60}}/>
+          <div style={{display:"flex",gap:10,alignItems:"center",marginTop:6}}>
+            <span className="count">{BIO_MAX-draft.length}</span>
+            <button className="btn sm" onClick={async()=>{const r=await onSaveBio(draft.trim());if(r.ok){setEditing(false);note("Bio saved.","ok");}else note(r.error||"Refused","bad");}}>Save</button>
+            <button className="btn sec sm" onClick={()=>{setEditing(false);setDraft(bio||"");}}>Cancel</button>
+          </div></div>}
+        {!office&&heldOfficeLabels.length>0&&<div className="chips">
+          <span style={{fontFamily:"var(--mono)",fontSize:10,letterSpacing:".1em",color:"var(--ink3)"}}>OFFICES HELD</span>
+          {heldOfficeLabels.map(l=><span key={l} className="chip">{l}</span>)}
+          {held.map(o=><button key={o.id} className="chip" style={{cursor:"pointer"}} onClick={()=>acts.profile({office:true,handle:o.handle})}>@{o.handle}</button>)}
+        </div>}
+        {office&&<div className="chips">
+          <span style={{fontFamily:"var(--mono)",fontSize:10,letterSpacing:".1em",color:"var(--ink3)"}}>SPEAKS FOR</span>
+          {(oa&&(oa.offices||[]).length?oa.offices:[]).map(id=><span key={id} className="chip">{vwOfficeLabel(id)}</span>)}
+          {holder?<button className="chip" style={{cursor:"pointer"}} onClick={()=>acts.profile({handle:holder})}>held by @{holder}</button>
+            :<span className="state vac">VACANT — NOBODY CAN POST AS THIS</span>}
+        </div>}
+        <div className="meta">
+          <span><Ic n="file-text" s={14}/>{mine.length} posts</span>
+          {verified&&<span><Ic n="badge-check" s={14}/>Verified account</span>}
+          {!office&&acc&&acc.createdAt&&<span><Ic n="calendar" s={14}/>Joined {new Date(acc.createdAt).toLocaleDateString("en-GB",{month:"short",year:"numeric"})}</span>}
+          {office&&oa&&oa.createdAt&&<span><Ic n="calendar" s={14}/>Opened {new Date(oa.createdAt).toLocaleDateString("en-GB",{month:"short",year:"numeric"})}</span>}
         </div>
       </div>
     </div>
-    {posts.length===0?<div className="empty">No posts yet.</div>
-      :posts.map(pp=><PostCard key={pp.id} post={pp} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+    <div className="tabs">
+      <button className={tab==="posts"?"on":""} onClick={()=>setTab("posts")}>Posts</button>
+      <button className={tab==="replies"?"on":""} onClick={()=>setTab("replies")}>Replies</button>
+      <button className={tab==="reposts"?"on":""} onClick={()=>setTab("reposts")}>Reposts</button>
+      {!office&&asOfficePosts.length>0&&<button className={tab==="office"?"on":""} onClick={()=>setTab("office")}>As office</button>}
+    </div>
+    {shown.length===0?<div className="empty">Nothing here yet.</div>
+      :shown.map(pp=><PostCard key={pp.id} post={pp} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
   </div>;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   MESSAGES (direct, private)
+   NOTIFICATIONS — derived from the posts already on the page: replies to you,
+   reposts and quotes of your posts, and @mentions. Nothing new is stored on the
+   server; only "what you have already seen" is kept locally.
    ══════════════════════════════════════════════════════════════════════════════ */
-function Messages({ctx,me,onSend,note}){
-  const [open,setOpen]=useState(null);   // other username
+function buildNotifs(posts,me,accounts){
+  if(!me)return [];
+  const u=String(me.username||"").toLowerCase();
+  const mineIds=new Set(posts.filter(p=>String(p.author||"").toLowerCase()===u).map(p=>p.id));
+  const mention=new RegExp("(^|[^a-z0-9_])@"+u.replace(/[^a-z0-9_]/g,"")+"([^a-z0-9_]|$)","i");
+  const out=[];
+  posts.forEach(p=>{
+    const by=String(p.author||"").toLowerCase();
+    if(by===u)return;
+    const quoted=!!String(p.text||"").trim();
+    if(p.replyTo&&mineIds.has(p.replyTo))out.push({kind:"reply",icon:"message-circle",post:p,target:p.replyTo,at:p.at||0,by});
+    else if(p.repostOf&&mineIds.has(p.repostOf))out.push({kind:quoted?"quote":"repost",icon:quoted?"quote":"repeat-2",post:p,target:p.repostOf,at:p.at||0,by});
+    else if(mention.test(String(p.text||"")))out.push({kind:"mention",icon:"bell",post:p,target:p.id,at:p.at||0,by});
+  });
+  return out.sort((a,b)=>b.at-a.at).slice(0,80);
+}
+const NOTIF_WORD={reply:"replied to you",repost:"reposted you",quote:"quoted you",mention:"mentioned you"};
+function Notifications({ctx,notifs,seen,acts}){
+  if(!notifs.length)return <div className="empty">No replies, reposts or mentions yet.<br/><span style={{fontSize:13}}>They will appear here the moment somebody answers you.</span></div>;
+  return <div>{notifs.map((n,i)=>{
+    const who=ctx.poster(n.post);
+    return <button key={i} className={"notif"+(n.at>seen?" unread":"")} onClick={()=>acts.open(n.target||n.post.id)}>
+      <span className="ni"><Ic n={n.icon} s={17}/></span>
+      <span style={{flex:1,minWidth:0}}>
+        <span className="phead" style={{fontSize:14}}>
+          <Avatar p={who} size={22}/>
+          <span className="nm">{who.name}</span><Badge check={who.check} globe={who.globe}/>
+          <span className="hn">{NOTIF_WORD[n.kind]}</span><span className="dot">·</span><span className="tm">{timeAgo(n.at)}</span>
+        </span>
+        {n.post.text&&<span className="ptext" style={{display:"block",fontSize:14,color:"var(--ink2)",margin:"3px 0 0"}}>{n.post.text}</span>}
+      </span>
+    </button>;})}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SEARCH — the box used to jump blindly to a profile; now it searches the posts,
+   the people and the office accounts already loaded.
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Search({q,ctx,acts,onQuery}){
+  const [tab,setTab]=useState("top");
+  const term=String(q||"").trim().replace(/^@/,"").toLowerCase();
+  useEffect(()=>{setTab("top");},[q]);
+  const people=useMemo(()=>!term?[]:Object.values(ctx.accounts).filter(a=>
+    String(a.username||"").toLowerCase().includes(term)||String(a.displayName||"").toLowerCase().includes(term)).slice(0,20),[ctx.accounts,term]);
+  const offices=useMemo(()=>!term?[]:Object.values(ctx.officeAccounts).filter(o=>
+    String(o.handle||"").toLowerCase().includes(term)||String(o.displayName||"").toLowerCase().includes(term)).slice(0,20),[ctx.officeAccounts,term]);
+  const hits=useMemo(()=>!term?[]:ctx.posts.filter(p=>String(p.text||"").toLowerCase().includes(term))
+    .sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,50),[ctx.posts,term]);
+  if(!term)return <div className="empty">Search for a person, an office or anything that has been posted.</div>;
+  const counts={people:people.length,offices:offices.length,posts:hits.length};
+  const showPeople=tab==="top"||tab==="people",showOffices=tab==="top"||tab==="offices",showPosts=tab==="top"||tab==="posts";
+  return <div>
+    <div className="subnav">
+      <button className={tab==="top"?"on":""} onClick={()=>setTab("top")}>Top</button>
+      <button className={tab==="people"?"on":""} onClick={()=>setTab("people")}>People <span style={{opacity:.7}}>{counts.people}</span></button>
+      <button className={tab==="offices"?"on":""} onClick={()=>setTab("offices")}>Offices <span style={{opacity:.7}}>{counts.offices}</span></button>
+      <button className={tab==="posts"?"on":""} onClick={()=>setTab("posts")}>Posts <span style={{opacity:.7}}>{counts.posts}</span></button>
+    </div>
+    {showPeople&&people.length>0&&<div style={{padding:"10px 16px 4px"}}>
+      <div className="grp" style={{margin:"4px 0 2px"}}>People</div>
+      {(tab==="top"?people.slice(0,4):people).map(a=>{const b=ctx.userBadges(a.username);
+        return <button key={a.username} className="uitem" onClick={()=>acts.profile({handle:String(a.username).toLowerCase()})}>
+          <Avatar p={{handle:a.username,mc:a.mcName||a.username}} size={40}/>
+          <span><span className="nm">{a.displayName||a.username}<Badge check={b.check} globe={b.globe}/></span><span className="hn" style={{display:"block"}}>@{a.username}</span></span>
+        </button>;})}
+    </div>}
+    {showOffices&&offices.length>0&&<div style={{padding:"10px 16px 4px",borderTop:"1px solid var(--line)"}}>
+      <div className="grp" style={{margin:"4px 0 2px"}}>Offices</div>
+      {offices.map(o=>{const holder=(o.offices||[]).map(id=>vwOfficeHolder(id,ctx.data,ctx.accounts)).filter(Boolean)[0];
+        return <button key={o.id} className="uitem" onClick={()=>acts.profile({office:true,handle:o.handle})}>
+          <Avatar p={{office:true,handle:o.handle}} size={40}/>
+          <span><span className="nm">{o.displayName}<Badge check="verified" globe={isWorldLeaderOffice(o)}/></span>
+            <span className="hn" style={{display:"block"}}>@{o.handle}{holder?" · held by @"+holder:" · vacant"}</span></span>
+        </button>;})}
+    </div>}
+    {showPosts&&<div style={{borderTop:"1px solid var(--line)",marginTop:8}}>
+      <div className="grp" style={{margin:"12px 16px 2px"}}>Posts</div>
+      {hits.length===0?<div className="empty" style={{padding:"28px 16px"}}>No posts contain “{term}”.</div>
+        :(tab==="top"?hits.slice(0,10):hits).map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
+    </div>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MESSAGES (direct, private) — list and conversation side by side, unread marks,
+   day dividers, clock times.
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Messages({ctx,me,onSend,onRead,seenDM,initialOpen,note}){
+  const [open,setOpen]=useState(initialOpen||null);
   const [newTo,setNewTo]=useState("");
+  const [find,setFind]=useState("");
+  const [text,setText]=useState("");
+  const [starting,setStarting]=useState(false);
   const dms=ctx.dms;
   const meU=String(me.username||"").toLowerCase();
   const convs=useMemo(()=>{
@@ -397,46 +712,87 @@ function Messages({ctx,me,onSend,note}){
       if(!other)return;(m[other]=m[other]||[]).push(d);});
     return Object.entries(m).map(([other,list])=>({other,list:list.sort((a,b)=>(a.at||0)-(b.at||0))}))
       .sort((a,b)=>(b.list[b.list.length-1].at||0)-(a.list[a.list.length-1].at||0));},[dms,meU]);
+  useEffect(()=>{if(initialOpen)setOpen(initialOpen);},[initialOpen]);
+  useEffect(()=>{if(open)onRead(open);},[open,convs.length,onRead]);
   const active=open?convs.find(c=>c.other===open)||{other:open,list:[]}:null;
-  const [text,setText]=useState("");
-  const send=async()=>{if(!text.trim()||!active)return;const r=await onSend(active.other,text.trim());if(r.ok)setText("");else note(r.error||"Refused","bad");};
   const nameOf=u=>{const a=ctx.accounts[u];return (a&&(a.displayName||a.username))||u;};
+  const unreadOf=c=>{const last=c.list.filter(d=>String(d.from||"").toLowerCase()!==meU).slice(-1)[0];
+    return !!last&&(last.at||0)>(seenDM[c.other]||0);};
+  const send=async()=>{if(!text.trim()||!active)return;const r=await onSend(active.other,text.trim());if(r.ok)setText("");else note(r.error||"Refused","bad");};
+  const shownConvs=convs.filter(c=>{const t=find.trim().toLowerCase();if(!t)return true;
+    return c.other.includes(t)||String(nameOf(c.other)).toLowerCase().includes(t);});
 
-  if(active)return <div>
-    <div className="colhd"><button className="back" onClick={()=>setOpen(null)}>←</button>
-      <Avatar p={{handle:active.other,mc:active.other}} size={34}/><div><h1 style={{fontSize:17}}>{nameOf(active.other)}</h1><div className="sub">@{active.other}</div></div></div>
-    <div style={{padding:"10px 0",minHeight:"50vh"}}>
-      {active.list.length===0&&<div className="empty">No messages yet. Say hello.</div>}
-      {active.list.map((d,i)=><div key={i} className={"bubble "+(String(d.from||"").toLowerCase()===meU?"me":"them")}>{d.text}
-        <div style={{fontSize:11,opacity:.7,marginTop:3}}>{timeAgo(d.at)}</div></div>)}
+  return <div className={"dmsplit"+(active?" open":"")}>
+    <div className="dmlist">
+      <div style={{padding:12,borderBottom:"1px solid var(--line)",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <h2 style={{fontSize:16,fontWeight:800}}>Conversations</h2>
+          <button className="iconbtn" style={{marginLeft:"auto",background:"var(--brand)",borderColor:"var(--brand)",color:"#fff"}}
+            title="New message" onClick={()=>setStarting(s=>!s)}><Ic n="plus" s={15}/></button>
+        </div>
+        {starting?<div style={{display:"flex",gap:6}}>
+          <input className="inline-in" style={{flex:1,minWidth:0,padding:"7px 10px",fontSize:13}} value={newTo} onChange={e=>setNewTo(e.target.value)} list="vw-accts"
+            placeholder="@username" autoFocus onKeyDown={e=>{if(e.key==="Enter"){const u=newTo.trim().replace(/^@/,"").toLowerCase();
+              if(!u)return;if(u===meU){note("That's you.","bad");return;}setOpen(u);setNewTo("");setStarting(false);}}}/>
+          <button className="btn sm" disabled={!newTo.trim()} onClick={()=>{const u=newTo.trim().replace(/^@/,"").toLowerCase();
+            if(u===meU){note("That's you.","bad");return;}setOpen(u);setNewTo("");setStarting(false);}}>Go</button>
+        </div>:<div className="box" style={{display:"flex",alignItems:"center",gap:7,background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:8,padding:"6px 9px"}}>
+          <Ic n="search" s={14}/><input style={{flex:1,minWidth:0,background:"none",border:0,color:"var(--ink)",font:"inherit",fontSize:13,outline:"none"}}
+            value={find} onChange={e=>setFind(e.target.value)} placeholder="Search people"/>
+        </div>}
+      </div>
+      {shownConvs.length===0?<div className="empty" style={{padding:"28px 12px",fontSize:14}}>No conversations yet.</div>
+        :shownConvs.map(c=>{const last=c.list[c.list.length-1];
+          return <button key={c.other} className={"conv"+(open===c.other?" on":"")} onClick={()=>setOpen(c.other)}>
+            <Avatar p={{handle:c.other,mc:c.other}} size={34}/>
+            <span style={{flex:1,minWidth:0}}>
+              <span style={{display:"flex",alignItems:"baseline",gap:6}}>
+                <span className="nm">{nameOf(c.other)}</span><span className="when">{timeAgo(last.at)}</span>
+              </span>
+              <span className="pv" style={{display:"block"}}>{String(last.from||"").toLowerCase()===meU?"You: ":""}{last.text}</span>
+            </span>
+            {unreadOf(c)&&<span className="unreaddot"/>}
+          </button>;})}
     </div>
-    <div className="dmfoot"><input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder="Start a message" maxLength={DM_MAX}/>
-      <button className="btn sm" onClick={send} disabled={!text.trim()}>Send</button></div>
-  </div>;
-
-  return <div>
-    <div style={{padding:14,borderBottom:"1px solid var(--line)",display:"flex",gap:8}}>
-      <input className="searchbox" style={{margin:0}} value={newTo} onChange={e=>setNewTo(e.target.value)} list="vw-accts" placeholder="New message — type a @username"/>
-      <button className="btn sm" disabled={!newTo.trim()} onClick={()=>{const u=newTo.trim().replace(/^@/,"").toLowerCase();if(u===meU){note("That's you.","bad");return;}setOpen(u);setNewTo("");}}>Go</button>
+    <div className="dmpane">
+      {!active?<div className="empty">Pick a conversation, or start a new one.</div>:<>
+        <div className="colhd" style={{position:"static",padding:"10px 14px"}}>
+          <button className="back" onClick={()=>setOpen(null)} title="Back"><Ic n="arrow-left" s={17}/></button>
+          <Avatar p={{handle:active.other,mc:active.other}} size={34}/>
+          <div><h1 style={{fontSize:16}}>{nameOf(active.other)}</h1><div className="sub">@{active.other}</div></div>
+          <button className="btn sec sm" style={{marginLeft:"auto"}} onClick={()=>ctx.goProfile(active.other)}>
+            <span style={{display:"inline-flex",alignItems:"center",gap:6}}><Ic n="user" s={14}/>Profile</span></button>
+        </div>
+        <div style={{flex:1,padding:"12px 0",minHeight:"40vh",display:"flex",flexDirection:"column",gap:3}}>
+          {active.list.length===0&&<div className="empty">No messages yet. Say hello.</div>}
+          {active.list.map((d,i)=>{const prev=active.list[i-1];const newDay=!prev||dayKey(prev.at)!==dayKey(d.at);
+            const mine=String(d.from||"").toLowerCase()===meU;
+            return <React.Fragment key={i}>
+              {newDay&&<div className="daysep">{dayLabel(d.at)}</div>}
+              <div style={{display:"flex",padding:"0 14px"}}>
+                <div className={"bubble "+(mine?"me":"them")}>{d.text}<div className="bt" style={mine?null:{color:"var(--ink3)",opacity:1}}>{fmtClock(d.at)}</div></div>
+              </div>
+            </React.Fragment>;})}
+        </div>
+        <div className="dmfoot">
+          <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder={"Message @"+active.other+"…"} maxLength={DM_MAX}/>
+          <button className="btn sm" onClick={send} disabled={!text.trim()}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="send" s={15}/>Send</span></button>
+        </div>
+      </>}
     </div>
-    {convs.length===0?<div className="empty">No conversations yet.</div>
-      :convs.map(c=>{const last=c.list[c.list.length-1];return <div key={c.other} className="conv" onClick={()=>setOpen(c.other)}>
-        <Avatar p={{handle:c.other,mc:c.other}} size={44}/>
-        <div style={{flex:1,minWidth:0}}><div className="nm">{nameOf(c.other)} <span className="hn" style={{fontWeight:400}}>@{c.other}</span></div>
-          <div className="pv">{String(last.from||"").toLowerCase()===meU?"You: ":""}{last.text}</div></div>
-        <span className="tm" style={{color:"var(--ink3)",fontSize:13}}>{timeAgo(last.at)}</span></div>;})}
   </div>;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   ADMIN — office accounts
+   ADMIN — office accounts, verification, word filter
    ══════════════════════════════════════════════════════════════════════════════ */
-function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,note}){
+function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,ask,note}){
   const accounts=ctx.officeAccounts;
   const [tab,setTab]=useState("offices");
   const [edit,setEdit]=useState(null);   // null | office-account object
   const [newWord,setNewWord]=useState("");
   const [newVer,setNewVer]=useState("");
+  const [filter,setFilter]=useState("");
   const avail=useMemo(()=>vwAvailableOffices(ctx.data),[ctx.data]);
   const pick=useMemo(()=>{
     if(!edit)return avail;
@@ -450,8 +806,10 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,note}){
     if(!h){note("Give it a handle.","bad");return;}if(!oa.displayName.trim()){note("Give it a display name.","bad");return;}
     const map={...accounts,[oa.id]:{...oa,handle:h,displayName:oa.displayName.trim(),bio:oa.bio.trim()}};
     const r=await onSave(map);if(r.ok){setEdit(null);note("Office account saved.","ok");}else note(r.error||"Refused","bad");};
-  const remove=async oa=>{if(!confirm("Delete the @"+oa.handle+" office account? Its posts remain but it can no longer be used."))return;
-    const map={...accounts};delete map[oa.id];const r=await onSave(map);if(r.ok)note("Deleted.","ok");else note(r.error||"Refused","bad");};
+  const remove=oa=>ask({title:"Delete this office account?",
+    body:"@"+oa.handle+" ("+oa.displayName+") will no longer be usable by anyone. Its existing posts remain on the network.",
+    confirmLabel:"Delete account",danger:true,onYes:async()=>{
+      const map={...accounts};delete map[oa.id];const r=await onSave(map);if(r.ok)note("Deleted.","ok");else note(r.error||"Refused","bad");}});
   const words=(((ctx.data&&ctx.data["vw_profanity"])||{}).words)||[];
   const addWord=async()=>{const w=newWord.trim().toLowerCase();if(!w)return;
     if(words.map(x=>String(x).toLowerCase()).includes(w)){note("Already on the list.","bad");return;}
@@ -461,36 +819,46 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,note}){
   const addVer=async()=>{const u=newVer.trim().replace(/^@/,"").toLowerCase();if(!u)return;
     const r=await onSetVerified(u,true);if(r.ok){setNewVer("");note("@"+u+" verified.","ok");}else note(r.error||"Refused","bad");};
 
-  const subnav=<div className="tabs">
-    <button className={tab==="offices"?"on":""} onClick={()=>{setTab("offices");setEdit(null);}}>Office accounts</button>
-    <button className={tab==="verified"?"on":""} onClick={()=>setTab("verified")}>Verified</button>
-    <button className={tab==="words"?"on":""} onClick={()=>setTab("words")}>Word filter</button>
+  const list=Object.values(accounts);
+  const rows=list.map(oa=>{
+    const ids=oa.offices||[];
+    const holders=ids.map(id=>({id,who:vwOfficeHolder(id,ctx.data,ctx.accounts)}));
+    const filled=holders.filter(h=>h.who);
+    return {oa,ids,holders,filled,posts:ctx.posts.filter(p=>p.asOffice===oa.id).length};
+  }).filter(r=>{const t=filter.trim().toLowerCase();if(!t)return true;
+    return String(r.oa.handle||"").toLowerCase().includes(t)||String(r.oa.displayName||"").toLowerCase().includes(t)
+      ||r.ids.some(id=>vwOfficeLabel(id).toLowerCase().includes(t))||r.filled.some(h=>h.who.includes(t));});
+
+  const subnav=<div className="subnav">
+    <button className={tab==="offices"?"on":""} onClick={()=>{setTab("offices");setEdit(null);}}><Ic n="landmark" s={15}/>Offices <span style={{opacity:.7}}>{list.length}</span></button>
+    <button className={tab==="verified"?"on":""} onClick={()=>setTab("verified")}><Ic n="badge-check" s={15}/>Verified <span style={{opacity:.7}}>{verifiedList.length}</span></button>
+    <button className={tab==="words"?"on":""} onClick={()=>setTab("words")}><Ic n="filter" s={15}/>Word filter <span style={{opacity:.7}}>{words.length}</span></button>
+    {tab==="offices"&&!edit&&<button style={{marginLeft:"auto",background:"var(--brand)",color:"#fff",fontWeight:800}} onClick={()=>setEdit(blank())}><Ic n="plus" s={15}/>New office</button>}
   </div>;
 
   if(tab==="verified")return <div>{subnav}<div style={{padding:16}}>
     <h2 style={{fontSize:20,fontWeight:800}}>Verified accounts</h2>
     <p style={{fontSize:14,color:"var(--ink2)",marginBottom:14}}>Give a player the blue checkmark. Office accounts are verified automatically, and administrators, moderators and world leaders get their own badges. You can also verify from any profile.</p>
     <div style={{display:"flex",gap:8,marginBottom:16,maxWidth:420}}>
-      <input value={newVer} onChange={e=>setNewVer(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addVer();}} list="vw-accts" placeholder="Verify a @username"
-        style={{flex:1,background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:"10px 12px",font:"inherit"}}/>
+      <input className="inline-in" value={newVer} onChange={e=>setNewVer(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addVer();}} list="vw-accts" placeholder="Verify a @username" style={{flex:1}}/>
       <button className="btn sm" onClick={addVer} disabled={!newVer.trim()}>Verify</button></div>
     {verifiedList.length===0?<div className="empty">No players verified yet.</div>
       :verifiedList.map(u=>{const a=ctx.accounts[u];return <div key={u} className="uitem" style={{borderBottom:"1px solid var(--line)",paddingBottom:8}}>
         <Avatar p={{handle:u,mc:(a&&(a.mcName||a.username))||u}} size={40}/>
-        <div style={{flex:1}}><div className="nm" style={{display:"flex",alignItems:"center",gap:3}}>{(a&&(a.displayName||a.username))||u}<Badge check="verified"/></div><div className="hn">@{u}</div></div>
-        <button className="btn warn sm" onClick={async()=>{const r=await onSetVerified(u,false);if(!r.ok)note(r.error||"Refused","bad");else note("Removed.","");}}>Remove</button></div>;})}
+        <div style={{flex:1}}><div className="nm">{(a&&(a.displayName||a.username))||u}<Badge check="verified"/></div><div className="hn">@{u}</div></div>
+        <button className="btn warn sm" onClick={()=>ask({title:"Remove verification?",body:"@"+u+" will lose the blue checkmark.",confirmLabel:"Remove",danger:true,
+          onYes:async()=>{const r=await onSetVerified(u,false);if(!r.ok)note(r.error||"Refused","bad");else note("Removed.","");}})}>Remove</button></div>;})}
   </div></div>;
 
   if(tab==="words")return <div>{subnav}<div style={{padding:16}}>
     <h2 style={{fontSize:20,fontWeight:800}}>Word filter</h2>
     <p style={{fontSize:14,color:"var(--ink2)",marginBottom:14}}>Posts and replies containing any of these words (whole-word, case-insensitive) are refused. The list is visible only to administrators.</p>
     <div style={{display:"flex",gap:8,marginBottom:16,maxWidth:420}}>
-      <input value={newWord} onChange={e=>setNewWord(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addWord();}} placeholder="Add a banned word"
-        style={{flex:1,background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:"10px 12px",font:"inherit"}}/>
+      <input className="inline-in" value={newWord} onChange={e=>setNewWord(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addWord();}} placeholder="Add a banned word" style={{flex:1}}/>
       <button className="btn sm" onClick={addWord} disabled={!newWord.trim()}>Ban</button></div>
     {words.length===0?<div className="empty">No banned words yet.</div>
       :<div style={{display:"flex",flexWrap:"wrap",gap:8}}>{words.map(w=><span key={w} className="tag" style={{fontSize:14,padding:"5px 12px"}}>{w}
-        <button onClick={()=>rmWord(w)} style={{background:"none",border:0,color:"var(--red)",marginLeft:8,fontWeight:800,cursor:"pointer"}}>×</button></span>)}</div>}
+        <button onClick={()=>rmWord(w)} style={{background:"none",border:0,color:"var(--red)",marginLeft:8,fontWeight:800,cursor:"pointer"}} title="Remove">×</button></span>)}</div>}
   </div></div>;
 
   if(edit)return <div>{subnav}<div style={{padding:16}}>
@@ -499,29 +867,45 @@ function AdminOffices({ctx,onSave,onSaveProfanity,onSetVerified,note}){
     <div className="field"><label>Display name</label><input value={edit.displayName} maxLength={DNAME_MAX} onChange={e=>setEdit({...edit,displayName:e.target.value})} placeholder="e.g. The Home Office"/></div>
     <div className="field"><label>Bio</label><textarea value={edit.bio} maxLength={BIO_MAX} onChange={e=>setEdit({...edit,bio:e.target.value})} style={{minHeight:60,resize:"vertical"}} placeholder="What this account is."/></div>
     <div className="field"><label>Which office may post as this account</label>
-      <p style={{fontSize:13,color:"var(--ink2)",marginBottom:8}}>Whoever currently holds a ticked office can sign in as this account and post as it. Cabinet and ministerial posts are read live from each nation's register.</p>
+      <p style={{fontSize:13,color:"var(--ink2)",marginBottom:8}}>Whoever currently holds a ticked office can sign in as this account and post as it. Cabinet and ministerial posts are read live from each nation's register — the current holder is named beside each one, so you can see at a glance whether ticking it reaches anybody.</p>
       {Object.entries(groups).map(([g,l])=><div key={g}><div className="grp">{g}</div>
-        {l.map(o=><label key={o.id} className="chk"><input type="checkbox" checked={edit.offices.includes(o.id)}
-          onChange={e=>setEdit({...edit,offices:e.target.checked?[...edit.offices,o.id]:edit.offices.filter(x=>x!==o.id)})}/>{o.label}</label>)}</div>)}
+        {l.map(o=>{const who=vwOfficeHolder(o.id,ctx.data,ctx.accounts);
+          return <label key={o.id} className="chk"><input type="checkbox" checked={edit.offices.includes(o.id)}
+            onChange={e=>setEdit({...edit,offices:e.target.checked?[...edit.offices,o.id]:edit.offices.filter(x=>x!==o.id)})}/>{o.label}
+            <span className="who" style={who?null:{color:"var(--amber)"}}>{who?"@"+who:"vacant"}</span></label>;})}</div>)}
     </div>
     <div style={{display:"flex",gap:10}}><button className="btn" onClick={()=>save(edit)}>Save</button><button className="btn sec" onClick={()=>setEdit(null)}>Cancel</button></div>
   </div></div>;
 
-  const list=Object.values(accounts);
   return <div>{subnav}
-    <div style={{padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div><h2 style={{fontSize:20,fontWeight:800}}>Office accounts</h2>
-        <p style={{fontSize:13,color:"var(--ink2)"}}>Shared accounts tied to an individually-held office.</p></div>
-      <button className="btn sm" onClick={()=>setEdit(blank())}>+ New</button></div>
+    <div className="filterbar">
+      <div className="box"><Ic n="search" s={14}/><input value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Filter by handle, office or holder"/></div>
+      <span className="hint">{rows.length} of {list.length}</span>
+    </div>
     {list.length===0?<div className="empty">No office accounts yet. Create one for an office.</div>
-      :list.map(oa=><div key={oa.id} className="post" style={{cursor:"default"}}>
-        <Avatar p={{office:true,handle:oa.handle}} size={44}/>
-        <div className="body"><div className="phead"><span className="nm">{oa.displayName}</span><span className="off">OFFICE</span><span className="hn">@{oa.handle}</span></div>
-          {oa.bio&&<div className="ptext" style={{fontSize:14}}>{oa.bio}</div>}
-          <div style={{margin:"6px 0"}}>{(oa.offices||[]).map(id=><span key={id} className="tag">{vwOfficeLabel(id)}</span>)}
-            {(oa.offices||[]).length===0&&<span className="tag" style={{color:"var(--amber)"}}>No office — unreachable</span>}</div>
-          <div style={{display:"flex",gap:8,marginTop:4}}><button className="btn sec sm" onClick={()=>setEdit({...oa,offices:[...(oa.offices||[])]})}>Edit</button>
-            <button className="btn warn sm" onClick={()=>remove(oa)}>Delete</button></div></div></div>)}
+      :rows.length===0?<div className="empty">Nothing matches that filter.</div>
+      :rows.map(({oa,ids,holders,filled,posts})=><div key={oa.id} className="post" style={{alignItems:"flex-start"}}>
+        <Avatar p={{office:true,handle:oa.handle}} size={40}/>
+        <div className="body">
+          <div className="phead">
+            <span className="nm" onClick={()=>ctx.goOffice(oa.handle)}>{oa.displayName}</span>
+            <span className="hn">@{oa.handle}</span>
+            {ids.length===0?<span className="state vac">NO OFFICE — UNREACHABLE</span>
+              :filled.length===0?<span className="state vac">VACANT — NOBODY CAN POST</span>
+              :<span className="state ok">HELD BY @{filled[0].who.toUpperCase()}{filled.length>1?" +"+(filled.length-1):""}</span>}
+          </div>
+          {oa.bio&&<div className="ptext" style={{fontSize:13,color:"var(--ink2)"}}>{oa.bio}</div>}
+          <div className="meta" style={{marginTop:6,fontSize:12}}>
+            <span>{ids.length?ids.map(id=>vwOfficeLabel(id)).join(" · "):"no office attached"}</span>
+            <span>{posts} posts</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6,flex:"none"}}>
+          <button className="iconbtn" title="Edit" onClick={()=>setEdit({...oa,offices:[...(oa.offices||[])]})}><Ic n="pencil" s={15}/></button>
+          <button className="iconbtn" title="Open profile" onClick={()=>ctx.goOffice(oa.handle)}><Ic n="external-link" s={15}/></button>
+          <button className="iconbtn danger" title="Delete" onClick={()=>remove(oa)}><Ic n="trash-2" s={15}/></button>
+        </div>
+      </div>)}
   </div>;
 }
 
@@ -554,12 +938,25 @@ function App(){
   const [signIn,setSignIn]=useState(false);
   const [toast,setToast]=useState(null);
   const [activeId,setActiveId]=useState("self");
+  const [feedFilter,setFeedFilter]=useState("latest");
+  const [query,setQuery]=useState("");
+  const [menu,setMenu]=useState(false);
+  const [quote,setQuote]=useState(null);
+  const [confirm,setConfirm]=useState(null);
+  const [seenNotif,setSeenNotif]=useState(()=>readSeenNotif());
+  const [seenDM,setSeenDM]=useState(()=>readSeenDM());
+  const [lastPost,setLastPost]=useState(0);
+  const [nowTick,setNowTick]=useState(Date.now());
   const note=useCallback((m,c)=>{setToast({m,c:c||""});setTimeout(()=>setToast(null),3200);},[]);
+  const ask=useCallback(cfg=>setConfirm(cfg),[]);
 
   const loadAll=useCallback(async()=>{const r=await sgetAll();setRaw(r);setLoading(false);return r;},[]);
   useEffect(()=>{loadAll();},[loadAll]);
   useEffect(()=>{srestore().then(a=>{if(a)setMe(a);else if(!AUTH_TOKEN)setMe(null);});},[]);
   useEffect(()=>{const id=setInterval(async()=>{if(document.visibilityState==="visible"){const r=await sgetAll();setRaw(r);}},9000);return()=>clearInterval(id);},[]);
+  // ticks only while the one-a-minute limit is running, to count it down on the button
+  useEffect(()=>{if(!lastPost)return;const id=setInterval(()=>setNowTick(Date.now()),1000);return()=>clearInterval(id);},[lastPost]);
+  useEffect(()=>{const close=()=>setMenu(false);if(menu){document.addEventListener("click",close);return()=>document.removeEventListener("click",close);}},[menu]);
 
   const accounts=useMemo(()=>{const m={};Object.values(raw["mi_accounts"]||{}).forEach(a=>{if(a&&a.username)m[String(a.username).toLowerCase()]=a;});return m;},[raw]);
   const officeAccounts=useMemo(()=>raw["vw_office_accounts"]||{},[raw]);
@@ -575,8 +972,11 @@ function App(){
       ...myOffices.map(oa=>({id:oa.id,office:true,handle:oa.handle,name:oa.displayName}))];},[me,myOffices]);
   useEffect(()=>{if(!identities.find(i=>i.id===activeId))setActiveId("self");},[identities,activeId]);
 
+  const goProfile=useCallback(u=>setRoute({name:"profile",handle:String(u||"").toLowerCase()}),[]);
+  const goOffice=useCallback(h=>setRoute({name:"profile",handle:h,office:true}),[]);
+
   const ctx=useMemo(()=>({
-    me,accounts,officeAccounts,posts,dms,data:raw,verifiedSet,
+    me,accounts,officeAccounts,posts,dms,data:raw,verifiedSet,goProfile,goOffice,
     byId:id=>postMap[id],
     poster:post=>{if(post.asOffice&&officeAccounts[post.asOffice]){const oa=officeAccounts[post.asOffice];
         return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle,check:"verified",globe:isWorldLeaderOffice(oa)};}
@@ -591,11 +991,10 @@ function App(){
     iRepostedOf:id=>!!(me&&posts.find(p=>p.repostOf===id&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase())),
     officeByHandle:h=>Object.values(officeAccounts).find(o=>String(o.handle||"").toLowerCase()===String(h||"").replace(/^@/,"").toLowerCase()),
     bioOf,
-  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw,verifiedSet]);
+  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw,verifiedSet,goProfile,goOffice]);
 
   const patch=(k,v)=>setRaw(r=>({...r,[k]:v}));
-  const lastPostRef=useRef(0);
-  const rateWait=()=>Math.max(0,Math.ceil((60000-(Date.now()-lastPostRef.current))/1000));
+  const cooldown=lastPost?Math.max(0,Math.ceil((RATE_MS-(nowTick-lastPost))/1000)):0;
   const doPost=useCallback(async({text,asOffice,replyTo,repostOf})=>{
     if(!me){setSignIn(true);return{ok:false};}
     const id="p_"+uid();const key="vw_post_"+id;
@@ -607,12 +1006,13 @@ function App(){
     const targetId=(post.repostOf&&!String(post.text||"").trim())?post.repostOf:post.id;
     const existing=posts.find(p=>p.repostOf===targetId&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase());
     if(existing){await sdel("vw_post_"+existing.id);await loadAll();note("Repost removed.","");return;}
-    if(rateWait()>0){note("Slow down — you can post again in "+rateWait()+"s.","bad");return;}
+    if(cooldown>0){note("One post a minute — try again in "+cooldown+"s.","bad");return;}
     const ident=identities.find(i=>i.id===activeId)||identities[0];
     const r=await doPost({text:"",asOffice:ident&&ident.office?ident.id:"",repostOf:targetId});
-    if(r.ok){lastPostRef.current=Date.now();note("Reposted.","ok");}else note(r.error||"Refused","bad");},[me,posts,identities,activeId,doPost,loadAll,note]);
-  const del=useCallback(async post=>{if(!confirm("Delete this post?"))return;
-    const r=await sdel("vw_post_"+post.id);if(r.ok){await loadAll();note("Deleted.","");}else note(r.error||"Refused","bad");},[loadAll,note]);
+    if(r.ok){setLastPost(Date.now());setNowTick(Date.now());note("Reposted.","ok");}else note(r.error||"Refused","bad");},[me,posts,identities,activeId,doPost,loadAll,note,cooldown]);
+  const del=useCallback(post=>{ask({title:"Delete this post?",
+    body:String(post.text||"").slice(0,140)||"This repost will be removed.",confirmLabel:"Delete",danger:true,
+    onYes:async()=>{const r=await sdel("vw_post_"+post.id);if(r.ok){await loadAll();note("Deleted.","");}else note(r.error||"Refused","bad");}});},[loadAll,note,ask]);
   const saveBio=useCallback(async bio=>{if(!me)return{ok:false};const key="vw_profile_"+String(me.username||"").toLowerCase();
     const rec={bio,updatedAt:Date.now()};const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
   const sendDM=useCallback(async(to,text)=>{if(!me)return{ok:false};const id="d_"+uid();const key="vw_dm_"+id;
@@ -625,46 +1025,110 @@ function App(){
     const r=await sset("vw_verified",map);if(r.ok)patch("vw_verified",map);else await loadAll();return r;},[raw,loadAll]);
 
   const guardPost=useCallback(async payload=>{if(!me){setSignIn(true);return{ok:false};}
-    if(!payload.replyTo&&rateWait()>0){note("Slow down — you can post again in "+rateWait()+"s.","bad");return{ok:false};}
-    const r=await doPost(payload);if(r.ok&&!payload.replyTo)lastPostRef.current=Date.now();return r;},[me,doPost,note]);
+    if(!payload.replyTo&&cooldown>0){note("One post a minute — try again in "+cooldown+"s.","bad");return{ok:false};}
+    const r=await doPost(payload);if(r.ok&&!payload.replyTo){setLastPost(Date.now());setNowTick(Date.now());}return r;},[me,doPost,note,cooldown]);
   const openProfile=p=>setRoute(p.office?{name:"profile",handle:p.handle,office:true}:{name:"profile",handle:p.handle});
   const acts={open:id=>setRoute({name:"thread",id}),reply:post=>setRoute({name:"thread",id:post.id}),repost,del,profile:openProfile,
-    composerProps:{me,identities,activeId,setActiveId,onPost:guardPost}};
+    quote:post=>{if(!me){setSignIn(true);return;}setQuote(post);},
+    composerProps:{me,identities,activeId,setActiveId,onPost:guardPost,ctx,cooldown}};
 
   const admin=isAdmin(me);
-  const dmUnseen=0;
+  const notifs=useMemo(()=>buildNotifs(posts,me,accounts),[posts,me,accounts]);
+  const notifUnseen=notifs.filter(n=>n.at>seenNotif).length;
+  const dmUnseen=useMemo(()=>{if(!me)return 0;const meU=String(me.username||"").toLowerCase();const by={};
+    dms.forEach(d=>{const from=String(d.from||"").toLowerCase(),to=String(d.to||"").toLowerCase();
+      if(from===meU)return;if(to!==meU)return;by[from]=Math.max(by[from]||0,d.at||0);});
+    return Object.entries(by).filter(([u,at])=>at>(seenDM[u]||0)).length;},[dms,me,seenDM]);
+  const markDMRead=useCallback(other=>{setSeenDM(prev=>{const next={...prev,[other]:Date.now()};writeSeenDM(next);return next;});},[]);
 
-  const NAV=[{id:"home",ic:"🏠",label:"Home"},{id:"messages",ic:"✉",label:"Messages"},me&&{id:"myprofile",ic:"👤",label:"Profile"},admin&&{id:"admin",ic:"🛠",label:"Office accounts"}].filter(Boolean);
-  const goNav=id=>{if(id==="myprofile"){if(me)setRoute({name:"profile",handle:me.username});else setSignIn(true);return;}
-    if((id==="messages"||id==="admin")&&!me){setSignIn(true);return;}setRoute({name:id});};
-  const curNav=route.name==="profile"&&me&&route.handle===me.username?"myprofile":route.name;
+  useEffect(()=>{if(route.name==="notifs"){const top=notifs.length?notifs[0].at:Date.now();
+    if(top>seenNotif){writeSeenNotif(top);setSeenNotif(top);}}},[route.name,notifs,seenNotif]);
+
+  const NAV=[
+    {id:"home",ic:"home",label:"Home"},
+    me&&{id:"notifs",ic:"bell",label:"Notifications",count:notifUnseen},
+    {id:"messages",ic:"mail",label:"Messages",count:dmUnseen},
+    {id:"search",ic:"search",label:"Explore"},
+    me&&{id:"myprofile",ic:"user",label:"Profile"},
+    admin&&{id:"admin",ic:"wrench",label:"Administration"}
+  ].filter(Boolean);
+  const goNav=id=>{setMenu(false);
+    if(id==="myprofile"){if(me)setRoute({name:"profile",handle:me.username});else setSignIn(true);return;}
+    if((id==="messages"||id==="admin"||id==="notifs")&&!me){setSignIn(true);return;}
+    if(id==="search"){setRoute({name:"search",q:query});return;}
+    setRoute({name:id});};
+  const curNav=route.name==="profile"&&me&&route.handle===me.username&&!route.office?"myprofile":route.name;
+  const runSearch=v=>{setQuery(v);setRoute({name:"search",q:v});};
+
+  const searchBox=<div className="hdsearch"><Ic n="search" s={16}/>
+    <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search posts, people, offices"
+      onKeyDown={e=>{if(e.key==="Enter")runSearch(e.target.value);}}/></div>;
 
   let header,content;
-  if(route.name==="thread"){header=<><button className="back" onClick={()=>setRoute({name:"home"})}>←</button><h1>Post</h1></>;content=<Thread id={route.id} ctx={ctx} acts={acts}/>;}
-  else if(route.name==="profile"){const nm=route.office?(ctx.officeByHandle(route.handle)||{}).displayName||route.handle:((accounts[String(route.handle).toLowerCase()]||{}).displayName||route.handle);
-    header=<><button className="back" onClick={()=>setRoute({name:"home"})}>←</button><div><h1 style={{fontSize:17}}>{nm}</h1><div className="sub">@{route.handle}</div></div></>;
-    content=<Profile handle={route.handle} office={route.office} ctx={ctx} acts={acts} me={me} admin={admin} onSaveBio={saveBio} onVerify={setVerified} note={note}/>;}
-  else if(route.name==="messages"){header=<h1>Messages</h1>;content=me?<Messages ctx={ctx} me={me} onSend={sendDM} note={note}/>:<div className="empty">Sign in to read your messages.</div>;}
-  else if(route.name==="admin"){header=<h1>Administration</h1>;content=admin?<AdminOffices ctx={ctx} onSave={saveOffices} onSaveProfanity={saveProfanity} onSetVerified={setVerified} note={note}/>:<div className="empty">Administrators only.</div>;}
-  else {header=<h1>Home</h1>;content=me?<Feed ctx={ctx} acts={acts}/>:<div>
-    <div className="empty" style={{paddingBottom:8}}>Welcome to Vwitter. Sign in to post, reply and message.</div>
-    <div style={{textAlign:"center"}}><button className="btn" onClick={()=>setSignIn(true)}>Sign in</button></div>
-    <div style={{marginTop:20}}>{posts.filter(p=>!p.replyTo).sort((a,b)=>(b.at||0)-(a.at||0)).map(p=><PostCard key={p.id} post={p} ctx={ctx} onProfile={openProfile} compact/>)}</div>
-  </div>;}
+  if(route.name==="thread"){
+    header=<><button className="back" onClick={()=>setRoute({name:"home"})} title="Back"><Ic n="arrow-left" s={17}/></button>
+      <div><h1 style={{fontSize:17}}>Thread</h1><div className="sub">{ctx.repliesTo(route.id).length} replies</div></div>{searchBox}</>;
+    content=<Thread id={route.id} ctx={ctx} acts={acts}/>;}
+  else if(route.name==="profile"){
+    const nm=route.office?(ctx.officeByHandle(route.handle)||{}).displayName||route.handle:((accounts[String(route.handle).toLowerCase()]||{}).displayName||route.handle);
+    header=<><button className="back" onClick={()=>setRoute({name:"home"})} title="Back"><Ic n="arrow-left" s={17}/></button>
+      <div><h1 style={{fontSize:17}}>{nm}</h1><div className="sub">@{route.handle}</div></div>{searchBox}</>;
+    content=<Profile handle={route.handle} office={route.office} ctx={ctx} acts={acts} me={me} admin={admin} onSaveBio={saveBio} onVerify={setVerified}
+      onMessage={u=>setRoute({name:"messages",dm:u})} note={note}/>;}
+  else if(route.name==="messages"){
+    header=<><h1>Messages</h1>{dmUnseen>0&&<span className="badge" style={{background:"var(--brand)",color:"#fff",fontSize:12,fontWeight:700,borderRadius:999,padding:"1px 8px"}}>{dmUnseen} unread</span>}</>;
+    content=me?<Messages ctx={ctx} me={me} onSend={sendDM} onRead={markDMRead} seenDM={seenDM} initialOpen={route.dm} note={note}/>
+      :<div className="empty">Sign in to read your messages.</div>;}
+  else if(route.name==="notifs"){
+    header=<><h1>Notifications</h1><div className="sub" style={{marginLeft:2}}>replies, reposts, quotes and mentions</div>{searchBox}</>;
+    content=me?<Notifications ctx={ctx} notifs={notifs} seen={seenNotif} acts={acts}/>:<div className="empty">Sign in to see your notifications.</div>;}
+  else if(route.name==="search"){
+    header=<><button className="back" onClick={()=>setRoute({name:"home"})} title="Back"><Ic n="arrow-left" s={17}/></button><h1 style={{fontSize:17}}>Explore</h1>{searchBox}</>;
+    content=<Search q={route.q!==undefined?route.q:query} ctx={ctx} acts={acts} onQuery={runSearch}/>;}
+  else if(route.name==="admin"){
+    header=<><h1>Administration</h1><span className="state" style={{color:"var(--red)",border:"1px solid rgba(244,52,78,.5)"}}>ADMIN ONLY</span>{searchBox}</>;
+    content=admin?<AdminOffices ctx={ctx} onSave={saveOffices} onSaveProfanity={saveProfanity} onSetVerified={setVerified} ask={ask} note={note}/>
+      :<div className="empty">Administrators only.</div>;}
+  else {
+    header=<><h1>Home</h1>
+      {me&&<div className="seg" style={{marginLeft:6}}>
+        <button className={feedFilter==="latest"?"on":""} onClick={()=>setFeedFilter("latest")}>Latest</button>
+        <button className={feedFilter==="offices"?"on":""} onClick={()=>setFeedFilter("offices")}>Offices only</button>
+      </div>}
+      {searchBox}</>;
+    content=me?<Feed ctx={ctx} acts={acts} filter={feedFilter}/>:<div>
+      <div className="empty" style={{paddingBottom:8}}>Welcome to Vwitter. Sign in to post, reply and message.</div>
+      <div style={{textAlign:"center"}}><button className="btn" onClick={()=>setSignIn(true)}>Sign in</button></div>
+      <div style={{marginTop:20}}>{posts.filter(p=>!p.replyTo).sort((a,b)=>(b.at||0)-(a.at||0)).map(p=><PostCard key={p.id} post={p} ctx={ctx} onProfile={openProfile} compact/>)}</div>
+    </div>;}
 
   const identSelf=identities[0];
-  const trending=useMemo(()=>Object.values(accounts).slice(0,5),[accounts]);
+  const people=useMemo(()=>Object.values(accounts).slice(0,5),[accounts]);
+  const officeList=Object.values(officeAccounts);
 
   return <div className="shell">
     <datalist id="vw-accts">{Object.keys(accounts).map(u=><option key={u} value={u}/>)}</datalist>
     <nav className="rail">
       <div className="logo"><span className="v">V</span><span>Vwitter</span></div>
-      {NAV.map(n=><button key={n.id} className={"navi"+(curNav===n.id?" on":"")} onClick={()=>goNav(n.id)}>
-        <span className="ic">{n.ic}</span><span>{n.label}</span></button>)}
-      {me&&<button className="postbtn" onClick={()=>{setRoute({name:"home"});setTimeout(()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();},60);}}>Post</button>}
+      {NAV.map(n=><button key={n.id} className={"navi"+(curNav===n.id?" on":"")} onClick={()=>goNav(n.id)} title={n.label}>
+        <Ic n={n.ic} s={20}/><span>{n.label}</span>{n.count>0&&<span className="badge">{n.count}</span>}</button>)}
+      {me&&<button className="postbtn" onClick={()=>{setRoute({name:"home"});setTimeout(()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();},60);}}>
+        <Ic n="pen-line" s={17}/><span>New post</span></button>}
       <div className="railfoot">
-        {me?<button className="me-chip" onClick={()=>{forgetSession();setMe(null);note("Signed out.","");}}>
-            <Avatar p={identSelf} size={38}/><div className="txt"><div className="nm">{me.displayName||me.username}</div><div className="hn">Sign out</div></div></button>
+        {menu&&me&&<div className="menu" onClick={e=>e.stopPropagation()}>
+          <div className="mlabel">SIGNED IN AS @{String(me.username||"").toUpperCase()}</div>
+          <button onClick={()=>{setMenu(false);setRoute({name:"profile",handle:me.username});}}><Ic n="user" s={16}/>Your profile</button>
+          {identities.length>1&&<button onClick={()=>{setMenu(false);setRoute({name:"home"});
+            setTimeout(()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();},60);}}><Ic n="repeat-2" s={16}/>Switch posting identity</button>}
+          <button className="danger" onClick={()=>{setMenu(false);
+            ask({title:"Sign out of Vwitter?",body:"You will need your Vintranet username and password to sign back in.",confirmLabel:"Sign out",danger:true,
+              onYes:()=>{forgetSession();setMe(null);setRoute({name:"home"});note("Signed out.","");}});}}><Ic n="log-out" s={16}/>Sign out</button>
+        </div>}
+        {me?<button className="me-chip" onClick={e=>{e.stopPropagation();setMenu(m=>!m);}}>
+            <Avatar p={identSelf} size={36}/>
+            <div className="txt"><div className="nm">{me.displayName||me.username}</div><div className="hn">@{me.username}</div></div>
+            <span className="caret"><Ic n={menu?"chevron-down":"chevron-up"} s={15}/></span>
+          </button>
           :<button className="btn" style={{width:"100%"}} onClick={()=>setSignIn(true)}>Sign in</button>}
       </div>
     </nav>
@@ -675,18 +1139,40 @@ function App(){
     </main>
 
     <aside className="side">
-      <input className="searchbox" placeholder="Search Vwitter" onKeyDown={e=>{if(e.key==="Enter"){const v=e.target.value.trim().replace(/^@/,"");if(v){const oa=ctx.officeByHandle(v);setRoute(oa?{name:"profile",handle:oa.handle,office:true}:{name:"profile",handle:v.toLowerCase()});}}}}/>
-      <div className="widget"><h3>Office accounts</h3>
-        {Object.values(officeAccounts).length===0?<div style={{color:"var(--ink3)",fontSize:14}}>None yet.</div>
-          :Object.values(officeAccounts).slice(0,6).map(oa=><div key={oa.id} className="uitem" style={{cursor:"pointer"}} onClick={()=>setRoute({name:"profile",handle:oa.handle,office:true})}>
-            <Avatar p={{office:true,handle:oa.handle}} size={40}/><div><div className="nm" style={{display:"flex",alignItems:"center",gap:3}}>{oa.displayName}<Badge check="verified" globe={isWorldLeaderOffice(oa)}/></div><div className="hn">@{oa.handle}</div></div></div>)}</div>
+      <div className="widget">
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <h3 style={{marginBottom:0}}>Office accounts</h3>
+          {officeList.length>6&&<button className="hint" style={{marginLeft:"auto",background:"none",border:0,color:"var(--brandL)"}}
+            onClick={()=>runSearch("")}>all {officeList.length}</button>}
+        </div>
+        {officeList.length===0?<div style={{color:"var(--ink3)",fontSize:14}}>None yet.</div>
+          :officeList.slice(0,6).map(oa=>{const holder=(oa.offices||[]).map(id=>vwOfficeHolder(id,raw,accounts)).filter(Boolean)[0];
+            return <button key={oa.id} className="uitem" onClick={()=>goOffice(oa.handle)}>
+              <Avatar p={{office:true,handle:oa.handle}} size={38}/>
+              <span><span className="nm">{oa.displayName}<Badge check="verified" globe={isWorldLeaderOffice(oa)}/></span>
+                <span className="hn" style={{display:"block"}}>{holder?"held by @"+holder:<span style={{color:"var(--amber)"}}>vacant</span>}</span></span>
+            </button>;})}
+      </div>
       <div className="widget"><h3>Who's here</h3>
-        {trending.map(a=>{const b=ctx.userBadges(a.username);return <div key={a.username} className="uitem" style={{cursor:"pointer"}} onClick={()=>setRoute({name:"profile",handle:String(a.username).toLowerCase()})}>
-          <Avatar p={{handle:a.username,mc:a.mcName||a.username}} size={40}/><div><div className="nm" style={{display:"flex",alignItems:"center",gap:3}}>{a.displayName||a.username}<Badge check={b.check} globe={b.globe}/></div><div className="hn">@{a.username}</div></div></div>;})}</div>
+        {people.map(a=>{const b=ctx.userBadges(a.username);const n=posts.filter(p=>String(p.author||"").toLowerCase()===String(a.username).toLowerCase()).length;
+          return <button key={a.username} className="uitem" onClick={()=>goProfile(a.username)}>
+            <Avatar p={{handle:a.username,mc:a.mcName||a.username}} size={38}/>
+            <span><span className="nm">{a.displayName||a.username}<Badge check={b.check} globe={b.globe}/></span>
+              <span className="hn" style={{display:"block"}}>@{a.username}{n?" · "+n+" posts":""}</span></span>
+          </button>;})}
+      </div>
       <div style={{fontSize:12,color:"var(--ink3)",padding:"0 6px"}}>Vwitter · a service of the Vintranet · <a href="index.html">Networks</a></div>
     </aside>
 
+    {quote&&<div className="modal-bg" onClick={()=>setQuote(null)}><div className="modal" onClick={e=>e.stopPropagation()}>
+      <div className="mh"><button className="back" onClick={()=>setQuote(null)}><Ic n="arrow-left" s={17}/></button><h2>Quote this post</h2></div>
+      <Composer {...acts.composerProps} quoted={quote} placeholder="Add your own words…" autoFocus onDone={()=>{setQuote(null);note("Quoted.","ok");}}/>
+    </div></div>}
+
     {signIn&&<SignIn onClose={()=>setSignIn(false)} onAuth={a=>{setMe(a);setSignIn(false);loadAll();note("Signed in as "+(a.displayName||a.username)+".","ok");}}/>}
+    <Confirm open={!!confirm} title={confirm&&confirm.title} body={confirm&&confirm.body} confirmLabel={confirm&&confirm.confirmLabel}
+      danger={confirm&&confirm.danger} onNo={()=>setConfirm(null)}
+      onYes={()=>{const c=confirm;setConfirm(null);if(c&&c.onYes)c.onYes();}}/>
     {toast&&<div className={"toast "+toast.c}>{toast.m}</div>}
   </div>;
 }
