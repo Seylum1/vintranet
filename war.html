@@ -1657,14 +1657,21 @@ function capBonusFor(own) {
 function standing(battleId, side) {
   const own = rosterFor(battleId, side);
   const foe = rosterFor(battleId, side === 'lech' ? 'vindex' : 'lech');
-  let cap = capAgainst(presentOf(foe));
+  const op = presentOf(own), fp = presentOf(foe);
+  // The 125% cap only binds the LARGER side; the side with fewer present isn't
+  // capped at all — it's simply the smaller side, and the display just says so.
+  const smaller = op < fp;
+  let cap = smaller ? Infinity : capAgainst(Math.min(op, fp));
   if (cap !== Infinity) { const bn = capBonusFor(own); cap = Math.floor(cap * bn.mult) + bn.flat; }
   const active = inOf(own);
-  return { own, foe, cap, active, present: presentOf(own),
+  return { own, foe, cap, active, present: op, smaller,
     over: cap === Infinity ? 0 : Math.max(0, active - cap),
     slots: cap === Infinity ? Infinity : Math.max(0, cap - active),
     capped: cap !== Infinity };
 }
+// How a side's cap reads: the smaller side is named, an uncapped skirmish says so,
+// otherwise the 125% ceiling.
+function capLabelShort(st) { return st.smaller ? 'smaller side' : st.capped ? 'max ' + st.cap : 'no cap'; }
 const SIDES = { lech: { name: 'Empire of Lech', short: 'LECH', cls: 'lech' },
                 vindex: { name: 'Republic of Vindex', short: 'VINDEX', cls: 'vin' } };
 
@@ -2146,7 +2153,7 @@ function renderBattleBar() {
     const st = s === 'lech' ? sl : sv;
     return `<span class="side-count ${SIDES[s].cls}${st.over > 0 ? ' over' : ''}">
       ${SIDES[s].short} <b>${st.active}</b> in / ${st.present} present
-      <em>${st.capped ? 'max ' + st.cap : 'no cap'}</em></span>`;
+      <em>${capLabelShort(st)}</em></span>`;
   };
   // The one line a player actually needs: am I fighting, or am I at base?
   let you = '';
@@ -2211,12 +2218,13 @@ function rosterColumn(b, side) {
     <header class="rhead">
       <span class="rside">${S.name}</span>
       <span class="rcount${st.over > 0 ? ' over' : ''}"><b>${st.active}</b> in · ${st.present} present
-        · ${st.capped ? 'max <b>' + st.cap + '</b>' : 'no cap'}</span>
+        · ${st.smaller ? '<b>smaller side</b>' : st.capped ? 'max <b>' + st.cap + '</b>' : 'no cap'}</span>
     </header>
     ${st.over > 0 ? `<div class="rover">⚠ OVER CAP — BENCH ${st.over} MORE</div>` : ''}
     ${st.capped && st.over === 0 && st.slots > 0 && st.slots !== Infinity
       ? `<div class="rslots">${st.slots} slot${st.slots === 1 ? '' : 's'} open</div>` : ''}
-    ${!st.capped ? `<div class="rslots">Opponent has fewer than ${CAP_MIN_SIDE} present — no cap applies</div>` : ''}
+    ${st.smaller ? `<div class="rslots">You're the smaller side — no cap applies.</div>`
+      : !st.capped ? `<div class="rslots">Both sides under ${CAP_MIN_SIDE} present — no cap applies.</div>` : ''}
     ${(() => {
       // Read-only for everyone but this nation's war command.
       if (!mayAppoint) return `<div class="rmeta"><span>Strategy Officer: <b>${so ? esc(so) : '—'}</b></span></div>`;
@@ -2430,8 +2438,8 @@ function renderBattles() {
           : `<span class="phase ${P.cls}">${P.label}</span>`}
       </div>
       <div class="bcard-meta">${esc(b.date || '')}${inst && !settled ? ' · ' + esc(fmtClock(b.startTime)) + ' ' + esc(zoneAbbr(b.startTz || DEFAULT_TZ, inst)) : ''}${b.world ? ' · ' + esc(b.world) : ''}${b.location ? ' · ' + esc(b.location) : ''}${settled ? ' · ' + (SCALES[b.scale] || '') : ''}</div>
-      ${!settled ? `<div class="bcard-meta">VINDEX ${sv.active}/${sv.present}${sv.capped ? ' · max ' + sv.cap : ''}
-        &nbsp;·&nbsp; LECH ${sl.active}/${sl.present}${sl.capped ? ' · max ' + sl.cap : ''}</div>` : ''}
+      ${!settled ? `<div class="bcard-meta">VINDEX ${sv.active}/${sv.present} · ${capLabelShort(sv)}
+        &nbsp;·&nbsp; LECH ${sl.active}/${sl.present} · ${capLabelShort(sl)}</div>` : ''}
       ${b.notes ? `<div class="bcard-notes">${esc(b.notes)}</div>` : ''}
       ${by}
       <div class="bcard-btns">
