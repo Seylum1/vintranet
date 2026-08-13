@@ -411,6 +411,9 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
 .brfinal.lech{color:var(--lech-bright);border-color:var(--lech-deep);}
 .brfinal.vindex{color:var(--vin-bright);border-color:var(--vin-deep);}
 .brfinal.stalemate{color:var(--contest);border-color:var(--contest-deep);}
+.brmove{margin-bottom:.5rem;}
+.brmove-txt{font-family:'Share Tech Mono',monospace;font-size:.76rem;color:var(--ink-dim);}
+.brmove-txt b{color:var(--contest);}
 </style>
 </head>
 <body>
@@ -2107,8 +2110,8 @@ function resolutionSummaryHTML(b, heldL, heldV) {
       <div class="brline tot"><span>+ banked</span><span>${fmtBank(R.res.banked[s])}</span></div>
       <div class="brline tot"><span>= total</span><span>${fmtDur(s === 'lech' ? R.totalL : R.totalV)}</span></div></div>`;
   };
-  const verdict = R.victor === 'stalemate' ? 'Inconclusive — dead level'
-    : `${SIDES[R.victor].name} hold ${R.marginMin} min longer → tracker +${R.scale} ${SIDES[R.victor].short}`;
+  const verdict = R.victor === 'stalemate' ? 'Inconclusive — dead level on the point'
+    : `${SIDES[R.victor].name} hold the point ${R.marginMin} min longer — they win`;
   return `<div class="brsides">${side('vindex')}${side('lech')}</div>
     <div class="brfinal ${R.victor}">${esc(verdict)}</div>`;
 }
@@ -2458,6 +2461,13 @@ function renderBattles() {
           <label class="lech">Lech <input type="number" class="brheld" data-side="lech" min="0" max="30" step="1"/></label>
         </div>
         <div class="brorders"></div>
+        <div class="brl">SEVERITY — how hard this hits the war tracker</div>
+        <div class="bropts">
+          <button type="button" class="btn brs" data-scale="1">Skirmish ±1</button>
+          <button type="button" class="btn brs" data-scale="2">Major ±2</button>
+          <button type="button" class="btn brs" data-scale="3">Decisive ±3</button>
+        </div>
+        <div class="brmove"></div>
         <div class="brfoot">
           <button type="button" class="btn" data-act="rcancel">Cancel</button>
           <button type="button" class="btn primary" data-act="rsave">Confirm result</button>
@@ -2483,11 +2493,20 @@ function renderBattles() {
       // Seed from the frozen result if amending, else a level 15/15 split.
       heldInput('lech').value = b.heldLech != null ? b.heldLech : 15;
       heldInput('vindex').value = b.heldVindex != null ? b.heldVindex : 15;
+      // Severity is the admin's manual call — Major by default, or whatever was
+      // recorded before. Held time decides only who won, not how hard it hits.
+      let pickScale = b.scale || 2;
       const paint = () => {
         const hl = +heldInput('lech').value || 0, hv = +heldInput('vindex').value || 0;
+        const R = finalResult(b, hl, hv);
         panel.querySelector('.brorders').innerHTML = resolutionSummaryHTML(b, hl, hv);
+        panel.querySelectorAll('.brs').forEach(x => x.classList.toggle('active', +x.dataset.scale === pickScale));
+        panel.querySelector('.brmove').innerHTML = R.victor === 'stalemate'
+          ? `<span class="brmove-txt">Inconclusive — the tracker doesn't move.</span>`
+          : `<span class="brmove-txt">→ war tracker <b>+${pickScale} ${SIDES[R.victor].short}</b></span>`;
       };
       panel.querySelectorAll('.brheld').forEach(x => x.addEventListener('input', paint));
+      panel.querySelectorAll('.brs').forEach(x => x.addEventListener('click', () => { pickScale = +x.dataset.scale; paint(); }));
       const resBtn = card.querySelector('[data-act="result"]');
       if (resBtn) resBtn.addEventListener('click', () => { panel.hidden = !panel.hidden; if (!panel.hidden) paint(); });
       card.querySelector('[data-act="rcancel"]').addEventListener('click', () => { panel.hidden = true; });
@@ -2496,7 +2515,7 @@ function renderBattles() {
         const R = finalResult(b, hl, hv);
         panel.hidden = true;
         setPhase('concluded', {
-          victor: R.victor, scale: R.scale, heldLech: hl, heldVindex: hv,
+          victor: R.victor, scale: R.victor === 'stalemate' ? 0 : pickScale, heldLech: hl, heldVindex: hv,
           resolution: {
             banked: R.res.banked, marginMin: R.marginMin,
             hands: {
