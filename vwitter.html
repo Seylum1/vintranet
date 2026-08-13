@@ -638,7 +638,7 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onSaveBanner,onVerif
     </div>
     <div className="profhd">
       <div className="top">
-        <div style={{border:"3px solid var(--bg)",borderRadius:office?18:"50%",lineHeight:0}}><Avatar p={p} size={80}/></div>
+        <div style={{border:"4px solid var(--bg)",borderRadius:office?20:"50%",lineHeight:0,boxShadow:"0 2px 12px rgba(0,0,0,.5)",position:"relative",zIndex:2}}><Avatar p={p} size={80}/></div>
         <div style={{marginLeft:"auto",marginBottom:6,display:"flex",gap:8,flexWrap:"wrap"}}>
           {!office&&!isMe&&me&&<button className="btn sec sm" onClick={()=>onMessage(u)}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="mail" s={15}/>Message</span></button>}
           {isMe&&!editing&&<button className="btn sec sm" onClick={()=>setEditing(true)}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><Ic n="pencil" s={15}/>Edit bio</span></button>}
@@ -666,7 +666,7 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onSaveBanner,onVerif
         {office&&<div className="chips">
           <span style={{fontFamily:"var(--mono)",fontSize:10,letterSpacing:".1em",color:"var(--ink3)"}}>SPEAKS FOR</span>
           {(oa&&(oa.offices||[]).length?oa.offices:[]).map(id=><span key={id} className="chip">{vwOfficeLabel(id)}</span>)}
-          {holder?<button className="chip" style={{cursor:"pointer"}} onClick={()=>acts.profile({handle:holder})}>held by @{holder}</button>
+          {holder?(admin?<button className="chip" style={{cursor:"pointer"}} onClick={()=>acts.profile({handle:holder})}>held by @{holder}</button>:null)
             :<span className="state vac">VACANT — NOBODY CAN POST AS THIS</span>}
         </div>}
         <div className="meta">
@@ -765,8 +765,8 @@ function Search({q,ctx,acts,onQuery}){
       {offices.map(o=>{const holder=(o.offices||[]).map(id=>vwOfficeHolder(id,ctx.data,ctx.accounts)).filter(Boolean)[0];
         return <button key={o.id} className="uitem" onClick={()=>acts.profile({office:true,handle:o.handle})}>
           <Avatar p={{office:true,handle:o.handle,img:o.avatar}} size={40}/>
-          <span><span className="nm">{o.displayName}<Badge check="verified" globe={isWorldLeaderOffice(o)}/></span>
-            <span className="hn" style={{display:"block"}}>@{o.handle}{holder?" · held by @"+holder:" · vacant"}</span></span>
+          <span><span className="nm">{o.displayName}<Badge check="verified"/></span>
+            <span className="hn" style={{display:"block"}}>@{o.handle}{isAdmin(ctx.me)&&holder?" · held by @"+holder:(!holder?" · vacant":"")}</span></span>
         </button>;})}
     </div>}
     {showPosts&&<div style={{borderTop:"1px solid var(--line)",marginTop:8}}>
@@ -1121,12 +1121,12 @@ function App(){
     profileRec:u=>raw["vw_profile_"+String(u||"").toLowerCase()]||{},
     byId:id=>postMap[id],
     poster:post=>{if(post.asOffice&&officeAccounts[post.asOffice]){const oa=officeAccounts[post.asOffice];
-        return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle,img:oa.avatar||"",check:"verified",globe:isWorldLeaderOffice(oa)};}
+        return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle,img:oa.avatar||"",check:"verified",globe:false};}
       const a=accounts[String(post.author||"").toLowerCase()];
       return {handle:post.author,name:(a&&(a.displayName||a.username))||post.author,mc:(a&&(a.mcName||a.username))||post.author,
         check:userCheck(a,verifiedSet),globe:a?isWorldLeaderUser(a,raw):false};},
     userBadges:username=>{const a=accounts[String(username||"").toLowerCase()];return {check:userCheck(a,verifiedSet),globe:a?isWorldLeaderUser(a,raw):false};},
-    officeBadges:oa=>({check:"verified",globe:isWorldLeaderOffice(oa)}),
+    officeBadges:oa=>({check:"verified",globe:false}),
     canDelete:post=>!!(me&&(String(post.author||"").toLowerCase()===String(me.username||"").toLowerCase()||isAdmin(me))),
     repliesTo:id=>posts.filter(p=>p.replyTo===id),
     repostsOf:id=>posts.filter(p=>p.repostOf===id&&!p.text),
@@ -1294,6 +1294,16 @@ function App(){
 
     <aside className="side">
       <div className="widget">
+        <h3 style={{display:"flex",alignItems:"center",gap:7}}><Ic n="globe" s={17}/>World Leaders</h3>
+        {WORLD_LEADER_OFFICES.map(id=>{const h=vwOfficeHolder(id,raw,accounts);const a=h?accounts[h]:null;const b=h?ctx.userBadges(h):null;
+          return <button key={id} className="uitem" onClick={()=>h&&goProfile(h)} style={h?{}:{cursor:"default"}}>
+            <Avatar p={h?{handle:h,mc:(a&&(a.mcName||a.username))||h}:null} size={38}/>
+            <span><span className="nm">{h?((a&&(a.displayName||a.username))||h):<span style={{color:"var(--ink3)",fontWeight:600}}>Vacant</span>}
+              {h&&<Badge check={b.check} globe={true}/>}</span>
+              <span className="hn" style={{display:"block"}}>{vwOfficeLabel(id)}</span></span>
+          </button>;})}
+      </div>
+      <div className="widget">
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
           <h3 style={{marginBottom:0}}>Office accounts</h3>
           {officeList.length>6&&<button className="hint" style={{marginLeft:"auto",background:"none",border:0,color:"var(--brandL)"}}
@@ -1303,8 +1313,8 @@ function App(){
           :officeList.slice(0,6).map(oa=>{const holder=(oa.offices||[]).map(id=>vwOfficeHolder(id,raw,accounts)).filter(Boolean)[0];
             return <button key={oa.id} className="uitem" onClick={()=>goOffice(oa.handle)}>
               <Avatar p={{office:true,handle:oa.handle,img:oa.avatar}} size={38}/>
-              <span><span className="nm">{oa.displayName}<Badge check="verified" globe={isWorldLeaderOffice(oa)}/></span>
-                <span className="hn" style={{display:"block"}}>{holder?"held by @"+holder:<span style={{color:"var(--amber)"}}>vacant</span>}</span></span>
+              <span><span className="nm">{oa.displayName}<Badge check="verified"/></span>
+                <span className="hn" style={{display:"block"}}>{admin&&holder?"held by @"+holder:(holder?"@"+oa.handle:<span style={{color:"var(--amber)"}}>vacant</span>)}</span></span>
             </button>;})}
       </div>
       <div className="widget"><h3>Who's here</h3>
