@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Vwitter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0d0f13; --bg2:#14171c; --panel:#171a20; --panelH:#1c2027;
+  --line:#252a32; --lineL:#2f353f;
+  --ink:#e7e9ea; --ink2:#9aa4b0; --ink3:#6b7480;
+  --brand:#6d5cff; --brandD:#5646e0; --brandL:#9d90ff;
+  --blue:#4a9eff; --green:#00ba7c; --red:#f4344e; --amber:#ffb020;
+}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif;
+  font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+a{color:var(--brandL);text-decoration:none;} a:hover{text-decoration:underline;}
+::-webkit-scrollbar{width:10px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+.shell{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr) 300px;gap:0;min-height:100vh;}
+/* ── left rail ── */
+.rail{border-right:1px solid var(--line);padding:14px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;}
+.logo{font-size:26px;font-weight:900;letter-spacing:-.03em;color:var(--brandL);padding:8px 12px 14px;display:flex;align-items:center;gap:8px;}
+.logo .v{background:var(--brand);color:#fff;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.navi{display:flex;align-items:center;gap:14px;padding:11px 14px;border-radius:999px;font-size:17px;font-weight:600;color:var(--ink);background:none;border:0;width:100%;text-align:left;}
+.navi:hover{background:var(--panelH);}
+.navi.on{font-weight:800;}
+.navi .ic{font-size:20px;width:22px;text-align:center;}
+.navi .badge{margin-left:auto;background:var(--brand);color:#fff;font-size:12px;font-weight:700;border-radius:999px;padding:1px 7px;}
+.postbtn{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:13px;font-size:16px;font-weight:800;margin-top:10px;width:100%;}
+.postbtn:hover{background:var(--brandD);}
+.railfoot{margin-top:auto;padding:8px 6px;}
+.me-chip{display:flex;align-items:center;gap:10px;padding:9px;border-radius:999px;background:none;border:0;width:100%;text-align:left;}
+.me-chip:hover{background:var(--panelH);}
+.me-chip .nm{font-weight:700;font-size:14px;line-height:1.2;} .me-chip .hn{font-size:13px;color:var(--ink2);}
+/* ── centre column ── */
+.col{border-right:1px solid var(--line);min-height:100vh;}
+.colhd{position:sticky;top:0;z-index:5;background:rgba(13,15,19,.82);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+  padding:14px 16px;display:flex;align-items:center;gap:14px;}
+.colhd h1{font-size:19px;font-weight:800;} .colhd .sub{font-size:13px;color:var(--ink2);}
+.colhd .back{background:none;border:0;color:var(--ink);font-size:20px;padding:2px 6px;border-radius:999px;}
+.colhd .back:hover{background:var(--panelH);}
+/* ── avatars ── */
+.av{border-radius:50%;flex:none;object-fit:cover;image-rendering:pixelated;background:var(--panelH);}
+.av.office{border-radius:12px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;}
+/* ── composer ── */
+.composer{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);}
+.composer textarea{flex:1;background:none;border:0;color:var(--ink);font:inherit;font-size:19px;resize:none;outline:none;min-height:52px;padding-top:8px;}
+.composer .foot{display:flex;align-items:center;gap:12px;margin-top:8px;justify-content:flex-end;}
+.count{font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums;} .count.over{color:var(--red);}
+.idsel{background:var(--panelH);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:9px 18px;font-weight:800;font-size:15px;}
+.btn:hover{background:var(--brandD);} .btn[disabled]{opacity:.5;cursor:default;}
+.btn.sec{background:var(--panelH);color:var(--ink);border:1px solid var(--lineL);} .btn.sec:hover{background:var(--line);}
+.btn.warn{background:none;color:var(--red);border:1px solid var(--red);} .btn.warn:hover{background:rgba(244,52,78,.12);}
+.btn.sm{padding:6px 13px;font-size:13px;}
+/* ── post ── */
+.post{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);}
+.post:hover{background:#0f1216;} .post.clk{cursor:pointer;}
+.post .body{flex:1;min-width:0;}
+.post .rp{font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.phead{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px;}
+.phead .nm{font-weight:700;color:var(--ink);} .phead .nm:hover{text-decoration:underline;}
+.phead .off{background:var(--brand);color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;letter-spacing:.02em;}
+.phead .hn{color:var(--ink2);} .phead .dot{color:var(--ink3);} .phead .tm{color:var(--ink2);}
+.ptext{font-size:15px;white-space:pre-wrap;word-wrap:break-word;margin:2px 0 4px;line-height:1.5;}
+.quote{border:1px solid var(--lineL);border-radius:14px;padding:11px 13px;margin:8px 0;}
+.actions{display:flex;gap:6px;max-width:420px;justify-content:space-between;margin-top:6px;}
+.act{display:flex;align-items:center;gap:6px;background:none;border:0;color:var(--ink2);font-size:13px;padding:5px 8px;border-radius:999px;}
+.act:hover{color:var(--brandL);background:rgba(109,92,255,.12);}
+.act.rt:hover{color:var(--green);background:rgba(0,186,124,.12);} .act.rt.on{color:var(--green);}
+.act.del:hover{color:var(--red);background:rgba(244,52,78,.12);}
+/* ── right rail / generic ── */
+.side{padding:14px;position:sticky;top:0;height:100vh;overflow:auto;}
+.widget{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:16px;}
+.widget h3{font-size:17px;font-weight:800;margin-bottom:10px;}
+.searchbox{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:10px 16px;font:inherit;outline:none;margin-bottom:16px;}
+.searchbox:focus{border-color:var(--brand);}
+.uitem{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.uitem .nm{font-weight:700;font-size:14px;} .uitem .hn{font-size:13px;color:var(--ink2);}
+.empty{text-align:center;color:var(--ink3);padding:44px 16px;font-size:15px;}
+.field{margin-bottom:16px;} .field label{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.field input,.field textarea,.field select{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px 12px;font:inherit;outline:none;}
+.field input:focus,.field textarea:focus{border-color:var(--brand);}
+.profhd{padding:16px;border-bottom:1px solid var(--line);}
+.profhd .row{display:flex;gap:16px;align-items:flex-start;}
+.profhd .nm{font-size:22px;font-weight:900;} .profhd .hn{color:var(--ink2);font-size:15px;}
+.profhd .bio{margin-top:10px;font-size:15px;white-space:pre-wrap;}
+.tabs{display:flex;border-bottom:1px solid var(--line);}
+.tabs button{flex:1;background:none;border:0;color:var(--ink2);font-weight:700;font-size:15px;padding:14px;position:relative;}
+.tabs button.on{color:var(--ink);} .tabs button.on::after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:56px;height:4px;background:var(--brand);border-radius:2px;}
+.conv{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);align-items:center;}
+.conv:hover{background:#0f1216;cursor:pointer;} .conv.on{background:var(--panelH);}
+.conv .nm{font-weight:700;} .conv .pv{font-size:14px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bubble{max-width:74%;padding:9px 13px;border-radius:18px;margin:3px 16px;font-size:15px;white-space:pre-wrap;word-wrap:break-word;}
+.bubble.me{background:var(--brand);color:#fff;margin-left:auto;border-bottom-right-radius:5px;}
+.bubble.them{background:var(--panelH);border-bottom-left-radius:5px;}
+.dmfoot{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--bg);}
+.dmfoot input{flex:1;background:var(--panelH);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:10px 16px;font:inherit;outline:none;}
+.grp{font-size:12px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;}
+.chk{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;font-size:14px;}
+.chk:hover{background:var(--panelH);} .chk input{width:16px;height:16px;accent-color:var(--brand);}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9000;background:var(--panel);border:1px solid var(--lineL);color:var(--ink);
+  padding:12px 20px;border-radius:12px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:90vw;text-align:center;}
+.toast.bad{border-color:var(--red);color:#ffb4bf;} .toast.ok{border-color:var(--green);}
+.modal-bg{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:7vh 16px;overflow:auto;}
+.modal{background:var(--bg);border:1px solid var(--line);border-radius:18px;max-width:600px;width:100%;}
+.modal .mh{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line);}
+.modal .mh h2{font-size:18px;font-weight:800;} .modal .mb{padding:16px;}
+.tag{display:inline-block;background:var(--panelH);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;color:var(--ink2);margin:2px 4px 2px 0;}
+@media(max-width:1000px){.shell{grid-template-columns:70px minmax(0,1fr);} .side{display:none;} .logo span,.navi span,.me-chip .txt{display:none;} .navi{justify-content:center;} .postbtn{font-size:0;padding:14px;} .postbtn::after{content:"+";font-size:22px;}}
+@media(max-width:640px){.shell{grid-template-columns:1fr;} .rail{position:sticky;bottom:0;top:auto;height:auto;flex-direction:row;border-right:0;border-top:1px solid var(--line);order:2;} .logo,.railfoot,.postbtn{display:none;} .navi{flex:1;}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useMemo,useCallback,useRef}=React;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VWITTER — the network's social service
+   Every Vintranet account is automatically its own handle (@username). Some
+   accounts belong to an OFFICE: anyone holding a reaching office may post as it.
+   The server verifies every post is genuinely from the account that signed it,
+   keeps direct messages to their two participants, and reserves the office
+   accounts to a network administrator. This page only offers what the server
+   already allows.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9);}
+const API="https://lech-backend.onrender.com";
+let AUTH_TOKEN=null;
+const SESSION_KEY="lech_session",SESSION_ACC_KEY="lech_session_acc";
+function saveSession(t,a){try{if(t)localStorage.setItem(SESSION_KEY,t);if(a)localStorage.setItem(SESSION_ACC_KEY,JSON.stringify(a));}catch(e){}}
+function cachedAccount(){try{const t=localStorage.getItem(SESSION_KEY);if(!t)return null;const a=localStorage.getItem(SESSION_ACC_KEY);if(!a)return null;AUTH_TOKEN=t;return JSON.parse(a);}catch(e){return null;}}
+function clearSession(){try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(SESSION_ACC_KEY);}catch(e){}AUTH_TOKEN=null;}
+function forgetSession(){const t=AUTH_TOKEN;clearSession();try{if(t)fetch(API+"/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:t})});}catch(e){}}
+async function srestore(){let t=null;try{t=localStorage.getItem(SESSION_KEY);}catch(e){}if(!t)return null;AUTH_TOKEN=t;
+  try{const r=await fetch(API+"/api/me?token="+encodeURIComponent(t));const d=await r.json();
+    if(d&&d.ok&&d.account){saveSession(t,d.account);return d.account;}clearSession();return null;}catch(e){return null;}}
+async function sgetAll(){try{const r=await fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):""));const d=await r.json();return (d&&d.ok)?(d.data||{}):{};}catch(e){return{};}}
+async function sset(k,v){try{const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch(e){return {ok:false,error:"Connection error."};}}
+async function sdel(k){try{const r=await fetch(API+"/api/unset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch(e){return{ok:false,error:"Connection error."};}}
+async function slogin(u,p){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(u||"").trim(),password:p})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in refused"};}catch(e){return {ok:false,error:"Connection error"};}}
+
+const POST_MAX=280, BIO_MAX=160, DM_MAX=800, DNAME_MAX=40;
+
+/* Office catalogue — individually-held offices, MUST match server.js. Fixed
+   single-role offices match a role field; cabinet/ministerial offices are read
+   LIVE from each nation's register (bk_officials / vx_gov.cabinet / wx_gov.cabinet)
+   so an office account maps to ONE post, not a whole group. */
+const isAdmin=a=>!!a&&(a.role==="emperor"||a.sysAdmin===true);
+const FIXED_OFFICES=[
+  {id:"lech_emperor",label:"Emperor of Lech",group:"Empire of Lech",field:"role",values:["emperor"]},
+  {id:"vx_president",label:"President of Vindex",group:"Republic of Vindex",field:"vxRole",values:["president"]},
+  {id:"vx_vp",label:"Vice-President of Vindex",group:"Republic of Vindex",field:"vxRole",values:["vice_president"]},
+  {id:"vx_speaker",label:"Speaker of Vindex",group:"Republic of Vindex",field:"vxRole",values:["speaker"]},
+  {id:"wx_sovereign",label:"Sovereign of Wilden",group:"Wilden",field:"wxRole",values:["sovereign"]},
+  {id:"wx_pm",label:"Prime Minister of Wilden",group:"Wilden",field:"wxRole",values:["pm"]},
+  {id:"wx_speaker",label:"Speaker of the Commons",group:"Wilden",field:"wxRole",values:["speaker"]},
+];
+function vwOfficeLabel(id){
+  const f=FIXED_OFFICES.find(o=>o.id===id);if(f)return f.label;
+  if(id==="lech:chancellor")return "Chancellor of Lech";
+  if(id.indexOf("lechmin:")===0)return id.slice(8)+" (Lech)";
+  if(id.indexOf("cab:vx_gov:")===0)return id.slice(11)+" (Vindex)";
+  if(id.indexOf("cab:wx_gov:")===0)return id.slice(11)+" (Wilden)";
+  return id;
+}
+function vwOfficeMatches(id,account,data){
+  if(!account)return false;
+  const u=String(account.username||"").toLowerCase();
+  const f=FIXED_OFFICES.find(o=>o.id===id);
+  if(f)return f.values.map(String).includes(String(account[f.field]||""));
+  if(id==="lech:chancellor")return String(((data&&data.bk_officials)||{}).chancellor_username||"").toLowerCase()===u;
+  if(id.indexOf("lechmin:")===0){const m=((data&&data.bk_officials)||{}).minister_usernames||{};return String(m[id.slice(8)]||"").toLowerCase()===u;}
+  if(id.indexOf("cab:")===0){const p=id.split(":"),gov=p[1],post=p.slice(2).join(":");const cab=((data&&data[gov])||{}).cabinet||{};return String(cab[u]||"").toLowerCase()===String(post).toLowerCase();}
+  return false;
+}
+function vwUserControls(account,oa,data){if(!account||!oa)return false;if(isAdmin(account))return true;
+  return (oa.offices||[]).some(id=>vwOfficeMatches(id,account,data));}
+// The offices an admin may attach, built from the live registers.
+function vwAvailableOffices(data){
+  const out=FIXED_OFFICES.map(o=>({id:o.id,label:o.label,group:o.group}));
+  const bo=(data&&data.bk_officials)||{};
+  out.push({id:"lech:chancellor",label:"Chancellor of Lech",group:"Empire of Lech"});
+  Object.keys(bo.minister_usernames||{}).forEach(k=>out.push({id:"lechmin:"+k,label:k+" (Lech)",group:"Empire of Lech"}));
+  [["vx_gov","Republic of Vindex","Vindex"],["wx_gov","Wilden","Wilden"]].forEach(([gov,grp,short])=>{
+    const cab=((data&&data[gov])||{}).cabinet||{};
+    [...new Set(Object.values(cab).filter(Boolean))].forEach(post=>out.push({id:"cab:"+gov+":"+post,label:post+" ("+short+")",group:grp}));
+  });
+  return out;
+}
+
+function timeAgo(ts){if(!ts)return"";const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return s+"s";if(s<3600)return Math.floor(s/60)+"m";if(s<86400)return Math.floor(s/3600)+"h";
+  if(s<604800)return Math.floor(s/86400)+"d";return new Date(ts).toLocaleDateString("en-GB",{day:"numeric",month:"short"});}
+function fmtWhen(ts){if(!ts)return"";return new Date(ts).toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function mcFace(n,s){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"steve")+"/"+(s||48);}
+
+/* ── UI atoms ──────────────────────────────────────────────────────────────── */
+function Avatar({p,size=44,onClick}){
+  if(!p)return <div className="av" style={{width:size,height:size}}/>;
+  if(p.office)return <div className="av office" style={{width:size,height:size,fontSize:size*0.42}} onClick={onClick}>{(p.handle||"O").replace(/^@/,"")[0].toUpperCase()}</div>;
+  return <img className="av" src={mcFace(p.mc||p.handle,size)} style={{width:size,height:size}} alt="" onClick={onClick}/>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPOSER
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Composer({me,identities,activeId,setActiveId,onPost,placeholder,replyTo,onDone,autoFocus}){
+  const [text,setText]=useState("");const [busy,setBusy]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{if(autoFocus&&ref.current)ref.current.focus();},[autoFocus]);
+  const left=POST_MAX-text.length;
+  const ident=identities.find(i=>i.id===activeId)||identities[0];
+  const go=async()=>{if(!text.trim()||left<0||busy)return;setBusy(true);
+    const r=await onPost({text:text.trim(),asOffice:ident.office?ident.id:"",replyTo:replyTo||""});
+    setBusy(false);if(r.ok){setText("");if(onDone)onDone();}};
+  return <div className="composer">
+    <Avatar p={ident} size={44}/>
+    <div style={{flex:1}}>
+      {identities.length>1&&<select className="idsel" value={activeId} onChange={e=>setActiveId(e.target.value)} style={{marginBottom:8}}>
+        {identities.map(i=><option key={i.id} value={i.id}>{i.office?"🏛 "+i.name+" (@"+i.handle+")":"Posting as yourself"}</option>)}</select>}
+      <textarea ref={ref} value={text} onChange={e=>setText(e.target.value)} placeholder={placeholder||"What's happening?"}/>
+      <div className="foot">
+        <span className={"count"+(left<0?" over":"")}>{left}</span>
+        <button className="btn sm" disabled={!text.trim()||left<0||busy} onClick={go}>{busy?"…":(replyTo?"Reply":"Post")}</button>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   A POST
+   ══════════════════════════════════════════════════════════════════════════════ */
+function PostCard({post,ctx,onOpen,onReply,onRepost,onDelete,onProfile,compact}){
+  const p=ctx.poster(post);
+  const mine=ctx.me&&String(post.author||"").toLowerCase()===String(ctx.me.username||"").toLowerCase();
+  const replies=ctx.repliesTo(post.id).length;
+  const reposts=ctx.repostsOf(post.id).length;
+  const iReposted=ctx.iRepostedOf(post.id);
+  return <div className={"post"+(onOpen?" clk":"")} onClick={onOpen?()=>onOpen(post.id):undefined}>
+    <Avatar p={p} size={44} onClick={e=>{if(onProfile){e.stopPropagation();onProfile(p);}}}/>
+    <div className="body">
+      <div className="phead">
+        <span className="nm" onClick={e=>{if(onProfile){e.stopPropagation();onProfile(p);}}}>{p.name}</span>
+        {p.office&&<span className="off">OFFICE</span>}
+        <span className="hn">@{p.handle}</span><span className="dot">·</span><span className="tm">{timeAgo(post.at)}</span>
+      </div>
+      {post.text&&<div className="ptext">{post.text}</div>}
+      {post.repostOf&&ctx.byId(post.repostOf)&&<div className="quote">
+        <QuotedPost post={ctx.byId(post.repostOf)} ctx={ctx}/></div>}
+      {post.repostOf&&!ctx.byId(post.repostOf)&&<div className="quote"><span style={{color:"var(--ink3)"}}>This post is unavailable.</span></div>}
+      {!compact&&<div className="actions" onClick={e=>e.stopPropagation()}>
+        <button className="act" onClick={()=>onReply(post)}>💬 <span>{replies||""}</span></button>
+        <button className={"act rt"+(iReposted?" on":"")} onClick={()=>onRepost(post)}>🔁 <span>{reposts||""}</span></button>
+        {mine&&<button className="act del" onClick={()=>onDelete(post)}>🗑</button>}
+      </div>}
+    </div>
+  </div>;
+}
+function QuotedPost({post,ctx}){
+  const p=ctx.poster(post);
+  return <div><div className="phead" style={{fontSize:14}}>
+    <Avatar p={p} size={20}/><span className="nm">{p.name}</span>{p.office&&<span className="off">OFFICE</span>}
+    <span className="hn">@{p.handle}</span><span className="dot">·</span><span className="tm">{timeAgo(post.at)}</span></div>
+    {post.text&&<div className="ptext" style={{fontSize:14,marginTop:2}}>{post.text}</div>}</div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   FEED / THREAD / PROFILE
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Feed({ctx,acts}){
+  const items=useMemo(()=>ctx.posts.filter(p=>!p.replyTo).sort((a,b)=>(b.at||0)-(a.at||0)),[ctx.posts]);
+  return <div>
+    <Composer {...acts.composerProps}/>
+    {items.length===0?<div className="empty">No posts yet. Be the first to say something.</div>
+      :items.map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+  </div>;
+}
+function Thread({id,ctx,acts}){
+  const post=ctx.byId(id);
+  if(!post)return <div className="empty">This post is unavailable.</div>;
+  const parent=post.replyTo?ctx.byId(post.replyTo):null;
+  const replies=ctx.repliesTo(id).sort((a,b)=>(a.at||0)-(b.at||0));
+  const [replyOpen,setReplyOpen]=useState(true);
+  return <div>
+    {parent&&<PostCard post={parent} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>}
+    <div style={{padding:"14px 16px",borderBottom:"1px solid var(--line)"}}>
+      <div className="phead" style={{marginBottom:8}}>
+        {(()=>{const p=ctx.poster(post);return <><Avatar p={p} size={44}/><div style={{marginLeft:4}}>
+          <div className="nm">{p.name} {p.office&&<span className="off">OFFICE</span>}</div><div className="hn">@{p.handle}</div></div></>;})()}
+      </div>
+      {post.text&&<div className="ptext" style={{fontSize:22,lineHeight:1.4}}>{post.text}</div>}
+      {post.repostOf&&ctx.byId(post.repostOf)&&<div className="quote"><QuotedPost post={ctx.byId(post.repostOf)} ctx={ctx}/></div>}
+      <div className="hn" style={{marginTop:10,color:"var(--ink2)"}}>{fmtWhen(post.at)}</div>
+      <div className="actions" style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--line)"}}>
+        <button className="act" onClick={()=>setReplyOpen(true)}>💬 <span>{replies.length||""}</span></button>
+        <button className={"act rt"+(ctx.iRepostedOf(post.id)?" on":"")} onClick={()=>acts.repost(post)}>🔁 <span>{ctx.repostsOf(post.id).length||""}</span></button>
+        {ctx.me&&String(post.author||"").toLowerCase()===String(ctx.me.username||"").toLowerCase()&&<button className="act del" onClick={()=>acts.del(post)}>🗑</button>}
+      </div>
+    </div>
+    {ctx.me&&replyOpen&&<Composer {...acts.composerProps} replyTo={id} placeholder="Post your reply" autoFocus/>}
+    {replies.length===0?<div className="empty">No replies yet.</div>
+      :replies.map(r=><PostCard key={r.id} post={r} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+  </div>;
+}
+function Profile({handle,office,ctx,acts,me,onSaveBio,note}){
+  // office=true → an office account handle; else a person username
+  const oa=office?ctx.officeByHandle(handle):null;
+  const acc=office?null:ctx.accounts[String(handle||"").toLowerCase()];
+  const name=office?(oa?oa.displayName:handle):((acc&&(acc.displayName||acc.username))||handle);
+  const bio=office?(oa?oa.bio:""):ctx.bioOf(handle);
+  const p=office?{office:true,handle:oa?oa.handle:handle,name}:{handle,name,mc:(acc&&(acc.mcName||acc.username))||handle};
+  const isMe=!office&&me&&String(handle||"").toLowerCase()===String(me.username||"").toLowerCase();
+  const posts=useMemo(()=>ctx.posts.filter(pp=>office?pp.asOffice&&oa&&ctx.officeByHandle(handle)&&pp.asOffice===oa.id
+      :(!pp.asOffice&&String(pp.author||"").toLowerCase()===String(handle||"").toLowerCase()))
+    .sort((a,b)=>(b.at||0)-(a.at||0)),[ctx.posts,handle,office,oa]);
+  const [editing,setEditing]=useState(false);const [draft,setDraft]=useState(bio||"");
+  useEffect(()=>{setDraft(bio||"");},[bio]);
+  return <div>
+    <div className="profhd">
+      <div className="row"><Avatar p={p} size={80}/>
+        <div style={{flex:1}}>
+          <div className="nm">{name} {office&&<span className="off">OFFICE</span>}</div>
+          <div className="hn">@{p.handle}</div>
+          {!editing&&bio&&<div className="bio">{bio}</div>}
+          {isMe&&!editing&&<button className="btn sec sm" style={{marginTop:10}} onClick={()=>setEditing(true)}>Edit bio</button>}
+          {isMe&&editing&&<div style={{marginTop:10}}>
+            <textarea value={draft} maxLength={BIO_MAX} onChange={e=>setDraft(e.target.value)}
+              style={{width:"100%",background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:10,font:"inherit",resize:"vertical",minHeight:60}}/>
+            <div style={{display:"flex",gap:10,alignItems:"center",marginTop:6}}>
+              <span className="count">{BIO_MAX-draft.length}</span>
+              <button className="btn sm" onClick={async()=>{const r=await onSaveBio(draft.trim());if(r.ok){setEditing(false);note("Bio saved.","ok");}else note(r.error||"Refused","bad");}}>Save</button>
+              <button className="btn sec sm" onClick={()=>{setEditing(false);setDraft(bio||"");}}>Cancel</button>
+            </div></div>}
+        </div>
+      </div>
+    </div>
+    {posts.length===0?<div className="empty">No posts yet.</div>
+      :posts.map(pp=><PostCard key={pp.id} post={pp} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onDelete={acts.del} onProfile={acts.profile}/>)}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MESSAGES (direct, private)
+   ══════════════════════════════════════════════════════════════════════════════ */
+function Messages({ctx,me,onSend,note}){
+  const [open,setOpen]=useState(null);   // other username
+  const [newTo,setNewTo]=useState("");
+  const dms=ctx.dms;
+  const meU=String(me.username||"").toLowerCase();
+  const convs=useMemo(()=>{
+    const m={};dms.forEach(d=>{const other=String(d.from||"").toLowerCase()===meU?String(d.to||"").toLowerCase():String(d.from||"").toLowerCase();
+      if(!other)return;(m[other]=m[other]||[]).push(d);});
+    return Object.entries(m).map(([other,list])=>({other,list:list.sort((a,b)=>(a.at||0)-(b.at||0))}))
+      .sort((a,b)=>(b.list[b.list.length-1].at||0)-(a.list[a.list.length-1].at||0));},[dms,meU]);
+  const active=open?convs.find(c=>c.other===open)||{other:open,list:[]}:null;
+  const [text,setText]=useState("");
+  const send=async()=>{if(!text.trim()||!active)return;const r=await onSend(active.other,text.trim());if(r.ok)setText("");else note(r.error||"Refused","bad");};
+  const nameOf=u=>{const a=ctx.accounts[u];return (a&&(a.displayName||a.username))||u;};
+
+  if(active)return <div>
+    <div className="colhd"><button className="back" onClick={()=>setOpen(null)}>←</button>
+      <Avatar p={{handle:active.other,mc:active.other}} size={34}/><div><h1 style={{fontSize:17}}>{nameOf(active.other)}</h1><div className="sub">@{active.other}</div></div></div>
+    <div style={{padding:"10px 0",minHeight:"50vh"}}>
+      {active.list.length===0&&<div className="empty">No messages yet. Say hello.</div>}
+      {active.list.map((d,i)=><div key={i} className={"bubble "+(String(d.from||"").toLowerCase()===meU?"me":"them")}>{d.text}
+        <div style={{fontSize:11,opacity:.7,marginTop:3}}>{timeAgo(d.at)}</div></div>)}
+    </div>
+    <div className="dmfoot"><input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder="Start a message" maxLength={DM_MAX}/>
+      <button className="btn sm" onClick={send} disabled={!text.trim()}>Send</button></div>
+  </div>;
+
+  return <div>
+    <div style={{padding:14,borderBottom:"1px solid var(--line)",display:"flex",gap:8}}>
+      <input className="searchbox" style={{margin:0}} value={newTo} onChange={e=>setNewTo(e.target.value)} list="vw-accts" placeholder="New message — type a @username"/>
+      <button className="btn sm" disabled={!newTo.trim()} onClick={()=>{const u=newTo.trim().replace(/^@/,"").toLowerCase();if(u===meU){note("That's you.","bad");return;}setOpen(u);setNewTo("");}}>Go</button>
+    </div>
+    {convs.length===0?<div className="empty">No conversations yet.</div>
+      :convs.map(c=>{const last=c.list[c.list.length-1];return <div key={c.other} className="conv" onClick={()=>setOpen(c.other)}>
+        <Avatar p={{handle:c.other,mc:c.other}} size={44}/>
+        <div style={{flex:1,minWidth:0}}><div className="nm">{nameOf(c.other)} <span className="hn" style={{fontWeight:400}}>@{c.other}</span></div>
+          <div className="pv">{String(last.from||"").toLowerCase()===meU?"You: ":""}{last.text}</div></div>
+        <span className="tm" style={{color:"var(--ink3)",fontSize:13}}>{timeAgo(last.at)}</span></div>;})}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ADMIN — office accounts
+   ══════════════════════════════════════════════════════════════════════════════ */
+function AdminOffices({ctx,onSave,onSaveProfanity,note}){
+  const accounts=ctx.officeAccounts;
+  const [tab,setTab]=useState("offices");
+  const [edit,setEdit]=useState(null);   // null | office-account object
+  const [newWord,setNewWord]=useState("");
+  const avail=useMemo(()=>vwAvailableOffices(ctx.data),[ctx.data]);
+  const pick=useMemo(()=>{
+    if(!edit)return avail;
+    const known=new Set(avail.map(o=>o.id));
+    const extra=(edit.offices||[]).filter(id=>!known.has(id)).map(id=>({id,label:vwOfficeLabel(id)+" — not currently filled",group:"Other"}));
+    return [...avail,...extra];
+  },[avail,edit]);
+  const groups=useMemo(()=>{const g={};pick.forEach(o=>{(g[o.group]=g[o.group]||[]).push(o);});return g;},[pick]);
+  const blank=()=>({id:"vwo_"+uid(),handle:"",displayName:"",bio:"",offices:[],createdAt:Date.now()});
+  const save=async oa=>{const h=oa.handle.trim().replace(/^@/,"").replace(/[^a-zA-Z0-9_]/g,"");
+    if(!h){note("Give it a handle.","bad");return;}if(!oa.displayName.trim()){note("Give it a display name.","bad");return;}
+    const map={...accounts,[oa.id]:{...oa,handle:h,displayName:oa.displayName.trim(),bio:oa.bio.trim()}};
+    const r=await onSave(map);if(r.ok){setEdit(null);note("Office account saved.","ok");}else note(r.error||"Refused","bad");};
+  const remove=async oa=>{if(!confirm("Delete the @"+oa.handle+" office account? Its posts remain but it can no longer be used."))return;
+    const map={...accounts};delete map[oa.id];const r=await onSave(map);if(r.ok)note("Deleted.","ok");else note(r.error||"Refused","bad");};
+  const words=(((ctx.data&&ctx.data["vw_profanity"])||{}).words)||[];
+  const addWord=async()=>{const w=newWord.trim().toLowerCase();if(!w)return;
+    if(words.map(x=>String(x).toLowerCase()).includes(w)){note("Already on the list.","bad");return;}
+    const r=await onSaveProfanity([...words,w]);if(r.ok){setNewWord("");note("Word banned.","ok");}else note(r.error||"Refused","bad");};
+  const rmWord=async w=>{const r=await onSaveProfanity(words.filter(x=>x!==w));if(!r.ok)note(r.error||"Refused","bad");};
+
+  const subnav=<div className="tabs">
+    <button className={tab==="offices"?"on":""} onClick={()=>{setTab("offices");setEdit(null);}}>Office accounts</button>
+    <button className={tab==="words"?"on":""} onClick={()=>setTab("words")}>Word filter</button>
+  </div>;
+
+  if(tab==="words")return <div>{subnav}<div style={{padding:16}}>
+    <h2 style={{fontSize:20,fontWeight:800}}>Word filter</h2>
+    <p style={{fontSize:14,color:"var(--ink2)",marginBottom:14}}>Posts and replies containing any of these words (whole-word, case-insensitive) are refused. The list is visible only to administrators.</p>
+    <div style={{display:"flex",gap:8,marginBottom:16,maxWidth:420}}>
+      <input value={newWord} onChange={e=>setNewWord(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addWord();}} placeholder="Add a banned word"
+        style={{flex:1,background:"var(--bg2)",border:"1px solid var(--line)",borderRadius:10,color:"var(--ink)",padding:"10px 12px",font:"inherit"}}/>
+      <button className="btn sm" onClick={addWord} disabled={!newWord.trim()}>Ban</button></div>
+    {words.length===0?<div className="empty">No banned words yet.</div>
+      :<div style={{display:"flex",flexWrap:"wrap",gap:8}}>{words.map(w=><span key={w} className="tag" style={{fontSize:14,padding:"5px 12px"}}>{w}
+        <button onClick={()=>rmWord(w)} style={{background:"none",border:0,color:"var(--red)",marginLeft:8,fontWeight:800,cursor:"pointer"}}>×</button></span>)}</div>}
+  </div></div>;
+
+  if(edit)return <div>{subnav}<div style={{padding:16}}>
+    <h2 style={{fontSize:20,fontWeight:800,marginBottom:14}}>{accounts[edit.id]?"Edit office account":"New office account"}</h2>
+    <div className="field"><label>Handle</label><input value={edit.handle} onChange={e=>setEdit({...edit,handle:e.target.value})} placeholder="e.g. HomeOffice"/></div>
+    <div className="field"><label>Display name</label><input value={edit.displayName} maxLength={DNAME_MAX} onChange={e=>setEdit({...edit,displayName:e.target.value})} placeholder="e.g. The Home Office"/></div>
+    <div className="field"><label>Bio</label><textarea value={edit.bio} maxLength={BIO_MAX} onChange={e=>setEdit({...edit,bio:e.target.value})} style={{minHeight:60,resize:"vertical"}} placeholder="What this account is."/></div>
+    <div className="field"><label>Which office may post as this account</label>
+      <p style={{fontSize:13,color:"var(--ink2)",marginBottom:8}}>Whoever currently holds a ticked office can sign in as this account and post as it. Cabinet and ministerial posts are read live from each nation's register.</p>
+      {Object.entries(groups).map(([g,l])=><div key={g}><div className="grp">{g}</div>
+        {l.map(o=><label key={o.id} className="chk"><input type="checkbox" checked={edit.offices.includes(o.id)}
+          onChange={e=>setEdit({...edit,offices:e.target.checked?[...edit.offices,o.id]:edit.offices.filter(x=>x!==o.id)})}/>{o.label}</label>)}</div>)}
+    </div>
+    <div style={{display:"flex",gap:10}}><button className="btn" onClick={()=>save(edit)}>Save</button><button className="btn sec" onClick={()=>setEdit(null)}>Cancel</button></div>
+  </div></div>;
+
+  const list=Object.values(accounts);
+  return <div>{subnav}
+    <div style={{padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div><h2 style={{fontSize:20,fontWeight:800}}>Office accounts</h2>
+        <p style={{fontSize:13,color:"var(--ink2)"}}>Shared accounts tied to an individually-held office.</p></div>
+      <button className="btn sm" onClick={()=>setEdit(blank())}>+ New</button></div>
+    {list.length===0?<div className="empty">No office accounts yet. Create one for an office.</div>
+      :list.map(oa=><div key={oa.id} className="post" style={{cursor:"default"}}>
+        <Avatar p={{office:true,handle:oa.handle}} size={44}/>
+        <div className="body"><div className="phead"><span className="nm">{oa.displayName}</span><span className="off">OFFICE</span><span className="hn">@{oa.handle}</span></div>
+          {oa.bio&&<div className="ptext" style={{fontSize:14}}>{oa.bio}</div>}
+          <div style={{margin:"6px 0"}}>{(oa.offices||[]).map(id=><span key={id} className="tag">{vwOfficeLabel(id)}</span>)}
+            {(oa.offices||[]).length===0&&<span className="tag" style={{color:"var(--amber)"}}>No office — unreachable</span>}</div>
+          <div style={{display:"flex",gap:8,marginTop:4}}><button className="btn sec sm" onClick={()=>setEdit({...oa,offices:[...(oa.offices||[])]})}>Edit</button>
+            <button className="btn warn sm" onClick={()=>remove(oa)}>Delete</button></div></div></div>)}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SIGN IN
+   ══════════════════════════════════════════════════════════════════════════════ */
+function SignIn({onClose,onAuth}){
+  const [u,setU]=useState(""),[p,setP]=useState(""),[err,setErr]=useState(""),[busy,setBusy]=useState(false);
+  const go=async()=>{if(!u.trim()||!p){setErr("Enter your username and password.");return;}setBusy(true);setErr("");
+    const r=await slogin(u,p);setBusy(false);if(!r.ok){setErr(r.error||"Refused");return;}onAuth(r.account);};
+  return <div className="modal-bg" onClick={onClose}><div className="modal" style={{maxWidth:420}} onClick={e=>e.stopPropagation()}>
+    <div className="mh"><h2>Sign in to Vwitter</h2></div>
+    <div className="mb">
+      <p style={{color:"var(--ink2)",marginBottom:14,fontSize:14}}>One Vintranet account across the whole network. You already have a Vwitter — it's you.</p>
+      {err&&<div style={{color:"var(--red)",marginBottom:12,fontSize:14}}>{err}</div>}
+      <div className="field"><label>Username</label><input value={u} onChange={e=>setU(e.target.value)} autoFocus/></div>
+      <div className="field"><label>Password</label><input type="password" value={p} onChange={e=>setP(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")go();}}/></div>
+      <button className="btn" style={{width:"100%"}} onClick={go} disabled={busy}>{busy?"Signing in…":"Sign in"}</button>
+    </div></div></div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   APP
+   ══════════════════════════════════════════════════════════════════════════════ */
+function App(){
+  const [raw,setRaw]=useState({});
+  const [loading,setLoading]=useState(true);
+  const [me,setMe]=useState(()=>cachedAccount());
+  const [route,setRoute]=useState({name:"home"});
+  const [signIn,setSignIn]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [activeId,setActiveId]=useState("self");
+  const note=useCallback((m,c)=>{setToast({m,c:c||""});setTimeout(()=>setToast(null),3200);},[]);
+
+  const loadAll=useCallback(async()=>{const r=await sgetAll();setRaw(r);setLoading(false);return r;},[]);
+  useEffect(()=>{loadAll();},[loadAll]);
+  useEffect(()=>{srestore().then(a=>{if(a)setMe(a);else if(!AUTH_TOKEN)setMe(null);});},[]);
+  useEffect(()=>{const id=setInterval(async()=>{if(document.visibilityState==="visible"){const r=await sgetAll();setRaw(r);}},9000);return()=>clearInterval(id);},[]);
+
+  const accounts=useMemo(()=>{const m={};Object.values(raw["mi_accounts"]||{}).forEach(a=>{if(a&&a.username)m[String(a.username).toLowerCase()]=a;});return m;},[raw]);
+  const officeAccounts=useMemo(()=>raw["vw_office_accounts"]||{},[raw]);
+  const posts=useMemo(()=>Object.entries(raw).filter(([k])=>k.indexOf("vw_post_")===0).map(([,v])=>v).filter(p=>p&&p.id),[raw]);
+  const dms=useMemo(()=>Object.entries(raw).filter(([k])=>k.indexOf("vw_dm_")===0).map(([,v])=>v).filter(Boolean),[raw]);
+  const postMap=useMemo(()=>{const m={};posts.forEach(p=>{m[p.id]=p;});return m;},[posts]);
+  const bioOf=useCallback(u=>{const r=raw["vw_profile_"+String(u||"").toLowerCase()];return (r&&r.bio)||"";},[raw]);
+
+  const myOffices=useMemo(()=>me?Object.values(officeAccounts).filter(oa=>vwUserControls(me,oa,raw)):[],[me,officeAccounts,raw]);
+  const identities=useMemo(()=>{if(!me)return [];
+    return [{id:"self",office:false,handle:me.username,name:me.displayName||me.username,mc:me.mcName||me.username},
+      ...myOffices.map(oa=>({id:oa.id,office:true,handle:oa.handle,name:oa.displayName}))];},[me,myOffices]);
+  useEffect(()=>{if(!identities.find(i=>i.id===activeId))setActiveId("self");},[identities,activeId]);
+
+  const ctx=useMemo(()=>({
+    me,accounts,officeAccounts,posts,dms,data:raw,
+    byId:id=>postMap[id],
+    poster:post=>{if(post.asOffice&&officeAccounts[post.asOffice]){const oa=officeAccounts[post.asOffice];
+        return {office:true,id:post.asOffice,handle:oa.handle,name:oa.displayName||oa.handle};}
+      const a=accounts[String(post.author||"").toLowerCase()];
+      return {handle:post.author,name:(a&&(a.displayName||a.username))||post.author,mc:(a&&(a.mcName||a.username))||post.author};},
+    repliesTo:id=>posts.filter(p=>p.replyTo===id),
+    repostsOf:id=>posts.filter(p=>p.repostOf===id&&!p.text),
+    iRepostedOf:id=>!!(me&&posts.find(p=>p.repostOf===id&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase())),
+    officeByHandle:h=>Object.values(officeAccounts).find(o=>String(o.handle||"").toLowerCase()===String(h||"").replace(/^@/,"").toLowerCase()),
+    bioOf,
+  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw]);
+
+  const patch=(k,v)=>setRaw(r=>({...r,[k]:v}));
+  const lastPostRef=useRef(0);
+  const rateWait=()=>Math.max(0,Math.ceil((60000-(Date.now()-lastPostRef.current))/1000));
+  const doPost=useCallback(async({text,asOffice,replyTo,repostOf})=>{
+    if(!me){setSignIn(true);return{ok:false};}
+    const id="p_"+uid();const key="vw_post_"+id;
+    const rec={id,author:String(me.username||"").toLowerCase(),asOffice:asOffice||"",text:text||"",at:Date.now(),replyTo:replyTo||"",repostOf:repostOf||""};
+    const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
+  // Reposting always targets the ORIGINAL, so a repost of a repost is impossible;
+  // clicking again removes your repost. Rate-limited like a fresh post.
+  const repost=useCallback(async post=>{if(!me){setSignIn(true);return;}
+    const targetId=(post.repostOf&&!String(post.text||"").trim())?post.repostOf:post.id;
+    const existing=posts.find(p=>p.repostOf===targetId&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase());
+    if(existing){await sdel("vw_post_"+existing.id);await loadAll();note("Repost removed.","");return;}
+    if(rateWait()>0){note("Slow down — you can post again in "+rateWait()+"s.","bad");return;}
+    const ident=identities.find(i=>i.id===activeId)||identities[0];
+    const r=await doPost({text:"",asOffice:ident&&ident.office?ident.id:"",repostOf:targetId});
+    if(r.ok){lastPostRef.current=Date.now();note("Reposted.","ok");}else note(r.error||"Refused","bad");},[me,posts,identities,activeId,doPost,loadAll,note]);
+  const del=useCallback(async post=>{if(!confirm("Delete this post?"))return;
+    const r=await sdel("vw_post_"+post.id);if(r.ok){await loadAll();note("Deleted.","");}else note(r.error||"Refused","bad");},[loadAll,note]);
+  const saveBio=useCallback(async bio=>{if(!me)return{ok:false};const key="vw_profile_"+String(me.username||"").toLowerCase();
+    const rec={bio,updatedAt:Date.now()};const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
+  const sendDM=useCallback(async(to,text)=>{if(!me)return{ok:false};const id="d_"+uid();const key="vw_dm_"+id;
+    const rec={id,from:String(me.username||"").toLowerCase(),fromOffice:"",to:String(to||"").toLowerCase(),text,at:Date.now()};
+    const r=await sset(key,rec);if(r.ok)patch(key,rec);return r;},[me]);
+  const saveOffices=useCallback(async map=>{const r=await sset("vw_office_accounts",map);if(r.ok)patch("vw_office_accounts",map);else await loadAll();return r;},[loadAll]);
+  const saveProfanity=useCallback(async words=>{const r=await sset("vw_profanity",{words});if(r.ok)patch("vw_profanity",{words});else await loadAll();return r;},[loadAll]);
+
+  const guardPost=useCallback(async payload=>{if(!me){setSignIn(true);return{ok:false};}
+    if(!payload.replyTo&&rateWait()>0){note("Slow down — you can post again in "+rateWait()+"s.","bad");return{ok:false};}
+    const r=await doPost(payload);if(r.ok&&!payload.replyTo)lastPostRef.current=Date.now();return r;},[me,doPost,note]);
+  const openProfile=p=>setRoute(p.office?{name:"profile",handle:p.handle,office:true}:{name:"profile",handle:p.handle});
+  const acts={open:id=>setRoute({name:"thread",id}),reply:post=>setRoute({name:"thread",id:post.id}),repost,del,profile:openProfile,
+    composerProps:{me,identities,activeId,setActiveId,onPost:guardPost}};
+
+  const admin=isAdmin(me);
+  const dmUnseen=0;
+
+  const NAV=[{id:"home",ic:"🏠",label:"Home"},{id:"messages",ic:"✉",label:"Messages"},me&&{id:"myprofile",ic:"👤",label:"Profile"},admin&&{id:"admin",ic:"🛠",label:"Office accounts"}].filter(Boolean);
+  const goNav=id=>{if(id==="myprofile"){if(me)setRoute({name:"profile",handle:me.username});else setSignIn(true);return;}
+    if((id==="messages"||id==="admin")&&!me){setSignIn(true);return;}setRoute({name:id});};
+  const curNav=route.name==="profile"&&me&&route.handle===me.username?"myprofile":route.name;
+
+  let header,content;
+  if(route.name==="thread"){header=<><button className="back" onClick={()=>setRoute({name:"home"})}>←</button><h1>Post</h1></>;content=<Thread id={route.id} ctx={ctx} acts={acts}/>;}
+  else if(route.name==="profile"){const nm=route.office?(ctx.officeByHandle(route.handle)||{}).displayName||route.handle:((accounts[String(route.handle).toLowerCase()]||{}).displayName||route.handle);
+    header=<><button className="back" onClick={()=>setRoute({name:"home"})}>←</button><div><h1 style={{fontSize:17}}>{nm}</h1><div className="sub">@{route.handle}</div></div></>;
+    content=<Profile handle={route.handle} office={route.office} ctx={ctx} acts={acts} me={me} onSaveBio={saveBio} note={note}/>;}
+  else if(route.name==="messages"){header=<h1>Messages</h1>;content=me?<Messages ctx={ctx} me={me} onSend={sendDM} note={note}/>:<div className="empty">Sign in to read your messages.</div>;}
+  else if(route.name==="admin"){header=<h1>Administration</h1>;content=admin?<AdminOffices ctx={ctx} onSave={saveOffices} onSaveProfanity={saveProfanity} note={note}/>:<div className="empty">Administrators only.</div>;}
+  else {header=<h1>Home</h1>;content=me?<Feed ctx={ctx} acts={acts}/>:<div>
+    <div className="empty" style={{paddingBottom:8}}>Welcome to Vwitter. Sign in to post, reply and message.</div>
+    <div style={{textAlign:"center"}}><button className="btn" onClick={()=>setSignIn(true)}>Sign in</button></div>
+    <div style={{marginTop:20}}>{posts.filter(p=>!p.replyTo).sort((a,b)=>(b.at||0)-(a.at||0)).map(p=><PostCard key={p.id} post={p} ctx={ctx} onProfile={openProfile} compact/>)}</div>
+  </div>;}
+
+  const identSelf=identities[0];
+  const trending=useMemo(()=>Object.values(accounts).slice(0,5),[accounts]);
+
+  return <div className="shell">
+    <datalist id="vw-accts">{Object.keys(accounts).map(u=><option key={u} value={u}/>)}</datalist>
+    <nav className="rail">
+      <div className="logo"><span className="v">V</span><span>Vwitter</span></div>
+      {NAV.map(n=><button key={n.id} className={"navi"+(curNav===n.id?" on":"")} onClick={()=>goNav(n.id)}>
+        <span className="ic">{n.ic}</span><span>{n.label}</span></button>)}
+      {me&&<button className="postbtn" onClick={()=>{setRoute({name:"home"});setTimeout(()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();},60);}}>Post</button>}
+      <div className="railfoot">
+        {me?<button className="me-chip" onClick={()=>{forgetSession();setMe(null);note("Signed out.","");}}>
+            <Avatar p={identSelf} size={38}/><div className="txt"><div className="nm">{me.displayName||me.username}</div><div className="hn">Sign out</div></div></button>
+          :<button className="btn" style={{width:"100%"}} onClick={()=>setSignIn(true)}>Sign in</button>}
+      </div>
+    </nav>
+
+    <main className="col">
+      <div className="colhd">{header}</div>
+      {loading?<div className="empty">Loading…</div>:content}
+    </main>
+
+    <aside className="side">
+      <input className="searchbox" placeholder="Search Vwitter" onKeyDown={e=>{if(e.key==="Enter"){const v=e.target.value.trim().replace(/^@/,"");if(v){const oa=ctx.officeByHandle(v);setRoute(oa?{name:"profile",handle:oa.handle,office:true}:{name:"profile",handle:v.toLowerCase()});}}}}/>
+      <div className="widget"><h3>Office accounts</h3>
+        {Object.values(officeAccounts).length===0?<div style={{color:"var(--ink3)",fontSize:14}}>None yet.</div>
+          :Object.values(officeAccounts).slice(0,6).map(oa=><div key={oa.id} className="uitem" style={{cursor:"pointer"}} onClick={()=>setRoute({name:"profile",handle:oa.handle,office:true})}>
+            <Avatar p={{office:true,handle:oa.handle}} size={40}/><div><div className="nm">{oa.displayName}</div><div className="hn">@{oa.handle}</div></div></div>)}</div>
+      <div className="widget"><h3>Who's here</h3>
+        {trending.map(a=><div key={a.username} className="uitem" style={{cursor:"pointer"}} onClick={()=>setRoute({name:"profile",handle:String(a.username).toLowerCase()})}>
+          <Avatar p={{handle:a.username,mc:a.mcName||a.username}} size={40}/><div><div className="nm">{a.displayName||a.username}</div><div className="hn">@{a.username}</div></div></div>)}</div>
+      <div style={{fontSize:12,color:"var(--ink3)",padding:"0 6px"}}>Vwitter · a service of the Vintranet · <a href="index.html">Networks</a></div>
+    </aside>
+
+    {signIn&&<SignIn onClose={()=>setSignIn(false)} onAuth={a=>{setMe(a);setSignIn(false);loadAll();note("Signed in as "+(a.displayName||a.username)+".","ok");}}/>}
+    {toast&&<div className={"toast "+toast.c}>{toast.m}</div>}
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
