@@ -526,8 +526,10 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
         <div class="sep" id="sepTheatre"></div>
         <button class="btn active" id="modeSelect" title="Select territories, drag to pan">Select / Pan</button>
         <button class="btn" id="modeDraw" style="display:none" title="Draw a new border polygon">✎ Draw Border</button>
+        <button class="btn" id="modeFront" style="display:none" title="Draw the current frontline (redline)">⚑ Frontline</button>
         <button class="btn primary" id="btnFinish" style="display:none">Finish ✓</button>
         <button class="btn" id="btnCancelDraw" style="display:none">Cancel</button>
+        <button class="btn" id="btnClearFront" style="display:none" title="Erase the frontline in this theatre">Clear Front</button>
         <div class="sep"></div>
         <button class="btn" id="btnZoomOut">−</button>
         <button class="btn" id="btnZoomIn">+</button>
@@ -542,6 +544,7 @@ footer{padding:.28rem .8rem;border-top:1px solid var(--line);background:var(--bg
           <svg id="overlay" xmlns="http://www.w3.org/2000/svg">
             <defs id="svgDefs"></defs>
             <g id="gTerr"></g>
+            <g id="gFront"></g>
             <g id="gDraw"></g>
             <g id="gHandles"></g>
           </svg>
@@ -671,7 +674,7 @@ let loadedOnce = false;
 /* ── element refs ── */
 const $ = id => document.getElementById(id);
 const viewport = $('viewport'), world = $('world'), mapImg = $('mapImg'), overlay = $('overlay');
-const gTerr = $('gTerr'), gDraw = $('gDraw'), gHandles = $('gHandles'), svgDefs = $('svgDefs');
+const gTerr = $('gTerr'), gFront = $('gFront'), gDraw = $('gDraw'), gHandles = $('gHandles'), svgDefs = $('svgDefs');
 
 /* ══════════ BACKEND ══════════ */
 let token = ""; try { token = localStorage.getItem(SESSION_KEY) || ""; } catch (e) { token = ""; }
@@ -726,6 +729,7 @@ function refreshPerms() {
   canTerritory = canBattles || hasWarA(account) || isVxSecDef(account);
 
   $('modeDraw').style.display = canTerritory ? '' : 'none';
+  syncFrontUI();
   $('battleForm').style.display = canBattles ? '' : 'none';
   $('battleNote').style.display = canBattles ? 'none' : '';
   $('btnReset').style.display = canMeta ? '' : 'none';
@@ -1132,8 +1136,56 @@ function renderMap() {
     gTerr.appendChild(g);
   }
 
+  renderFrontlines();
   renderHandles();
   renderDrawLayer();
+  syncFrontUI();
+}
+
+/* ══════════ FRONTLINE — the admin's redline of the current front ══════════
+   An open polyline (not a closed region) drawn over the map and kept per theatre
+   on lvwar_meta, so it is admin-only to set and public to see. */
+function frontlinesFor(theatre) { return (meta.frontlines && meta.frontlines[theatre]) || []; }
+function renderFrontlines() {
+  gFront.innerHTML = '';
+  if (!mapW) return;
+  frontlinesFor(activeTheatre().name).forEach(pts => {
+    if (!Array.isArray(pts) || pts.length < 2) return;
+    const ptsStr = pts.map(p => p.join(',')).join(' ');
+    const base = { points: ptsStr, fill: 'none', 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'vector-effect': 'non-scaling-stroke', 'pointer-events': 'none' };
+    gFront.appendChild(el('polyline', { ...base, stroke: '#1a0505', 'stroke-width': 6, opacity: 0.7 }));  // dark casing for contrast
+    gFront.appendChild(el('polyline', { ...base, stroke: '#ff2a2a', 'stroke-width': 3 }));                // the redline itself
+  });
+}
+// Show the Frontline tool to admins, and the Clear button only when there is a
+// line to clear and we are not mid-draw.
+function syncFrontUI() {
+  const drawing = mode === 'draw' || mode === 'front';
+  $('modeFront').style.display = canMeta ? '' : 'none';
+  $('btnClearFront').style.display = (canMeta && !drawing && mapW && frontlinesFor(activeTheatre().name).length) ? '' : 'none';
+}
+function finishFront() {
+  if (drawPts.length < 2) { toast('A frontline needs at least 2 points.'); return; }
+  const line = drawPts.map(p => [Math.round(p[0]), Math.round(p[1])]);
+  const w = activeTheatre().name;
+  if (!meta.frontlines) meta.frontlines = {};
+  if (!Array.isArray(meta.frontlines[w])) meta.frontlines[w] = [];
+  meta.frontlines[w].push(line);
+  drawPts = [];
+  setMode('select');
+  renderMap();
+  persistMetaDebounced();
+  toast('Frontline drawn.');
+}
+function clearFrontlines() {
+  if (!canMeta) return;
+  const w = activeTheatre().name;
+  if (!frontlinesFor(w).length) { toast('No frontline in this theatre.'); return; }
+  if (!confirm('Erase the frontline in ' + w + '?')) return;
+  if (meta.frontlines) meta.frontlines[w] = [];
+  renderMap();
+  persistMetaDebounced();
+  toast('Frontline cleared.');
 }
 
 /* vertex handles for the selected territory (editors only) */
@@ -1197,19 +1249,20 @@ function startVertexDrag(t, idx, ev) {
 /* in-progress drawing */
 function renderDrawLayer() {
   gDraw.innerHTML = '';
-  if (mode !== 'draw' || !drawPts.length) return;
-  const hr = 5 / view.s;
+  if ((mode !== 'draw' && mode !== 'front') || !drawPts.length) return;
+  const hr = 5 / view.s, front = mode === 'front', col = front ? '#ff2a2a' : '#ffb35c';
   if (drawPts.length > 1) {
     gDraw.appendChild(el('polyline', {
       points: drawPts.map(p => p.join(',')).join(' '),
-      fill: 'rgba(217,154,61,.15)', stroke: '#ffb35c', 'stroke-width': 2,
-      'vector-effect': 'non-scaling-stroke', 'stroke-dasharray': '6 4',
+      fill: front ? 'none' : 'rgba(217,154,61,.15)', stroke: col, 'stroke-width': front ? 3 : 2,
+      'vector-effect': 'non-scaling-stroke', 'stroke-dasharray': front ? 'none' : '6 4',
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round',
     }));
   }
   drawPts.forEach((p, i) => {
     gDraw.appendChild(el('circle', {
       cx: p[0], cy: p[1], r: i === 0 ? hr * 1.5 : hr,
-      fill: i === 0 ? '#ffb35c' : '#f2f5f8', stroke: '#000', 'stroke-width': 1 / view.s,
+      fill: i === 0 ? col : '#f2f5f8', stroke: '#000', 'stroke-width': 1 / view.s,
     }));
   });
 }
@@ -1217,7 +1270,9 @@ function renderDrawLayer() {
 /* ══════════ MODES / DRAW ══════════ */
 function updateHint() {
   if (!loadedOnce) return;
-  if (mode === 'draw') {
+  if (mode === 'front') {
+    $('hint').textContent = 'Click along the front to trace the redline · Enter or Finish to set it · Backspace = undo point · Esc = cancel';
+  } else if (mode === 'draw') {
     $('hint').textContent = 'Click to place border points · click the first point or press Enter to close · Backspace = undo point · Esc = cancel';
   } else if (canTerritory) {
     $('hint').textContent = 'Click a territory to select · drag to pan · scroll to zoom · drag white handles to reshape · right-click a handle to delete it';
@@ -1228,25 +1283,35 @@ function updateHint() {
   }
 }
 function setMode(m) {
-  if (m === 'draw' && (!mapW || !canTerritory)) return;
+  const may = m === 'front' ? canMeta : canTerritory;
+  if ((m === 'draw' || m === 'front') && (!mapW || !may)) return;
   mode = m;
-  if (m !== 'draw') { drawPts = []; }
+  const drawing = m === 'draw' || m === 'front';
+  if (!drawing) { drawPts = []; }
   $('modeSelect').classList.toggle('active', m === 'select');
   $('modeDraw').classList.toggle('active', m === 'draw');
-  $('btnFinish').style.display = m === 'draw' ? '' : 'none';
-  $('btnCancelDraw').style.display = m === 'draw' ? '' : 'none';
-  viewport.classList.toggle('drawing', m === 'draw');
-  $('drawTip').style.display = m === 'draw' ? 'block' : 'none';
+  $('modeFront').classList.toggle('active', m === 'front');
+  $('btnFinish').style.display = drawing ? '' : 'none';
+  $('btnCancelDraw').style.display = drawing ? '' : 'none';
+  viewport.classList.toggle('drawing', drawing);
+  $('drawTip').style.display = drawing ? 'block' : 'none';
   updateDrawTip();
   updateHint();
   renderMap();
 }
 function updateDrawTip() {
+  if (mode === 'front') {
+    $('drawTip').textContent = drawPts.length
+      ? `${drawPts.length} point${drawPts.length > 1 ? 's' : ''} — click to extend · Enter or Finish to set the line`
+      : 'Click along the front to trace the redline';
+    return;
+  }
   $('drawTip').textContent = drawPts.length
     ? `${drawPts.length} point${drawPts.length > 1 ? 's' : ''} — ${drawPts.length >= 3 ? 'click first point / press Enter to close' : 'place at least 3 points'}`
     : 'Click on the map to start tracing a border';
 }
 function finishDraw() {
+  if (mode === 'front') { finishFront(); return; }
   if (drawPts.length < 3) { toast('Need at least 3 points to close a border.'); return; }
   const t = {
     id: 'terr_' + uid(),
@@ -1293,10 +1358,10 @@ viewport.addEventListener('pointerup', e => {
   const wasDrag = dragMoved;
   panDrag = null;
   if (wasDrag || vertexDrag) return;
-  if (mode === 'draw' && mapW && e.button === 0 && !spaceHeld) {
+  if ((mode === 'draw' || mode === 'front') && mapW && e.button === 0 && !spaceHeld) {
     const p = screenToImage(e);
     if (p.x < 0 || p.y < 0 || p.x > mapW || p.y > mapH) return;
-    if (drawPts.length >= 3) {
+    if (mode === 'draw' && drawPts.length >= 3) {   // close only for territories
       const d = Math.hypot(p.x - drawPts[0][0], p.y - drawPts[0][1]);
       if (d < 12 / view.s) { finishDraw(); return; }
     }
@@ -1315,13 +1380,13 @@ viewport.addEventListener('wheel', e => {
   zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
 }, { passive: false });
 viewport.addEventListener('dblclick', e => {
-  if (mode === 'draw' && drawPts.length >= 4) {
+  if ((mode === 'draw' || mode === 'front') && drawPts.length >= (mode === 'front' ? 2 : 4)) {
     const a = drawPts[drawPts.length - 1], b = drawPts[drawPts.length - 2];
     if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 8 / view.s) drawPts.pop();
     finishDraw();
   }
 });
-viewport.addEventListener('contextmenu', e => { if (mode === 'draw') e.preventDefault(); });
+viewport.addEventListener('contextmenu', e => { if (mode === 'draw' || mode === 'front') e.preventDefault(); });
 
 /* keyboard */
 let spaceHeld = false;
@@ -1330,7 +1395,7 @@ window.addEventListener('keydown', e => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(tag) || (document.activeElement && document.activeElement.isContentEditable);
   if (e.code === 'Space' && !typing) { spaceHeld = true; e.preventDefault(); }
   if (typing) return;
-  if (mode === 'draw') {
+  if (mode === 'draw' || mode === 'front') {
     if (e.key === 'Enter') { e.preventDefault(); finishDraw(); }
     if (e.key === 'Escape') cancelDraw();
     if (e.key === 'Backspace') { e.preventDefault(); drawPts.pop(); updateDrawTip(); renderDrawLayer(); }
@@ -1338,6 +1403,7 @@ window.addEventListener('keydown', e => {
     if (e.key === 'Escape') selectTerritory(null);
     if (e.key === 'Delete' && selectedId && canTerritory) deleteTerritory(selectedId);
     if (e.key === 'd' && canTerritory) setMode('draw');
+    if (e.key === 'f' && canMeta) setMode('front');
   }
 });
 window.addEventListener('keyup', e => { if (e.code === 'Space') spaceHeld = false; });
@@ -2746,6 +2812,8 @@ $('warSub').addEventListener('input', () => { if (canMeta) { meta.warSub = $('wa
 $('btnSidebar').addEventListener('click', () => $('sidebar').classList.toggle('hidden'));
 $('modeSelect').addEventListener('click', () => setMode('select'));
 $('modeDraw').addEventListener('click', () => setMode(mode === 'draw' ? 'select' : 'draw'));
+$('modeFront').addEventListener('click', () => setMode(mode === 'front' ? 'select' : 'front'));
+$('btnClearFront').addEventListener('click', clearFrontlines);
 $('btnFinish').addEventListener('click', finishDraw);
 $('btnCancelDraw').addEventListener('click', cancelDraw);
 $('btnFit').addEventListener('click', fitMap);
