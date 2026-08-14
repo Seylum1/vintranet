@@ -3938,6 +3938,7 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
             )}
             <div style={{fontFamily:"'Cinzel',serif",fontSize:20,fontWeight:700,color:C.text,letterSpacing:"0.05em"}}>
               {person.username||person.name}
+              {patentDignity&&<span className="mono" style={{fontSize:11,letterSpacing:"0.08em",color:C.gold}}>, {patentDignity}</span>}
               <PostNominals person={person} style={{fontSize:11,opacity:1,marginLeft:8}}/>
             </div>
             {/* The chamber lists people by username; the name they go by is revealed here. */}
@@ -4053,7 +4054,7 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
             <FactRow label="Letters Patent">
               <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-start"}}>
                 <span style={{fontSize:13,color:peerRank.color||C.gold}}>
-                  {patentDignity}{peerRank.style?<span style={{color:C.textD}}> · {peerRank.style}</span>:null}
+                  {patentDignity}
                 </span>
                 <button onClick={()=>setShowPatent(true)}
                   style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:"0.1em",padding:"4px 12px",borderRadius:2,
