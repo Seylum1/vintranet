@@ -1052,7 +1052,7 @@ function calcBH(bh, votes, snapshot, former, preferLive) {
 
 function Gstyle() {
   return React.createElement('style',null,`
-    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Pinyon+Script&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{background:#0a0808;font-family:'Crimson Text',Georgia,serif;}
     ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:#140e0e;}
@@ -1064,6 +1064,18 @@ function Gstyle() {
     @media(max-width:760px){.throneLayout{grid-template-columns:minmax(0,1fr)!important;}}
     input,select,textarea{font-family:'Crimson Text',Georgia,serif;}
     a{color:#C9A84C;}a:hover{color:#e0c070;}
+    /* Letters Patent — keep the parchment colours when printed, and print the
+       document alone (the overlay chrome and the rest of the page drop away). */
+    .lp-doc{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    @media print{
+      html,body{background:#fff!important;}
+      body *{visibility:hidden!important;}
+      .lp-print-root,.lp-print-root *{visibility:visible!important;}
+      .lp-print-root{position:absolute!important;left:0;top:0;right:0;background:#fff!important;padding:0!important;overflow:visible!important;}
+      .lp-noprint{display:none!important;}
+      .lp-doc{box-shadow:none!important;margin:0 auto!important;}
+      @page{size:A4 portrait;margin:12mm;}
+    }
   `);
 }
 
@@ -1475,7 +1487,7 @@ function BillCard({bill,members,bundesherren,ijStatutes,ijCases,bills,defaultOpe
               <BudgetDisplay budget={{id:bill.id,title:bill.title,data:bill.budgetData,reserve:bill.budgetReserve??null}} orgChart={null} imperialReserve={bill.budgetReserve??null}/>
             </div>
           )}
-          {bill.type!=="motion"&&bill.gdoc_url&&(
+          {bill.type!=="motion"&&bill.status!=="decree"&&bill.gdoc_url&&(
             <div style={{marginBottom:"1rem"}}>
               <a href={bill.gdoc_url} target="_blank" rel="noopener noreferrer"
                 style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.1em",padding:"5px 14px",borderRadius:2,
@@ -3815,6 +3827,7 @@ function JudicialRecordPanel({judicial}){
 function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bills,accounts,governments,absences,onClose}){
   const [voteTab,setVoteTab]=useState("bt");
   const [openBill,setOpenBill]=useState(null);
+  const [showPatent,setShowPatent]=useState(false);
   const honCtx=useHonours();
   if(!person) return null;
   const hon=honorificsFor(person,honCtx);
@@ -3833,6 +3846,15 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
   const bhSeated=!!bhRec;
   const former=Object.values(formerMembers||{}).filter(f=>ids.has(f.id));
   const rec=btRec||bhRec||former[0]||person;
+  // A peer holds their dignity by Letters Patent — read it from the live
+  // Bundesherren record, or (a peerage is for life) from the former-members roll
+  // if they have since left. Royal dignities are excluded: those flow from the
+  // Household's standing instrument, not an individual patent.
+  const peerRec=(bhRec&&bhRec.rank?bhRec:null)||former.find(f=>f.rank)||null;
+  const peerRank=peerRec?PEERAGE_RANKS.find(r=>r.v===peerRec.rank):null;
+  const hasPatent=!!(peerRank&&!peerRank.royal);
+  const patentDesig=(()=>{const t=String((peerRec&&peerRec.title)||"").trim();if(!t)return"";const m=t.match(/\bof\s+(.+)$/i);return m?m[1].trim():t;})();
+  const patentDignity=hasPatent?(patentDesig?`${peerRank.l} of ${patentDesig}`:peerRank.l):"";
   const party=getParty(person.party||rec.party);
   const region=acc?.stateOfResidency?BK_PROVINCES[acc.stateOfResidency]||acc.stateOfResidency:null;
   // The name they go by, shown only when it adds something over the username.
@@ -4027,6 +4049,20 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
               </div>
             </FactRow>
           )}
+          {hasPatent&&(
+            <FactRow label="Letters Patent">
+              <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-start"}}>
+                <span style={{fontSize:13,color:peerRank.color||C.gold}}>
+                  {patentDignity}{peerRank.style?<span style={{color:C.textD}}> · {peerRank.style}</span>:null}
+                </span>
+                <button onClick={()=>setShowPatent(true)}
+                  style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:"0.1em",padding:"4px 12px",borderRadius:2,
+                    border:`1px solid ${C.gold}55`,background:"#2a2000",color:C.gold,cursor:"pointer"}}>
+                  📜 View Letters Patent →
+                </button>
+              </div>
+            </FactRow>
+          )}
           {activity&&(
             <FactRow label={<span title={ACTIVITY_TOOLTIP} style={{cursor:"help",borderBottom:`1px dotted ${C.textDD}`}}>
               Activity Index
@@ -4180,6 +4216,14 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
             </div>
             <BillCard bill={openBill} members={members} bundesherren={bundesherren} bills={bills} defaultOpen/>
           </div>
+        </div>
+      )}
+
+      {/* Their Letters Patent, opened from the row above. Its clicks are kept from
+          bubbling to the factsheet backdrop so viewing it doesn't close the card. */}
+      {hasPatent&&showPatent&&(
+        <div onClick={e=>e.stopPropagation()}>
+          <LettersPatent bh={peerRec} accounts={accounts} onClose={()=>setShowPatent(false)}/>
         </div>
       )}
     </div>
@@ -4953,7 +4997,7 @@ function EmperorMemberRow({id,m,accounts,onAction,notify,setProcessing}){
 }
 
 // A Bundesherr in the Throne's roster: set peerage rank, link an account, retire.
-function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing}){
+function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing,onPatent}){
   const [linking,setLinking]=useState(false);
   const [linkUser,setLinkUser]=useState("");
   const pr=bh.rank?PEERAGE_RANKS.find(r=>r.v===bh.rank):null;
@@ -4982,6 +5026,9 @@ function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing}){
             <option value="">— No rank —</option>
             {PEERAGE_RANKS.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}
           </select>
+          {(!pr||!pr.royal)&&<Btn small variant="gold" disabled={!bh.rank}
+            onClick={()=>{if(!bh.rank){notify("Set a peerage rank first.",C.gold);return;}onPatent&&onPatent(bh);}}
+            title={bh.rank?"Issue Letters Patent":"Set a peerage rank first"}>⚜ Letters Patent</Btn>}
           {!bh.username&&<Btn small variant="ghost" onClick={()=>setLinking(v=>!v)}>
             {linking?"Cancel":"Link Account"}
           </Btn>}
@@ -5281,6 +5328,132 @@ function MasterPasswordSection({notify,setProcessing}){
   );
 }
 
+// ── IMPERIAL LETTERS PATENT ───────────────────────────────────────────────────
+// A printable instrument creating a peer, laid out like the Chancellery's own
+// patents: the Imperial arms over a ruled title block, a Whereas preamble, the
+// grant set out in Articles, and the Sovereign's sign-manual over the House of
+// Anschen footer. Filled automatically from a Bundesherr's record (RP name +
+// peerage rank); the Throne may refine the designation, the recital, and the
+// date before printing. Pronouns stay "them/their" — the register records none.
+const IMPERIAL_SOVEREIGN="Edward I";                       // regnal name — update on succession
+const IMPERIAL_STYLE="By the Grace of God, Emperor of Lech, Grand Prince of Aquitaine, Prince of Rome, Prince of Meridia, Duke of Cracov";
+const IMPERIAL_HOUSE="House of Anschen";
+function LettersPatent({bh,accounts,emperorName,onClose}){
+  const pr=bh.rank?PEERAGE_RANKS.find(r=>r.v===bh.rank):null;
+  const rankLabel=pr?pr.l:"Peer of the Realm";
+  // The peer's roleplay name (their account displayName, or the name on the
+  // record); the username is only a last resort when no RP name exists.
+  const acc=accounts?.[bh.username];
+  const peerName=acc?.displayName||bh.name||bh.username||"—";
+  const styleAddr=pr?.style||"The Honourable";
+  const sovereign=emperorName||IMPERIAL_SOVEREIGN;
+  const signName=String(sovereign).split(/\s+/)[0]||sovereign;   // first name for the sign-manual
+  // Seed the designation from the record's free-text title if it reads like one.
+  const seed=(()=>{const t=(bh.title||"").trim();if(!t)return"";const m=t.match(/\bof\s+(.+)$/i);return m?m[1].trim():t;})();
+  const [desig,setDesig]=useState(seed);
+  const [reason,setReason]=useState("the distinguished services rendered to the State and to Our People");
+  const [dstr,setDstr]=useState(()=>new Date().toISOString().slice(0,10));
+  const dObj=new Date(dstr+"T00:00:00");
+  const dateShort=dObj.toLocaleDateString("en-GB");           // e.g. 14/08/2026
+  const fullTitle=desig.trim()?`${rankLabel} of ${desig.trim()}`:rankLabel;
+  const styledName=`${styleAddr} ${peerName}`;
+
+  const H=({children})=><div style={{fontFamily:"Georgia,'Times New Roman',serif",fontWeight:700,fontSize:15,margin:"18px 0 6px"}}>{children}</div>;
+
+  return (
+    <div className="lp-print-root" style={{position:"fixed",inset:0,zIndex:100000,background:"rgba(6,4,4,.9)",
+      overflow:"auto",padding:"26px 14px",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+
+      {/* control bar — never printed */}
+      <div className="lp-noprint" style={{width:"100%",maxWidth:820,display:"flex",flexWrap:"wrap",alignItems:"flex-end",gap:12,
+        background:C.s1,border:`1px solid ${C.border}`,borderRadius:4,padding:"12px 14px"}}>
+        <div style={{flex:"1 1 220px",minWidth:180}}>
+          <FL>IN RECOGNITION OF …</FL>
+          <Inp value={reason} onChange={setReason} placeholder="the distinguished services rendered…"/>
+        </div>
+        <div style={{flex:"1 1 160px",minWidth:150}}>
+          <FL>TERRITORIAL DESIGNATION (OPTIONAL)</FL>
+          <Inp value={desig} onChange={setDesig} placeholder="e.g. Kingsland, the Northmark"/>
+        </div>
+        <div style={{width:150}}>
+          <FL>DATE</FL>
+          <input type="date" value={dstr} onChange={e=>setDstr(e.target.value)}
+            style={{width:"100%",background:C.s2,border:`1px solid ${C.border}`,borderRadius:2,padding:"7px 10px",color:C.text,fontSize:14,outline:"none"}}/>
+        </div>
+        <Btn variant="gold" onClick={()=>window.print()}>🖨 Print / Save PDF</Btn>
+        <Btn variant="ghost" onClick={onClose}>Close</Btn>
+      </div>
+
+      {/* the instrument — the Chancellery layout */}
+      <div className="lp-doc" style={{width:"100%",maxWidth:780,background:"#ffffff",color:"#1a1a1a",
+        boxShadow:"0 26px 70px rgba(0,0,0,.6)",padding:"clamp(30px,5vw,56px) clamp(28px,6vw,64px)",
+        fontFamily:"Georgia,'Times New Roman',serif"}}>
+
+        {/* arms */}
+        <div style={{textAlign:"center",marginBottom:10}}>
+          <img src="lechcoa.png" alt="" style={{height:118,display:"inline-block"}} onError={e=>{e.target.style.display="none";}}/>
+        </div>
+        <div style={{borderTop:"1.5px solid #222",margin:"6px 0 10px"}}/>
+
+        {/* title block */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:12}}>
+          <div style={{fontWeight:700,fontSize:19}}>Letters Patent</div>
+          <div style={{fontSize:13,color:"#333"}}>{dateShort}</div>
+        </div>
+        <div style={{fontStyle:"italic",fontSize:15,color:"#333",marginTop:2}}>Notice of Appointment from the Emperor</div>
+        <div style={{borderTop:"1.5px solid #222",margin:"10px 0 20px"}}/>
+
+        {/* body */}
+        <div style={{fontSize:15.5,lineHeight:1.65,textAlign:"left"}}>
+          <p style={{margin:"0 0 14px"}}>
+            Whereas, in recognition of {reason} by <strong>{styledName}</strong>, whose fidelity and devotion to the Empire are well known unto Us;
+          </p>
+          <p style={{margin:"0 0 6px"}}>
+            Wishing to mark the same by Our imperial favour, We decree and hereby declare as follows:
+          </p>
+
+          <H>Article I</H>
+          <p style={{margin:"0 0 4px"}}>
+            We hereby create and erect in favour of <strong>{styledName}</strong> the title of <strong>{fullTitle}</strong>, transmissible to their legitimate and natural heirs, in accordance with the rules of primogeniture established by Our statutes.
+          </p>
+
+          <H>Article II</H>
+          <p style={{margin:"0 0 4px"}}>
+            This title is attached to the endowment granted by Us, namely the revenues deriving from the Nobility located within the Bundesherren, which shall be administered under the laws of the Empire.
+          </p>
+
+          <H>Article III</H>
+          <p style={{margin:"0 0 4px"}}>
+            We charge the Chancellor of the Empire with registering these presents in the registers of the Imperial Nobility, and with having the patents issued in proper legal form.
+          </p>
+          <p style={{margin:"12px 0 0"}}>
+            We hereby command that all whom this concerns recognise <strong>{styledName}</strong> as <strong>{fullTitle}</strong>, and permit them to enjoy all honours, prerogatives, and distinctions attached to the said dignity.
+          </p>
+        </div>
+
+        {/* sign-manual */}
+        <div style={{marginTop:30}}>
+          <div style={{fontWeight:700,fontSize:15}}>{sovereign}</div>
+          <div style={{fontSize:14,color:"#222"}}>{IMPERIAL_STYLE}</div>
+          <div style={{marginTop:18,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
+            <div style={{fontFamily:"'Pinyon Script',cursive",fontSize:44,lineHeight:0.9,color:"#1a1a1a",paddingRight:30}}>{signName}</div>
+            <div style={{borderTop:"1px solid #333",width:"min(360px,80%)",marginTop:6}}/>
+          </div>
+        </div>
+
+        {/* footer */}
+        <div style={{marginTop:30,fontStyle:"italic",fontSize:12,color:"#444",lineHeight:1.5}}>
+          <div>{IMPERIAL_HOUSE}</div>
+          <div>Letters Patent</div>
+        </div>
+      </div>
+
+      <div className="lp-noprint" style={{height:8}}/>
+    </div>
+  );
+}
+
 function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,announcement,activeBudget,submitLock,imperialReserve,imperialLinks,nextElection,accounts,formerMembers,parties,digitalVoting,onAction,notify,setProcessing}) {
   const [section,setSection]=useState("ratify");
   const [pBTUser,setPBTUser]=useState(officials?.president_bt_username||"");
@@ -5293,6 +5466,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
   const [csv,setCsv]=useState(""); const [csvErr,setCsvErr]=useState("");
   const [byDep,setByDep]=useState(""); const [byName,setByName]=useState(""); const [byParty,setByParty]=useState(PARTIES[0].id);
   const [bhName,setBhName]=useState(""); const [bhTitle,setBhTitle]=useState(""); const [bhRank,setBhRank]=useState("");
+  const [patentFor,setPatentFor]=useState(null);   // Bundesherr whose Letters Patent are open
   const [minPortfolio,setMinPortfolio]=useState(MINISTER_PORTFOLIOS[0]);
   const [minUser,setMinUser]=useState(""); const [minName,setMinName]=useState("");
 
@@ -5476,6 +5650,21 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
             </div>
           }
 
+          <div style={{background:"#1a0808",border:`1px solid ${C.redL}55`,borderLeft:`3px solid ${C.redL}`,
+            borderRadius:"0 3px 3px 0",padding:"1rem 1.15rem",marginBottom:"1.25rem"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.15em",color:C.redL,marginBottom:6}}>🏚 DISSOLVE GOVERNMENT</div>
+            <div style={{fontSize:13,color:C.textD,fontStyle:"italic",lineHeight:1.7,marginBottom:10}}>
+              Clears the whole Bundestag in one act — every sitting member, the Chancellor, the Vice-Chancellor, all Ministers, and the President of the Bundestag are dismissed together. Each is retired under a single <strong style={{color:C.textD}}>"Government dissolved"</strong> departure rather than one-by-one as "Removed by the Throne", and every voting record is kept. Use this before seating a newly-elected chamber. The Bundesherren are not affected.
+            </div>
+            <ArmBtn label="🏚 Dissolve Government" confirmLabel="Dissolve the entire government?"
+              onConfirm={async()=>{
+                setProcessing("Dissolving government…");
+                await onAction("dissolveGovernment",{});
+                setProcessing(null);
+                notify("🏚 Government dissolved — chamber and cabinet cleared. Records retained. Seat the new chamber.",C.redL);
+              }}/>
+          </div>
+
           <Divider/>
           <STitle>Seat a Member</STitle>
           <div style={{display:"flex",flexDirection:"column",gap:"0.75rem",maxWidth:460}}>
@@ -5564,7 +5753,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
             <div style={{marginBottom:"1.25rem"}}>
               {Object.entries(bundesherren||{}).sort((a,b)=>(a[1].username||a[1].name||"").localeCompare(b[1].username||b[1].name||"")).map(([id,bh])=>(
                 <EmperorBHRow key={id} id={id} bh={bh} accounts={accounts}
-                  onAction={onAction} notify={notify} setProcessing={setProcessing}/>
+                  onAction={onAction} notify={notify} setProcessing={setProcessing} onPatent={setPatentFor}/>
               ))}
             </div>
           ):<div style={{fontSize:14,color:C.textD,fontStyle:"italic",marginBottom:"1rem"}}>No Bundesherren yet.</div>}
@@ -5874,6 +6063,7 @@ function EmperorPanelContent({bills,members,bundesherren,officials,orgChart,anno
       )}
         </div>
       </div>
+      {patentFor&&<LettersPatent bh={patentFor} accounts={accounts} onClose={()=>setPatentFor(null)}/>}
     </div>
   );
 }
@@ -7658,6 +7848,23 @@ function App() {
         departed_reason:"Replaced by by-election"}};
       setFormerMembers(retired); await sset("bk_former_members",retired);
       setMembers(next); await sset("bk_members",next);
+    }
+    else if(type==="dissolveGovernment"){
+      // Clear the elected chamber and the government it produced in a single act,
+      // so every member is retired under one "Government dissolved" reason rather
+      // than fired one-by-one as "Removed by the Throne". Voting records are kept.
+      const newOff={...(officials||{}),chancellor:"Vacant",chancellor_username:"",
+        ministers:{},minister_usernames:{},
+        president_bt:"Vacant",president_bt_username:""};
+      Object.keys(newOff).forEach(k=>{ if(k.startsWith("vice")) delete newOff[k]; });
+      newOff.vice_chancellor="Vacant";
+      setOff(newOff); await sset("bk_officials",newOff);
+      const retired={...formerMembers};
+      Object.entries(members||{}).forEach(([id,m])=>{
+        retired[id]={...m,departed_at:Date.now(),departed_reason:"Government dissolved"};
+      });
+      setFormerMembers(retired); await sset("bk_former_members",retired);
+      setMembers({}); await sset("bk_members",{});
     }
     else if(type==="addBH"){
       const id=payload.username?bhKey(payload.username):"bh_"+uid();

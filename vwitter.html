@@ -102,7 +102,12 @@ svg.ic{display:block;flex:none;}
 .act{display:flex;align-items:center;gap:7px;background:none;border:0;color:var(--ink2);font-size:13px;padding:5px 9px;border-radius:999px;font-variant-numeric:tabular-nums;}
 .act:hover{color:var(--brandL);background:rgba(109,92,255,.12);}
 .act.rt:hover{color:var(--green);background:rgba(0,186,124,.12);} .act.rt.on{color:var(--green);}
+.act.lk:hover{color:var(--red);background:rgba(244,52,78,.12);} .act.lk.on{color:var(--red);}
+.act.lk .lkc{cursor:pointer;padding:0 3px;border-radius:5px;} .act.lk .lkc:hover{text-decoration:underline;background:rgba(244,52,78,.14);}
 .act.del:hover{color:var(--red);background:rgba(244,52,78,.12);}
+.likerow{display:flex;align-items:center;gap:10px;padding:9px 4px;width:100%;background:none;border:0;text-align:left;color:var(--ink);border-bottom:1px solid var(--line);}
+.likerow:last-child{border-bottom:0;} .likerow:hover .nm{text-decoration:underline;}
+.likerow .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3);}
 .stats{display:flex;gap:18px;margin-top:12px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:14px;color:var(--ink2);}
 .stats strong{color:var(--ink);}
 /* ── right rail / generic ── */
@@ -296,7 +301,7 @@ function vwAvailableOffices(data){
    Drawn from the Lucide set loaded in <head>, rendered as React elements (no DOM
    swapping), so they inherit colour and can be hovered. Replaces the emoji the
    page used to use, which rendered differently on every operating system. */
-const ICON_FALLBACK={"message-circle":"↩","repeat-2":"⇄","quote":"❝","link":"∞","trash-2":"×","more-horizontal":"…","bell":"!","mail":"✉","home":"⌂","search":"⌕","user":"○","landmark":"▣","wrench":"⚙","send":"→","plus":"+","pencil":"✎","arrow-left":"←","log-out":"→","chevron-up":"^","chevron-down":"v","badge-check":"✓","filter":"≡","clock":"◷","calendar":"▦","pen-line":"✎","reply":"↩","external-link":"↗","shield-check":"✓","users":"○","file-text":"▤"};
+const ICON_FALLBACK={"message-circle":"↩","repeat-2":"⇄","quote":"❝","link":"∞","trash-2":"×","more-horizontal":"…","bell":"!","mail":"✉","home":"⌂","search":"⌕","user":"○","landmark":"▣","wrench":"⚙","send":"→","plus":"+","pencil":"✎","arrow-left":"←","log-out":"→","chevron-up":"^","chevron-down":"v","badge-check":"✓","filter":"≡","clock":"◷","calendar":"▦","pen-line":"✎","reply":"↩","external-link":"↗","shield-check":"✓","users":"○","file-text":"▤","heart":"♥"};
 function lucideNode(name){
   const L=(typeof window!=="undefined"&&window.lucide)||{};
   const pascal=String(name).replace(/(^|-)([a-z0-9])/g,(m,a,b)=>b.toUpperCase());
@@ -460,11 +465,13 @@ function Composer({me,identities,activeId,setActiveId,onPost,placeholder,replyTo
 /* ══════════════════════════════════════════════════════════════════════════════
    A POST
    ══════════════════════════════════════════════════════════════════════════════ */
-function PostCard({post,ctx,onOpen,onReply,onRepost,onQuote,onDelete,onProfile,compact,thread}){
+function PostCard({post,ctx,onOpen,onReply,onRepost,onQuote,onDelete,onProfile,onLike,onLikers,compact,thread}){
   const p=ctx.poster(post);
   const replies=ctx.repliesTo(post.id).length;
   const reposts=ctx.repostsOf(post.id).length;
   const iReposted=ctx.iRepostedOf(post.id);
+  const likes=ctx.likeCount(post.id);
+  const iLiked=ctx.iLiked(post.id);
   const parent=post.replyTo?ctx.byId(post.replyTo):null;
   const parentWho=parent?ctx.poster(parent):null;
   return <div className={"post"+(onOpen?" clk":"")} onClick={onOpen?()=>onOpen(post.id):undefined}>
@@ -492,6 +499,9 @@ function PostCard({post,ctx,onOpen,onReply,onRepost,onQuote,onDelete,onProfile,c
       {!compact&&<div className="actions" onClick={e=>e.stopPropagation()}>
         <button className="act" onClick={()=>onReply(post)} title="Reply"><Ic n="message-circle" s={17}/><span>{replies||""}</span></button>
         <button className={"act rt"+(iReposted?" on":"")} onClick={()=>onRepost(post)} title={iReposted?"Undo repost":"Repost"}><Ic n="repeat-2" s={17}/><span>{reposts||""}</span></button>
+        <button className={"act lk"+(iLiked?" on":"")} onClick={()=>onLike&&onLike(post)} title={iLiked?"Unlike":"Like"}>
+          <Ic n="heart" s={17} style={iLiked?{fill:"currentColor"}:undefined}/>
+          {likes>0&&<span className="lkc" title="See who liked this" onClick={e=>{e.stopPropagation();onLikers&&onLikers(post);}}>{likes}</span>}</button>
         <button className="act" onClick={()=>onQuote(post)} title="Quote with your own words"><Ic n="quote" s={16}/><span>Quote</span></button>
         <button className="act" onClick={()=>onOpen&&onOpen(post.id)} title="Open thread"><Ic n="link" s={16}/></button>
         {ctx.canDelete(post)&&<button className="act del" onClick={()=>onDelete(post)} title="Delete"><Ic n="trash-2" s={16}/></button>}
@@ -507,6 +517,25 @@ function QuotedPost({post,ctx}){
     {post.text&&<div className="ptext" style={{fontSize:14,marginTop:2}}>{post.text}</div>}</div>;
 }
 
+/* Who liked a post — the list opened by clicking the count beside the heart. Read
+   straight from the likes already on the page; each name links to its profile. */
+function LikersModal({postId,ctx,onClose,onProfile}){
+  const likes=ctx.likersOf(postId);
+  return <div className="modal-bg" onClick={onClose}><div className="modal" style={{maxWidth:420}} onClick={e=>e.stopPropagation()}>
+    <div className="mh"><button className="back" onClick={onClose}><Ic n="arrow-left" s={17}/></button>
+      <h2 style={{display:"flex",alignItems:"center",gap:8}}><Ic n="heart" s={18} style={{fill:"var(--red)",color:"var(--red)"}}/>Liked by {likes.length}</h2></div>
+    <div className="mb" style={{paddingTop:6}}>
+      {likes.length===0?<div className="empty" style={{padding:"24px 0"}}>Nobody has liked this yet.</div>
+        :likes.map(l=>{const a=ctx.accounts[l.user];const b=ctx.userBadges(l.user);
+          return <button key={l.user} className="likerow" onClick={()=>onProfile({handle:l.user})}>
+            <Avatar p={{handle:l.user,mc:(a&&(a.mcName||a.username))||l.user}} size={38}/>
+            <span style={{minWidth:0}}><span className="nm" style={{fontWeight:700,display:"flex",alignItems:"center",gap:3}}>{(a&&(a.displayName||a.username))||l.user}<Badge check={b.check} globe={b.globe}/></span>
+              <span className="hn" style={{color:"var(--ink2)",fontSize:13,display:"block"}}>@{l.user}</span></span>
+            <span className="when">{timeAgo(l.at)}</span>
+          </button>;})}
+    </div></div></div>;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    FEED / THREAD / PROFILE
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -516,7 +545,7 @@ function Feed({ctx,acts,filter}){
   return <div>
     <Composer {...acts.composerProps}/>
     {items.length===0?<div className="empty">{filter==="offices"?"No office has posted yet.":"No posts yet. Be the first to say something."}</div>
-      :items.map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
+      :items.map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile} onLike={acts.like} onLikers={acts.likers}/>)}
   </div>;
 }
 function Thread({id,ctx,acts}){
@@ -554,10 +583,13 @@ function Thread({id,ctx,acts}){
         <span><strong>{ctx.repostsOf(post.id).length}</strong> reposts</span>
         <span><strong>{ctx.repliesTo(post.id).length}</strong> replies</span>
         <span><strong>{quotes}</strong> quotes</span>
+        <span style={{cursor:ctx.likeCount(post.id)?"pointer":"default"}} title={ctx.likeCount(post.id)?"See who liked this":undefined}
+          onClick={()=>{if(ctx.likeCount(post.id))acts.likers(post);}}><strong>{ctx.likeCount(post.id)}</strong> likes</span>
       </div>
       <div className="actions" style={{marginTop:6}}>
         <button className="act" onClick={()=>{const t=document.querySelector('.composer textarea');if(t)t.focus();}}><Ic n="message-circle" s={18}/><span>Reply</span></button>
         <button className={"act rt"+(ctx.iRepostedOf(post.id)?" on":"")} onClick={()=>acts.repost(post)}><Ic n="repeat-2" s={18}/><span>{ctx.iRepostedOf(post.id)?"Reposted":"Repost"}</span></button>
+        <button className={"act lk"+(ctx.iLiked(post.id)?" on":"")} onClick={()=>acts.like(post)}><Ic n="heart" s={18} style={ctx.iLiked(post.id)?{fill:"currentColor"}:undefined}/><span>{ctx.iLiked(post.id)?"Liked":"Like"}</span></button>
         <button className="act" onClick={()=>acts.quote(post)}><Ic n="quote" s={17}/><span>Quote</span></button>
         {ctx.canDelete(post)&&<button className="act del" onClick={()=>acts.del(post)}><Ic n="trash-2" s={17}/></button>}
       </div>
@@ -569,7 +601,7 @@ function Thread({id,ctx,acts}){
       <button className={sort==="offices"?"on":""} onClick={()=>setSort("offices")}>Offices first</button>
     </div>
     {replies.length===0?<div className="empty">No replies yet.</div>
-      :replies.map(r=><PostCard key={r.id} post={r} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
+      :replies.map(r=><PostCard key={r.id} post={r} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile} onLike={acts.like} onLikers={acts.likers}/>)}
   </div>;
 }
 
@@ -684,19 +716,21 @@ function Profile({handle,office,ctx,acts,me,admin,onSaveBio,onSaveBanner,onVerif
       {!office&&asOfficePosts.length>0&&<button className={tab==="office"?"on":""} onClick={()=>setTab("office")}>As office</button>}
     </div>
     {shown.length===0?<div className="empty">Nothing here yet.</div>
-      :shown.map(pp=><PostCard key={pp.id} post={pp} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
+      :shown.map(pp=><PostCard key={pp.id} post={pp} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile} onLike={acts.like} onLikers={acts.likers}/>)}
   </div>;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   NOTIFICATIONS — derived from the posts already on the page: replies to you,
-   reposts and quotes of your posts, and @mentions. Nothing new is stored on the
-   server; only "what you have already seen" is kept locally.
+   NOTIFICATIONS — derived from what is already on the page: replies to you,
+   reposts and quotes of your posts, @mentions, and likes on your posts. Nothing
+   new is stored on the server; only "what you have already seen" is kept locally.
    ══════════════════════════════════════════════════════════════════════════════ */
-function buildNotifs(posts,me,accounts){
+function buildNotifs(posts,me,accounts,likeMap){
   if(!me)return [];
   const u=String(me.username||"").toLowerCase();
-  const mineIds=new Set(posts.filter(p=>String(p.author||"").toLowerCase()===u).map(p=>p.id));
+  const mine=posts.filter(p=>String(p.author||"").toLowerCase()===u);
+  const mineIds=new Set(mine.map(p=>p.id));
+  const byId={};mine.forEach(p=>{byId[p.id]=p;});
   const mention=new RegExp("(^|[^a-z0-9_])@"+u.replace(/[^a-z0-9_]/g,"")+"([^a-z0-9_]|$)","i");
   const out=[];
   posts.forEach(p=>{
@@ -707,15 +741,21 @@ function buildNotifs(posts,me,accounts){
     else if(p.repostOf&&mineIds.has(p.repostOf))out.push({kind:quoted?"quote":"repost",icon:quoted?"quote":"repeat-2",post:p,target:p.repostOf,at:p.at||0,by});
     else if(mention.test(String(p.text||"")))out.push({kind:"mention",icon:"bell",post:p,target:p.id,at:p.at||0,by});
   });
+  // likes on your own posts — the liker is the "who", the liked post the preview.
+  Object.entries(likeMap||{}).forEach(([postId,likers])=>{
+    if(!mineIds.has(postId))return;const lp=byId[postId];
+    (likers||[]).forEach(l=>{const by=String(l.user||"").toLowerCase();if(!by||by===u)return;
+      out.push({kind:"like",icon:"heart",post:{author:by,text:(lp&&lp.text)||""},target:postId,at:l.at||0,by});});
+  });
   return out.sort((a,b)=>b.at-a.at).slice(0,80);
 }
-const NOTIF_WORD={reply:"replied to you",repost:"reposted you",quote:"quoted you",mention:"mentioned you"};
+const NOTIF_WORD={reply:"replied to you",repost:"reposted you",quote:"quoted you",mention:"mentioned you",like:"liked your post"};
 function Notifications({ctx,notifs,seen,acts}){
-  if(!notifs.length)return <div className="empty">No replies, reposts or mentions yet.<br/><span style={{fontSize:13}}>They will appear here the moment somebody answers you.</span></div>;
+  if(!notifs.length)return <div className="empty">No replies, reposts, likes or mentions yet.<br/><span style={{fontSize:13}}>They will appear here the moment somebody answers you.</span></div>;
   return <div>{notifs.map((n,i)=>{
     const who=ctx.poster(n.post);
     return <button key={i} className={"notif"+(n.at>seen?" unread":"")} onClick={()=>acts.open(n.target||n.post.id)}>
-      <span className="ni"><Ic n={n.icon} s={17}/></span>
+      <span className="ni" style={n.kind==="like"?{color:"var(--red)"}:undefined}><Ic n={n.icon} s={17} style={n.kind==="like"?{fill:"currentColor"}:undefined}/></span>
       <span style={{flex:1,minWidth:0}}>
         <span className="phead" style={{fontSize:14}}>
           <Avatar p={who} size={22}/>
@@ -772,7 +812,7 @@ function Search({q,ctx,acts,onQuery}){
     {showPosts&&<div style={{borderTop:"1px solid var(--line)",marginTop:8}}>
       <div className="grp" style={{margin:"12px 16px 2px"}}>Posts</div>
       {hits.length===0?<div className="empty" style={{padding:"28px 16px"}}>No posts contain “{term}”.</div>
-        :(tab==="top"?hits.slice(0,10):hits).map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile}/>)}
+        :(tab==="top"?hits.slice(0,10):hits).map(p=><PostCard key={p.id} post={p} ctx={ctx} onOpen={acts.open} onReply={acts.reply} onRepost={acts.repost} onQuote={acts.quote} onDelete={acts.del} onProfile={acts.profile} onLike={acts.like} onLikers={acts.likers}/>)}
     </div>}
   </div>;
 }
@@ -1077,6 +1117,7 @@ function App(){
   const [query,setQuery]=useState("");
   const [menu,setMenu]=useState(false);
   const [quote,setQuote]=useState(null);
+  const [likers,setLikers]=useState(null);   // post id whose likers list is open
   const [confirm,setConfirm]=useState(null);
   const [seenNotif,setSeenNotif]=useState(()=>readSeenNotif());
   const [seenDM,setSeenDM]=useState(()=>readSeenDM());
@@ -1097,6 +1138,11 @@ function App(){
   const officeAccounts=useMemo(()=>raw["vw_office_accounts"]||{},[raw]);
   const posts=useMemo(()=>Object.entries(raw).filter(([k])=>k.indexOf("vw_post_")===0).map(([,v])=>v).filter(p=>p&&p.id),[raw]);
   const dms=useMemo(()=>Object.entries(raw).filter(([k])=>k.indexOf("vw_dm_")===0).map(([,v])=>v).filter(Boolean),[raw]);
+  // likes: one record per person per post (key vw_like_<postId>__<user>), gathered
+  // into { postId: [{user,at}, …] } so a count and a "liked by" list are one lookup.
+  const likeMap=useMemo(()=>{const m={};Object.entries(raw).filter(([k])=>k.indexOf("vw_like_")===0)
+    .forEach(([,v])=>{if(v&&v.post&&v.user){const u=String(v.user).toLowerCase();
+      (m[v.post]=m[v.post]||[]).push({user:u,at:v.at||0});}});return m;},[raw]);
   const postMap=useMemo(()=>{const m={};posts.forEach(p=>{m[p.id]=p;});return m;},[posts]);
   const bioOf=useCallback(u=>{const r=raw["vw_profile_"+String(u||"").toLowerCase()];return (r&&r.bio)||"";},[raw]);
   const verifiedSet=useMemo(()=>new Set(Object.entries(raw["vw_verified"]||{}).filter(([,v])=>v).map(([k])=>String(k).toLowerCase())),[raw]);
@@ -1131,11 +1177,15 @@ function App(){
     repliesTo:id=>posts.filter(p=>p.replyTo===id),
     repostsOf:id=>posts.filter(p=>p.repostOf===id&&!p.text),
     iRepostedOf:id=>!!(me&&posts.find(p=>p.repostOf===id&&!p.text&&String(p.author||"").toLowerCase()===String(me.username||"").toLowerCase())),
+    likeCount:id=>(likeMap[id]||[]).length,
+    iLiked:id=>!!(me&&(likeMap[id]||[]).some(l=>l.user===String(me.username||"").toLowerCase())),
+    likersOf:id=>(likeMap[id]||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)),
     officeByHandle:h=>Object.values(officeAccounts).find(o=>String(o.handle||"").toLowerCase()===String(h||"").replace(/^@/,"").toLowerCase()),
     bioOf,
-  }),[me,accounts,officeAccounts,posts,dms,postMap,bioOf,raw,verifiedSet,goProfile,goOffice,bannerApprovals,profileRecs]);
+  }),[me,accounts,officeAccounts,posts,dms,likeMap,postMap,bioOf,raw,verifiedSet,goProfile,goOffice,bannerApprovals,profileRecs]);
 
   const patch=(k,v)=>setRaw(r=>({...r,[k]:v}));
+  const unpatch=k=>setRaw(r=>{const n={...r};delete n[k];return n;});
   const cooldown=lastPost?Math.max(0,Math.ceil((RATE_MS-(nowTick-lastPost))/1000)):0;
   const doPost=useCallback(async({text,asOffice,replyTo,repostOf})=>{
     if(!me){setSignIn(true);return{ok:false};}
@@ -1155,6 +1205,15 @@ function App(){
   const del=useCallback(post=>{ask({title:"Delete this post?",
     body:String(post.text||"").slice(0,140)||"This repost will be removed.",confirmLabel:"Delete",danger:true,
     onYes:async()=>{const r=await sdel("vw_post_"+post.id);if(r.ok){await loadAll();note("Deleted.","");}else note(r.error||"Refused","bad");}});},[loadAll,note,ask]);
+  // Liking is its own tiny record, keyed to you and the post, so it needs no rate
+  // limit and can't be forged for anyone else. We show the change at once and undo
+  // it only if the server refuses.
+  const toggleLike=useCallback(async post=>{if(!me){setSignIn(true);return;}
+    const u=String(me.username||"").toLowerCase(),id=post.id,key="vw_like_"+id+"__"+u;
+    const liked=(likeMap[id]||[]).some(l=>l.user===u);
+    if(liked){unpatch(key);const r=await sdel(key);if(!r.ok){patch(key,{post:id,user:u,at:Date.now()});note(r.error||"Refused","bad");}}
+    else{const rec={post:id,user:u,at:Date.now()};patch(key,rec);const r=await sset(key,rec);if(!r.ok){unpatch(key);note(r.error||"Refused","bad");}}
+  },[me,likeMap,note]);
   const saveProfile=useCallback(async fields=>{if(!me)return{ok:false};
     const u=String(me.username||"").toLowerCase(),key="vw_profile_"+u;
     const rec={...(raw[key]||{}),...fields,updatedAt:Date.now()};
@@ -1183,11 +1242,12 @@ function App(){
     const r=await doPost(payload);if(r.ok&&!payload.replyTo){setLastPost(Date.now());setNowTick(Date.now());}return r;},[me,doPost,note,cooldown]);
   const openProfile=p=>setRoute(p.office?{name:"profile",handle:p.handle,office:true}:{name:"profile",handle:p.handle});
   const acts={open:id=>setRoute({name:"thread",id}),reply:post=>setRoute({name:"thread",id:post.id}),repost,del,profile:openProfile,
+    like:toggleLike,likers:post=>setLikers(post.id),
     quote:post=>{if(!me){setSignIn(true);return;}setQuote(post);},
     composerProps:{me,identities,activeId,setActiveId,onPost:guardPost,ctx,cooldown}};
 
   const admin=isAdmin(me);
-  const notifs=useMemo(()=>buildNotifs(posts,me,accounts),[posts,me,accounts]);
+  const notifs=useMemo(()=>buildNotifs(posts,me,accounts,likeMap),[posts,me,accounts,likeMap]);
   const notifUnseen=notifs.filter(n=>n.at>seenNotif).length;
   const dmUnseen=useMemo(()=>{if(!me)return 0;const meU=String(me.username||"").toLowerCase();const by={};
     dms.forEach(d=>{const from=String(d.from||"").toLowerCase(),to=String(d.to||"").toLowerCase();
@@ -1234,7 +1294,7 @@ function App(){
     content=me?<Messages ctx={ctx} me={me} onSend={sendDM} onRead={markDMRead} seenDM={seenDM} initialOpen={route.dm} note={note}/>
       :<div className="empty">Sign in to read your messages.</div>;}
   else if(route.name==="notifs"){
-    header=<><h1>Notifications</h1><div className="sub" style={{marginLeft:2}}>replies, reposts, quotes and mentions</div>{searchBox}</>;
+    header=<><h1>Notifications</h1><div className="sub" style={{marginLeft:2}}>replies, reposts, likes, quotes and mentions</div>{searchBox}</>;
     content=me?<Notifications ctx={ctx} notifs={notifs} seen={seenNotif} acts={acts}/>:<div className="empty">Sign in to see your notifications.</div>;}
   else if(route.name==="search"){
     header=<><button className="back" onClick={()=>setRoute({name:"home"})} title="Back"><Ic n="arrow-left" s={17}/></button><h1 style={{fontSize:17}}>Explore</h1>{searchBox}</>;
@@ -1332,6 +1392,8 @@ function App(){
       <div className="mh"><button className="back" onClick={()=>setQuote(null)}><Ic n="arrow-left" s={17}/></button><h2>Quote this post</h2></div>
       <Composer {...acts.composerProps} quoted={quote} placeholder="Add your own words…" autoFocus onDone={()=>{setQuote(null);note("Quoted.","ok");}}/>
     </div></div>}
+
+    {likers&&<LikersModal postId={likers} ctx={ctx} onClose={()=>setLikers(null)} onProfile={p=>{setLikers(null);openProfile(p);}}/>}
 
     {signIn&&<SignIn onClose={()=>setSignIn(false)} onAuth={a=>{setMe(a);setSignIn(false);loadAll();note("Signed in as "+(a.displayName||a.username)+".","ok");}}/>}
     <Confirm open={!!confirm} title={confirm&&confirm.title} body={confirm&&confirm.body} confirmLabel={confirm&&confirm.confirmLabel}
