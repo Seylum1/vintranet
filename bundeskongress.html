@@ -3855,6 +3855,12 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
   const hasPatent=!!(peerRank&&!peerRank.royal);
   const patentDesig=(()=>{const t=String((peerRec&&peerRec.title)||"").trim();if(!t)return"";const m=t.match(/\bof\s+(.+)$/i);return m?m[1].trim():t;})();
   const patentDignity=hasPatent?(patentDesig?`${peerRank.l} of ${patentDesig}`:peerRank.l):"";
+  // Per-peer display overrides set from the Emperor Panel: a manual dignity string,
+  // and a flag to hide the dignity that trails the name (a bare "Baron" reads oddly).
+  const dignityOverride=String((peerRec&&peerRec.dignityOverride)||"").trim();
+  const dignityHidden=!!(peerRec&&peerRec.hideDignity);
+  const shownDignity=hasPatent?(dignityOverride||patentDignity):"";   // the peerage as displayed (Letters Patent row)
+  const nameDignity=dignityHidden?"":shownDignity;                    // the part that trails the name
   const party=getParty(person.party||rec.party);
   const region=acc?.stateOfResidency?BK_PROVINCES[acc.stateOfResidency]||acc.stateOfResidency:null;
   // The name they go by, shown only when it adds something over the username.
@@ -3938,7 +3944,7 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
             )}
             <div style={{fontFamily:"'Cinzel',serif",fontSize:20,fontWeight:700,color:C.text,letterSpacing:"0.05em"}}>
               {person.username||person.name}
-              {patentDignity&&<span className="mono" style={{fontSize:11,letterSpacing:"0.08em",color:C.gold}}>, {patentDignity}</span>}
+              {nameDignity&&<span className="mono" style={{fontSize:11,letterSpacing:"0.08em",color:C.gold}}>, {nameDignity}</span>}
               <PostNominals person={person} style={{fontSize:11,opacity:1,marginLeft:8}}/>
             </div>
             {/* The chamber lists people by username; the name they go by is revealed here. */}
@@ -4054,7 +4060,7 @@ function MemberFactsheet({person,members,bundesherren,formerMembers,officials,bi
             <FactRow label="Letters Patent">
               <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-start"}}>
                 <span style={{fontSize:13,color:peerRank.color||C.gold}}>
-                  {patentDignity}
+                  {shownDignity}
                 </span>
                 <button onClick={()=>setShowPatent(true)}
                   style={{fontFamily:"'Cinzel',serif",fontSize:10,letterSpacing:"0.1em",padding:"4px 12px",borderRadius:2,
@@ -5001,7 +5007,11 @@ function EmperorMemberRow({id,m,accounts,onAction,notify,setProcessing}){
 function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing,onPatent}){
   const [linking,setLinking]=useState(false);
   const [linkUser,setLinkUser]=useState("");
+  const [dispOpen,setDispOpen]=useState(false);
+  const [hideDig,setHideDig]=useState(!!bh.hideDignity);
+  const [digOv,setDigOv]=useState(bh.dignityOverride||"");
   const pr=bh.rank?PEERAGE_RANKS.find(r=>r.v===bh.rank):null;
+  const nonRoyal=!pr||!pr.royal;
 
   return(
     <div style={{background:pr?.boxColor||C.s2,border:`1px solid ${pr?.borderColor||C.gold}33`,
@@ -5027,9 +5037,11 @@ function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing,onPatent}){
             <option value="">— No rank —</option>
             {PEERAGE_RANKS.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}
           </select>
-          {(!pr||!pr.royal)&&<Btn small variant="gold" disabled={!bh.rank}
+          {nonRoyal&&<Btn small variant="gold" disabled={!bh.rank}
             onClick={()=>{if(!bh.rank){notify("Set a peerage rank first.",C.gold);return;}onPatent&&onPatent(bh);}}
             title={bh.rank?"Issue Letters Patent":"Set a peerage rank first"}>⚜ Letters Patent</Btn>}
+          {nonRoyal&&pr&&<Btn small variant="ghost" onClick={()=>setDispOpen(v=>!v)}
+            title="Hide or override the dignity shown after their name">{dispOpen?"Cancel":"Suffix"}</Btn>}
           {!bh.username&&<Btn small variant="ghost" onClick={()=>setLinking(v=>!v)}>
             {linking?"Cancel":"Link Account"}
           </Btn>}
@@ -5056,6 +5068,31 @@ function EmperorBHRow({id,bh,accounts,onAction,notify,setProcessing,onPatent}){
               setProcessing(null); setLinking(false); setLinkUser("");
               notify(bh.name+" linked to @"+linkUser+". Voting record preserved.",C.green);
             }}>Link</Btn>
+          </div>
+        </div>
+      )}
+      {dispOpen&&nonRoyal&&(
+        <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border}`}}>
+          <div style={{fontSize:12,color:C.textD,fontStyle:"italic",marginBottom:8,lineHeight:1.5}}>
+            The dignity shown after their name on the player card (e.g. “, Baron of Weststadt”). Hide it for bare
+            titles that read oddly — “John Doe, Baron” — or type an override to show something other than the
+            automatic dignity.
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:C.text,marginBottom:10,cursor:"pointer"}}>
+            <input type="checkbox" checked={hideDig} onChange={e=>setHideDig(e.target.checked)}/>
+            Hide the dignity after their name
+          </label>
+          <FL>DIGNITY OVERRIDE (OPTIONAL)</FL>
+          <div style={{display:"flex",gap:6,alignItems:"flex-start",flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:200}}>
+              <Inp value={digOv} onChange={setDigOv} placeholder="e.g. Baron Ashford"/>
+            </div>
+            <Btn small variant="gold" onClick={async()=>{
+              setProcessing("Saving…");
+              await onAction("updateBHDisplay",{id,hideDignity:hideDig,dignityOverride:digOv.trim()});
+              setProcessing(null); setDispOpen(false);
+              notify((bh.username||bh.name)+" — name display updated.",C.gold);
+            }}>Save</Btn>
           </div>
         </div>
       )}
@@ -7889,6 +7926,13 @@ function App() {
     }
     else if(type==="updateBHRank"){
       const next={...bundesherren,[payload.id]:{...bundesherren[payload.id],rank:payload.rank}};
+      setBH(next); await sset("bk_bh",next);
+    }
+    else if(type==="updateBHDisplay"){
+      // Per-peer control of the dignity that trails their name on the player card:
+      // hide it (a bare "Baron" reads oddly), or override it with a custom string.
+      const b=bundesherren[payload.id]; if(!b) return;
+      const next={...bundesherren,[payload.id]:{...b,hideDignity:!!payload.hideDignity,dignityOverride:String(payload.dignityOverride||"")}};
       setBH(next); await sset("bk_bh",next);
     }
     else if(type==="submitBudget"){
