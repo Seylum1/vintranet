@@ -67,6 +67,7 @@ const C={
   text:"#f0ece4", textD:"#9a8878", textDD:"#6a5450",
   gold:"#C9A84C", goldD:"#8a6c20", goldL:"#e3c877",
   green:"#3a9c3a", greenL:"#7ad47a", amber:"#cc8a10", blue:"#5a6a9a",
+  yellow:"#e8c22e", redW:"#e86060",
   paper:"#f6f1e2", paper2:"#ece5d2", paperLine:"#cfc4a6",
   pInk:"#1a1408", pMute:"#6a5c3a",
 };
@@ -299,10 +300,28 @@ async function sset(k,v){
     const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});
     const d=await r.json();
-    return (d&&d.ok)?{ok:true}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+    return (d&&d.ok)?{ok:true,data:d}:{ok:false,error:(d&&d.error)||"Refused by the server"};
   }catch(e){return{ok:false,error:"Connection error"};}
 }
 async function sdel(k){try{await fetch(API+"/api/unset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k})});}catch(e){}}
+/* Lift a ban — only the exact void this page loaded (matched on its time). */
+async function sliftBan(key,at){
+  try{
+    const r=await fetch(API+"/api/election/lift-ban",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:AUTH_TOKEN,key,at})});
+    const d=await r.json();
+    return (d&&d.ok)?{ok:true,key:d.key,record:d.record}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+  }catch(e){return{ok:false,error:"Connection error"};}
+}
+/* Voiding is one server act — the notice is written and the ballot struck together. */
+async function svoid(elId,citizenId,kind,reason){
+  try{
+    const r=await fetch(API+"/api/election/void-ballot",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:AUTH_TOKEN,elId,citizenId,kind,reason})});
+    const d=await r.json();
+    return (d&&d.ok)?{ok:true,key:d.key,record:d.record}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+  }catch(e){return{ok:false,error:"Connection error"};}
+}
 async function slogin(username,password){
   try{
     const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -1802,6 +1821,131 @@ function Notice({title,body,tone,children}){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   VOIDED BALLOTS — the Returning Officer may strike a ballot at any stage until
+   the result is certified. A SOFT void leaves the elector free to vote again and
+   is shown in yellow; a HARD void bars them from this election and is shown in
+   red. The voter is told either way, with the Registrar's own reason.
+   ══════════════════════════════════════════════════════════════════════════════ */
+const VOID_KINDS={
+  soft:{label:"Soft void",tag:"MAY RECAST",color:C.yellow,
+    blurb:"Strike the ballot. The elector may cast a new one while the poll is open."},
+  hard:{label:"Hard void",tag:"BARRED",color:C.redW,
+    blurb:"Strike the ballot and bar the elector from voting again in this election."},
+};
+/* One line of what a ballot said, for the Registrar's log. */
+function ballotSummary(b,R,el){
+  return [
+    Object.entries(b.votes||{}).map(([cid,n])=>{
+      const c=R.cands.find(x=>x.id===cid);
+      return (c?c.name:"—")+"×"+n;}).join(", "),
+    ((el&&el.referendums)||[]).map(r=>{
+      const pick=(b.refVotes||{})[r.id];if(!pick)return null;
+      const o=(r.options||[]).find(x=>x.id===pick);
+      return "▸"+(o?o.label:"?");}).filter(Boolean).join(" ")
+  ].filter(Boolean).join("  ·  ");
+}
+/* A soft void has done its work once the person it names has cast a fresh ballot.
+   The server stamps every ballot with who cast it and when (castBy/castAt, on the
+   server's clock, the same clock as the void's `at`), so this is exact: a ballot by
+   that same account cast after the void — whatever record it was cast on, and
+   whoever a record has since been relinked to. A ballot without the stamp predates
+   voiding altogether; for one of those, the same citizen record is the best signal. */
+function voidSuperseded(v,ballots){
+  if(v.kind!=="soft")return false;
+  const u=String(v.username||"").toLowerCase();
+  return (ballots||[]).some(b=>{
+    if(!b.castBy)return b.citizenId===v.citizenId;
+    if(u?String(b.castBy).toLowerCase()!==u:b.citizenId!==v.citizenId)return false;
+    return (b.castAt||0)>=(v.at||0);
+  });
+}
+
+/* `refused`: shown above a refusal on the ballot page (e.g. the elector is no longer
+   enfranchised), so it must not promise a recast the page is about to deny. */
+function VoidNotice({v,el,onRecast,onDismiss,refused}){
+  const k=VOID_KINDS[v.kind]||VOID_KINDS.soft;
+  const hard=v.kind==="hard";
+  const open=!!el&&el.status==="voting"&&!refused;
+  const final=!!el&&isFinal(el.status);
+  return(
+    <div role="alert" style={{background:k.color+"12",border:`1px solid ${k.color}55`,borderLeft:`4px solid ${k.color}`,
+      borderRadius:3,padding:"1.05rem 1.25rem",maxWidth:760,margin:"0 auto 1rem"}}>
+      <div className="mono" style={{fontSize:9.5,letterSpacing:"0.22em",color:k.color,textTransform:"uppercase"}}>
+        {hard?"⛔ Ballot voided · Voting withdrawn":"⚠ Ballot voided · You may vote again"}</div>
+      <div className="cz" style={{fontWeight:700,fontSize:17,color:C.text,marginTop:5,lineHeight:1.3}}>
+        Your ballot in “{el?el.name:"this election"}” was voided by the Returning Officer</div>
+      <div style={{marginTop:9,padding:"0.6rem 0.85rem",background:C.bg+"99",borderLeft:`2px solid ${k.color}88`}}>
+        <div className="mono" style={{fontSize:8.5,letterSpacing:"0.18em",color:C.textDD,textTransform:"uppercase"}}>
+          Reason given{v.at?" · "+fmtDate(v.at):""}</div>
+        <div style={{color:C.text,fontSize:14.5,lineHeight:1.6,marginTop:3,whiteSpace:"pre-wrap"}}>{v.reason}</div>
+      </div>
+      <p style={{color:hard?k.color:C.textD,fontSize:13.5,lineHeight:1.6,marginTop:9}}>
+        {hard&&final
+          ?"Your ballot was not counted in the certified result, and you were barred from voting again in this election."
+          :hard
+          ?"Your ballot no longer counts, and you may not vote again in this election."
+          :final
+          ?"Your ballot was not counted in the certified result. The poll closed before a new one was cast."
+          :open
+          ?"Your previous ballot no longer counts. You may cast a new one while the poll is open."
+          :refused
+          ?"Your previous ballot no longer counts, and you cannot cast a new one at present — see below."
+          :"Your previous ballot no longer counts. The poll is not open, so a new one cannot be cast at present."}
+      </p>
+      {((!hard&&open&&onRecast)||(final&&onDismiss))&&
+        <div style={{marginTop:10,display:"flex",gap:8,flexWrap:"wrap"}}>
+          {!hard&&open&&onRecast&&<Btn variant="gold" onClick={onRecast}>Cast a new ballot →</Btn>}
+          {final&&onDismiss&&<Btn onClick={onDismiss}>Understood</Btn>}
+        </div>}
+    </div>
+  );
+}
+
+/* The Registrar's control on one ballot: which kind of void, and why. The reason
+   is required because the voter is shown it word for word. */
+function VoidBallotForm({ballot,onVoid,onCancel}){
+  const [kind,setKind]=useState("soft");
+  const [reason,setReason]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const k=VOID_KINDS[kind];
+  const go=async()=>{
+    if(busy)return;
+    if(!reason.trim()){setErr("Give a reason — the voter is shown it.");return;}
+    setBusy(true);setErr("");
+    const r=await onVoid(kind,reason.trim());
+    setBusy(false);
+    if(!r.ok)setErr(r.error||"Refused.");
+  };
+  return(
+    <div style={{padding:"0.8rem 0.9rem 0.9rem",background:C.s2,borderTop:`1px dashed ${C.borderL}`}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:9}}>
+        {Object.entries(VOID_KINDS).map(([id,x])=>{
+          const on=kind===id;
+          return <button key={id} onClick={()=>setKind(id)} className="cz"
+            style={{flex:"1 1 220px",textAlign:"left",cursor:"pointer",borderRadius:2,padding:"8px 11px",
+              border:`1px solid ${on?x.color:C.border}`,background:on?x.color+"18":"transparent"}}>
+            <div style={{fontWeight:700,fontSize:12,letterSpacing:"0.1em",textTransform:"uppercase",
+              color:on?x.color:C.textD}}>{on?"● ":"○ "}{x.label}</div>
+            <div style={{fontSize:12,color:C.textD,marginTop:3,lineHeight:1.45,textTransform:"none",
+              letterSpacing:0,fontWeight:400}}>{x.blurb}</div>
+          </button>;
+        })}
+      </div>
+      <FL hint="Shown to the voter word for word.">Reason</FL>
+      <TA rows={2} value={reason} onChange={v=>setReason(v.slice(0,1000))}
+        placeholder={`Why ${ballot.citizenName||"this elector"}'s ballot is being voided`}/>
+      {err&&<div className="mono" style={{fontSize:10.5,color:C.redL,marginTop:7}}>{err}</div>}
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:9,flexWrap:"wrap"}}>
+        <Btn small onClick={onCancel} disabled={busy}>Cancel</Btn>
+        <Btn small variant={kind==="hard"?"red":"gold"} onClick={go} disabled={busy||!reason.trim()}>
+          {busy?"Voiding…":k.label+" this ballot"}</Btn>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    THE BALLOT PAPER — printed on paper, not on ink, so it reads as a document
    rather than as a screen.
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -1824,7 +1968,7 @@ function stepBtn(dis){
     cursor:dis?"not-allowed":"pointer",lineHeight:1,flexShrink:0};
 }
 
-function VoteView({el,me,myCitizen,electorate,R,ballots,onCast,onBack,note}){
+function VoteView({el,me,myCitizen,electorate,R,ballots,onCast,onBack,note,myVoid}){
   const vpv=Number(el.votesPerVoter)||VPV_DEFAULT;
   const refs=el.referendums||[];
   const hasCands=R.cands.length>0;
@@ -1836,16 +1980,28 @@ function VoteView({el,me,myCitizen,electorate,R,ballots,onCast,onBack,note}){
 
   if(!me)return <Notice title="Sign in to vote"
     body="Voting is verified through your Vintranet account, which must be linked to a record on the imperial citizenship register. Sign in above and return here."/>;
+  /* A hard void closes the ballot paper to this elector for the whole contest. */
+  if(myVoid&&myVoid.kind==="hard")return(
+    <div style={{maxWidth:760,margin:"0 auto"}}>
+      <VoidNotice v={myVoid} el={el}/>
+      <div style={{textAlign:"center"}}><Btn variant="gold" onClick={onBack}>View the count →</Btn></div>
+    </div>
+  );
   if(el.status!=="voting")return <Notice title={el.status==="voting_closed"||isFinal(el.status)?"The poll has closed":"The poll is not yet open"}
     body="You can follow the count on the main board."><Btn variant="gold" onClick={onBack}>View the count →</Btn></Notice>;
-  if(!myCitizen)return <Notice title="No citizenship record is linked to your account" tone="warn"
-    body="Voting requires a record on the imperial citizenship register linked to your username. Open the Foreign Affairs portal and claim your record, or ask the Ministry to link it."/>;
+  /* The page-level notice stack leaves this contest's void to the ballot page, so
+     every refusal below must carry it too. */
+  const voidAbove=myVoid?<VoidNotice v={myVoid} el={el} refused/>:null;
+  if(!myCitizen)return <div style={{maxWidth:760,margin:"0 auto"}}>{voidAbove}
+    <Notice title="No citizenship record is linked to your account" tone="warn"
+    body="Voting requires a record on the imperial citizenship register linked to your username. Open the Foreign Affairs portal and claim your record, or ask the Ministry to link it."/></div>;
   if(!electorate.roll.some(c=>c.id===myCitizen.id)){
     const st=myCitizen.status||"citizen";
-    return <Notice title="Your category is not enfranchised for this election" tone="warn"
+    return <div style={{maxWidth:760,margin:"0 auto"}}>{voidAbove}
+      <Notice title="Your category is not enfranchised for this election" tone="warn"
       body={st==="revoked"?"Your citizenship is recorded as revoked. You are not entitled to vote."
         :st==="renounced"?"Our records show you have renounced your citizenship. You are not entitled to vote."
-        :`Your record lists you as ${CITIZEN_STATUSES[st]||st}. This election is open to ${electorate.label}.`}/>;
+        :`Your record lists you as ${CITIZEN_STATUSES[st]||st}. This election is open to ${electorate.label}.`}/></div>;
   }
   if(already||done)return(
     <div style={{background:C.paper,borderRadius:3,border:`1px solid ${C.paperLine}`,
@@ -1886,6 +2042,7 @@ function VoteView({el,me,myCitizen,electorate,R,ballots,onCast,onBack,note}){
   return(
     <div style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{marginBottom:"1rem"}}><Btn onClick={onBack}>← Back to the count</Btn></div>
+      {myVoid&&myVoid.kind==="soft"&&<VoidNotice v={myVoid} el={el}/>}
       <div style={{background:C.paper,borderRadius:3,border:`1px solid ${C.paperLine}`,
         boxShadow:"0 24px 60px #000a",overflow:"hidden"}}>
         <div style={{padding:"1.2rem 1.4rem",borderBottom:`2px solid ${C.pInk}`,display:"flex",
@@ -2559,17 +2716,27 @@ function NominationsQueue({el,regs,partyMap,partyList,onRule,onNominate,onStrike
   );
 }
 
-function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,citizens,partyMap,partyList,sitting,
-  onSave,onDelete,onStatus,onCertify,onRule,onNominate,onStrike,onClearBallots,note,reload}){
+function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,voidsByEl,citizens,partyMap,partyList,sitting,
+  onSave,onDelete,onStatus,onCertify,onRule,onNominate,onStrike,onClearBallots,onVoid,
+  onLiftBan,note,reload}){
   const [openId,setOpenId]=useState(null);
   const [editing,setEditing]=useState(null);
   const [tab,setTab]=useState("pipeline");
+  const [voiding,setVoiding]=useState(null);   // citizenId of the ballot whose void form is open
   useEffect(()=>{
     if(!openId||!elections[openId])setOpenId(elList[0]?elList[0].id:null);
   },[elList,elections,openId]);
   const el=openId?elections[openId]:null;
   const ballots=el?(ballotsByEl[el.id]||[]):[];
   const regs=el?(regsByEl[el.id]||[]):[];
+  const voids=el?((voidsByEl||{})[el.id]||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0)):[];
+  const canVoid=!!el&&!isFinal(el.status);
+  /* A void form is only "open" while it is on screen against a ballot still in the
+     box. Leaving the log, changing contest, or the ballot vanishing (cleared, or
+     voided elsewhere) closes it — otherwise it would hold the live refresh paused. */
+  const voidingLive=!!voiding&&tab==="log"&&canVoid&&ballots.some(b=>b.citizenId===voiding);
+  useEffect(()=>{if(voiding&&!voidingLive)setVoiding(null);},[voiding,voidingLive]);
+  useEffect(()=>{setVoiding(null);},[openId]);
   const R=useElectionResults(el||{},ballots,regs,partyMap,sitting);
   const electorate=useElectorate(citizens,el||{},ballots);
   const step=el?nextStep(el,R):null;
@@ -2581,10 +2748,10 @@ function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,citizens,partyM
      the open contest is actually running (a poll open, or nominations open). */
   const liveContest=!!el&&(el.status==="voting"||el.status==="registration");
   useEffect(()=>{
-    if(editing||!liveContest)return;
+    if(editing||voidingLive||!liveContest)return;
     const id=setInterval(()=>{reload();},15000);
     return()=>clearInterval(id);
-  },[editing,liveContest,reload]);
+  },[editing,voidingLive,liveContest,reload]);
 
   return(
     <div>
@@ -2676,7 +2843,7 @@ function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,citizens,partyM
               {[["pipeline","Nominations"+(pending>0?" ("+pending+")":"")],
                 ["questions","Referendums"],
                 ["count","The Count"],
-                ["log","Ballot Log"]].map(([k,l])=>(
+                ["log","Ballot Log"+(voids.length>0?" ("+voids.length+" voided)":"")]].map(([k,l])=>(
                 <button key={k} onClick={()=>setTab(k)} className="cz"
                   style={{background:"transparent",border:"none",cursor:"pointer",padding:"9px 13px",
                     fontSize:10.5,letterSpacing:"0.14em",textTransform:"uppercase",fontWeight:600,
@@ -2710,26 +2877,70 @@ function RegistrarView({me,elList,elections,ballotsByEl,regsByEl,citizens,partyM
             </>}
 
             {tab==="log"&&<>
-              <div style={{...card,maxHeight:400,overflowY:"auto"}}>
+              <div style={{...card,maxHeight:520,overflowY:"auto"}}>
                 {ballots.length===0&&<Empty>No ballot has been cast.</Empty>}
-                {ballots.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map((b,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",
-                    padding:"0.5rem 0.8rem",borderBottom:`1px solid ${C.border}55`}}>
-                    <span className="cz" style={{fontSize:13,color:C.text,flexShrink:0}}>{b.citizenName}</span>
-                    <span className="mono" style={{fontSize:9.5,color:C.textDD,textAlign:"right",flex:"1 1 180px"}}>
-                      {[
-                        Object.entries(b.votes||{}).map(([cid,n])=>{
-                          const c=R.cands.find(x=>x.id===cid);
-                          return (c?c.name:"—")+"×"+n;}).join(", "),
-                        (el.referendums||[]).map(r=>{
-                          const pick=(b.refVotes||{})[r.id];if(!pick)return null;
-                          const o=(r.options||[]).find(x=>x.id===pick);
-                          return "▸"+(o?o.label:"?");}).filter(Boolean).join(" ")
-                      ].filter(Boolean).join("  ·  ")}
-                    </span>
-                  </div>
-                ))}
+                {ballots.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(b=>{
+                  const open=voiding===b.citizenId;
+                  return(
+                    <div key={b.citizenId} style={{borderBottom:`1px solid ${C.border}55`,
+                      background:open?C.s2:"transparent"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,
+                        flexWrap:"wrap",padding:"0.5rem 0.8rem"}}>
+                        <span className="cz" style={{fontSize:13,color:C.text,flexShrink:0}}>{b.citizenName}</span>
+                        <span className="mono" style={{fontSize:9.5,color:C.textDD,textAlign:"right",flex:"1 1 180px"}}>
+                          {ballotSummary(b,R,el)}</span>
+                        {canVoid&&!open&&
+                          <Btn small onClick={()=>setVoiding(b.citizenId)}
+                            style={{color:C.yellow,borderColor:C.yellow+"55"}}>Void</Btn>}
+                      </div>
+                      {open&&
+                        <VoidBallotForm ballot={b} onCancel={()=>setVoiding(null)}
+                          onVoid={async(kind,reason)=>{
+                            const r=await onVoid(el,b,kind,reason);
+                            if(r.ok)setVoiding(null);
+                            return r;
+                          }}/>}
+                    </div>
+                  );
+                })}
               </div>
+              {!canVoid&&ballots.length>0&&
+                <div className="mono" style={{fontSize:10,color:C.textDD,marginTop:8,letterSpacing:"0.06em"}}>
+                  The result is certified — its ballots can no longer be voided.</div>}
+
+              {voids.length>0&&
+                <div style={{...card,marginTop:"1rem"}}>
+                  <div style={{padding:"0.75rem 0.9rem 0.2rem"}}><STitle>Voided Ballots</STitle></div>
+                  {voids.map(v=>{
+                    const k=VOID_KINDS[v.kind]||VOID_KINDS.soft;
+                    const recast=voidSuperseded(v,ballots);
+                    return(
+                      <div key={v.key} style={{padding:"0.65rem 0.9rem",borderTop:`1px solid ${C.border}55`,
+                        borderLeft:`3px solid ${k.color}`}}>
+                        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                          <span className="cz" style={{fontSize:13.5,color:C.text,fontWeight:600}}>
+                            {v.citizenName||v.username||"—"}</span>
+                          <span className="mono" style={{fontSize:8.5,letterSpacing:"0.14em",color:k.color,
+                            border:`1px solid ${k.color}66`,borderRadius:2,padding:"2px 7px"}}>
+                            {v.kind==="hard"?"HARD · BARRED":"SOFT · "+(recast?"RECAST":"MAY RECAST")}</span>
+                          <span className="mono" style={{fontSize:9,color:C.textDD,flex:1}}>
+                            {fmtDate(v.at)}{v.byName||v.by?" · by "+(v.byName||v.by):""}
+                            {v.liftedAt?" · ban lifted "+fmtDate(v.liftedAt):""}</span>
+                          {/* Lifting a ban turns it soft rather than deleting it, so the elector
+                              is still told their ballot was struck and that they may vote again. */}
+                          {canVoid&&v.kind==="hard"&&
+                            <ArmBtn small label="Lift ban" confirmLabel="Let them vote again?"
+                              onConfirm={()=>onLiftBan(v)}/>}
+                        </div>
+                        <div style={{fontSize:13,color:C.textD,marginTop:5,lineHeight:1.55,whiteSpace:"pre-wrap"}}>
+                          “{v.reason}”</div>
+                        {v.ballot&&
+                          <div className="mono" style={{fontSize:9.5,color:C.textDD,marginTop:4,
+                            textDecoration:"line-through"}}>{ballotSummary(v.ballot,R,el)||"(empty ballot)"}</div>}
+                      </div>
+                    );
+                  })}
+                </div>}
               <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:"1rem",flexWrap:"wrap"}}>
                 <ArmBtn label="Clear all ballots" confirmLabel="Destroy every ballot cast?"
                   onConfirm={()=>onClearBallots(el)}/>
@@ -2809,12 +3020,60 @@ function App(){
     return m;
   },[raw]);
 
+  /* Voided ballots. The server sends the Registrar all of them and a voter only
+     their own, so for a voter this is simply "mine". */
+  const voidsByEl=useMemo(()=>{
+    const m={};
+    Object.entries(raw).forEach(([k,v])=>{
+      if(k.indexOf("el_void_")===0&&v&&v.elId)(m[v.elId]=m[v.elId]||[]).push({...v,key:k});
+    });
+    return m;
+  },[raw]);
+
   const registrar=isRegistrar(me);
   const myCitizen=useMemo(()=>{
     if(!me)return null;
     const u=String(me.username||"").toLowerCase();
     return citizens.find(c=>String(c.username||"").trim().toLowerCase()===u)||null;
   },[me,citizens]);
+
+  /* A void in a contest that has since been certified is still told to its voter —
+     they may not have visited between the void and the declaration — but only until
+     they acknowledge it, on this browser. While a contest runs it cannot be dismissed. */
+  const [seenVoids,setSeenVoids]=useState(()=>{
+    try{const s=JSON.parse(localStorage.getItem("el_void_seen")||"[]");return Array.isArray(s)?s:[];}catch(e){return [];}
+  });
+  const seenKey=v=>v.key+"@"+(v.at||0);
+  const dismissVoid=useCallback(v=>{
+    setSeenVoids(s=>{
+      const n=[...new Set([...s,seenKey(v)])].slice(-200);
+      try{localStorage.setItem("el_void_seen",JSON.stringify(n));}catch(e){}
+      return n;
+    });
+  },[]);
+
+  /* The voids this signed-in elector should be told about: their own, and — for a
+     soft void — only until they have voted again. "Their own" means the account the
+     void names, the same person the server bars; the citizen record is consulted only
+     for a void that names no account. (A Registrar receives every void, so matching
+     on a record they now hold would show them someone else's.) */
+  const myVoids=useMemo(()=>{
+    if(!me)return [];
+    const u=String(me.username||"").toLowerCase();
+    const out=[];
+    Object.entries(voidsByEl).forEach(([elId,list])=>{
+      const e=elections[elId];
+      if(!e)return;
+      list.forEach(v=>{
+        const vu=String(v.username||"").toLowerCase();
+        const mine=vu?(!!u&&vu===u):(!!myCitizen&&v.citizenId===myCitizen.id);
+        if(!mine||voidSuperseded(v,ballotsByEl[elId]))return;
+        if(isFinal(e.status)&&seenVoids.includes(seenKey(v)))return;
+        out.push(v);
+      });
+    });
+    return out.sort((a,b)=>(a.kind==="hard"?0:1)-(b.kind==="hard"?0:1)||(b.at||0)-(a.at||0));
+  },[me,myCitizen,voidsByEl,elections,ballotsByEl,seenVoids]);
 
   /* which contest the board is showing */
   useEffect(()=>{
@@ -2892,16 +3151,46 @@ function App(){
     const map={...(raw["el_elections"]||{})};delete map[e.id];
     const r=await sset("el_elections",map);
     if(!r.ok){note(r.error||"Refused.",C.redL);return;}
-    const keys=Object.keys(raw).filter(k=>k.indexOf("el_ballot_"+e.id+"_")===0||k.indexOf("el_reg_"+e.id+"_")===0);
+    const keys=Object.keys(raw).filter(k=>k.indexOf("el_ballot_"+e.id+"_")===0||k.indexOf("el_reg_"+e.id+"_")===0
+      ||k.indexOf("el_void_"+e.id+"_")===0);
     for(const k of keys)await sdel(k);
     await loadAll();note("Contest deleted.",C.gold);
   },[raw,loadAll,note]);
 
+  /* Clearing the box is a reset: every elector votes afresh, so a soft void's
+     "you may vote again" is moot and would otherwise resurface with a stale reason.
+     A hard void is a sanction on the person, not on a ballot, and survives it. */
   const clearBallots=useCallback(async e=>{
-    const keys=Object.keys(raw).filter(k=>k.indexOf("el_ballot_"+e.id+"_")===0);
+    const keys=Object.keys(raw).filter(k=>k.indexOf("el_ballot_"+e.id+"_")===0
+      ||(k.indexOf("el_void_")===0&&raw[k]&&raw[k].elId===e.id&&raw[k].kind==="soft"));
     for(const k of keys)await sdel(k);
     await loadAll();note("Ballots cleared.",C.gold);
   },[raw,loadAll,note]);
+
+  /* Void one ballot. The server writes the notice and strikes the ballot together;
+     the page mirrors both at once so the count moves before the next refresh. */
+  const voidBallot=useCallback(async(e,b,kind,reason)=>{
+    const r=await svoid(e.id,b.citizenId,kind,reason);
+    if(!r.ok){note(r.error,C.redL);return r;}
+    const bKey="el_ballot_"+e.id+"_"+b.citizenId;
+    setRaw(prev=>{const n={...prev};if(r.key&&r.record)n[r.key]=r.record;delete n[bKey];return n;});
+    note((b.citizenName||"The")+(b.citizenName?"'s":"")+" ballot "+(kind==="hard"
+      ?"was hard-voided. They may not vote again in this contest.":"was soft-voided. They may cast a new one."),
+      kind==="hard"?C.redL:C.gold);
+    loadAll();
+    return r;
+  },[loadAll,note]);
+
+  /* Lifting a ban keeps the ballot struck and the reason on record, but turns the
+     void soft — so the elector is told, in yellow, that they may now vote again. The
+     server applies it only to the exact void this page shows. */
+  const liftBan=useCallback(async v=>{
+    const r=await sliftBan(v.key,v.at);
+    if(!r.ok){note("The ban was not lifted — "+r.error,C.redL);await loadAll();return;}
+    setRaw(prev=>({...prev,[r.key]:r.record}));
+    note("Ban lifted — "+(v.citizenName||"the elector")+" is told they may vote again.",C.gold);
+    loadAll();
+  },[loadAll,note]);
 
   /* ── candidacy ── */
   const fileRegistration=useCallback(async rec=>{
@@ -2975,7 +3264,9 @@ function App(){
     const ballot={elId:el.id,citizenId:myCitizen.id,citizenName:myCitizen.name,
       votes:payload.votes||{},refVotes:payload.refVotes||{},at:Date.now()};
     const r=await sset(key,ballot);
-    if(r.ok)patchRaw(key,ballot);
+    // Keep the server's copy: it carries the stamps (who cast it, and when) that
+    // decide whether a soft void on this voter has been answered.
+    if(r.ok)patchRaw(key,(r.data&&r.data.ballot)||ballot);
     return r;
   },[el,myCitizen]);
 
@@ -2999,15 +3290,29 @@ function App(){
         onSignOut={()=>{forgetSession();setMe(null);setView("board");note("Signed out.",C.gold);}}/>
 
       <main style={{position:"relative",zIndex:2,maxWidth:1180,margin:"0 auto",padding:"1.6rem 1.1rem 1rem"}}>
+        {/* A voided ballot is the first thing its voter sees on any page of the
+            election — except on the ballot paper for that contest, which shows it
+            in place. */}
+        {!loading&&view!=="admin"&&myVoids
+          .filter(v=>!(view==="vote"&&el&&v.elId===el.id))
+          .map(v=>(
+            <VoidNotice key={v.key||v.elId+"_"+v.citizenId} v={v} el={elections[v.elId]}
+              onDismiss={()=>dismissVoid(v)}
+              onRecast={()=>{
+                if(!need("Voting is verified through your Vintranet account. Sign in to cast your ballot."))return;
+                setSelId(v.elId);setView("vote");
+              }}/>
+          ))}
         {loading
           ?<div className="mono" style={{textAlign:"center",padding:"5rem 1rem",color:C.textDD,
              letterSpacing:"0.24em",fontSize:11}}>OPENING THE COUNT…</div>
           :view==="admin"&&registrar
           ?<RegistrarView me={me} elList={elList} elections={elections} ballotsByEl={ballotsByEl}
-             regsByEl={regsByEl} citizens={citizens} partyMap={partyMap} partyList={partyList} sitting={sitting}
+             regsByEl={regsByEl} voidsByEl={voidsByEl} citizens={citizens} partyMap={partyMap} partyList={partyList} sitting={sitting}
              onSave={saveElection} onDelete={deleteElection} onStatus={setStatus} onCertify={certify}
              onRule={ruleOnRegistration} onNominate={nominateOnBehalf} onStrike={strikeRegistration}
-             onClearBallots={clearBallots} note={note} reload={loadAll}/>
+             onClearBallots={clearBallots} onVoid={voidBallot} onLiftBan={liftBan}
+             note={note} reload={loadAll}/>
           :!el
           ?<div style={{textAlign:"center",padding:"3rem 1rem"}}>
              <Seal size={116} style={{opacity:0.9,animation:"iec-seal .5s ease"}}/>
@@ -3025,7 +3330,8 @@ function App(){
              partyMap={partyMap} partyList={partyList}
              onFile={fileRegistration} onWithdraw={withdrawRegistration} note={note}/>
           :view==="vote"
-          ?<VoteView el={el} me={me} myCitizen={myCitizen} electorate={electorate} R={R} ballots={ballots}
+          ?<VoteView key={el.id} el={el} me={me} myCitizen={myCitizen} electorate={electorate} R={R} ballots={ballots}
+             myVoid={myVoids.find(v=>v.elId===el.id)||null}
              onCast={castBallot} onBack={()=>setView("board")} note={note}/>
           :view==="archive"
           ?<ArchiveView elList={elList} onOpen={id=>{setSelId(id);setView("board");}}/>
