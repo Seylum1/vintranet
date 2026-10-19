@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Federal Elections — Republic of Vindex Nation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="preconnect" href="https://lech-backend.onrender.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<script defer src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0b1930;color:#e8ebf2;font-family:'Crimson Text',Georgia,serif;min-height:100vh;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:#0b1930;}::-webkit-scrollbar-thumb{background:#24406e;border-radius:2px;}
+input,select,textarea{font-family:'Crimson Text',Georgia,serif;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+.fadeIn{animation:fadeIn .3s ease both;}
+.mono{font-family:'Share Tech Mono',monospace;}
+.pf{font-family:'Playfair Display',Georgia,serif;}
+/* standing rail — identical furniture to the government portal */
+.gshell{max-width:1180px;margin:0 auto;padding:1.6rem 1.2rem 3rem;display:grid;
+  grid-template-columns:196px minmax(0,1fr);gap:1.9rem;align-items:start;}
+.grail{position:sticky;top:1rem;}
+.grail-grp{font-size:8px;letter-spacing:.2em;font-family:'Share Tech Mono',monospace;
+  color:#4d648f;padding:0 .55rem;margin:1.15rem 0 .45rem;text-transform:uppercase;}
+.grail-grp:first-child{margin-top:0;}
+.grail-i{display:flex;align-items:center;gap:.5rem;width:100%;text-align:left;
+  padding:.42rem .55rem;font-size:12.5px;line-height:1.25;color:#93a4c3;text-decoration:none;
+  background:transparent;border:0;border-left:2px solid transparent;cursor:pointer;
+  font-family:'Crimson Text',Georgia,serif;transition:color .15s,background .15s;}
+.grail-i:hover{color:#e8ebf2;background:rgba(201,160,90,.07);}
+.grail-i.on{color:#e8ebf2;border-left-color:#c9a05a;background:rgba(201,160,90,.10);font-weight:600;}
+.grail-dot{width:5px;height:5px;border-radius:50%;flex:none;}
+.grail-ar{margin-left:auto;font-size:9px;color:#4d648f;}
+@media(max-width:900px){
+  .gshell{grid-template-columns:1fr;gap:1rem;padding-top:1rem;}
+  .grail{position:static;border-bottom:1px solid #24406e;padding-bottom:.5rem;
+    display:flex;gap:.15rem;overflow-x:auto;}
+  .grail-grp{display:none;}
+  .grail-i{width:auto;white-space:nowrap;border-left:0;border-bottom:2px solid transparent;padding:.45rem .7rem;}
+  .grail-i.on{border-left:0;border-bottom-color:#c9a05a;background:transparent;}
+  .grail-ar{display:none;}
+}
+.vx-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.vx-matrix{border-collapse:collapse;font-family:'Share Tech Mono',monospace;font-size:11px;}
+.vx-matrix th,.vx-matrix td{border:1px solid #24406e;padding:4px 8px;text-align:center;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useMemo}=React;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REPUBLIC OF VINDEX NATION — FEDERAL ELECTIONS
+   The presidential poll, run by the Federal Electoral Commission (the network
+   administrators). A single-winner contest decided by the Schulze method over
+   ranked ballots. The ballot is SECRET: an elector's ranking is written only to
+   the Commission; everyone else sees the turnout climb and, once counted, the
+   result. Records live under vx_el_* keys on the shared backend; the server
+   enforces every rule here again on every write.  (House of Representatives
+   elections are planned to join this portal on the same scaffolding.)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const V={
+  bg:"#0b1930",bg2:"#102344",panel:"#13294e",panel2:"#1a3560",line:"#24406e",lineL:"#3a5a94",
+  text:"#e8ebf2",textD:"#93a4c3",textDD:"#4d648f",
+  gold:"#c9a05a",goldL:"#e2c078",navy:"#0e1f42",
+  red:"#c03038",redD:"#7a1c22",redL:"#e08080",green:"#2e8b3d",greenL:"#63c74d",
+  ivory:"#f4f0e4",ink:"#232018",
+};
+
+/* ── backend — shared Vintranet session & snapshot ─────────────────────────── */
+function uid(){return Date.now()+"_"+Math.random().toString(36).slice(2,8);}
+const API="https://lech-backend.onrender.com";
+let AUTH_TOKEN=null;
+const SESSION_KEY="lech_session";
+const SESSION_ACC_KEY="lech_session_acc";
+function saveSession(t,acc){try{if(t)localStorage.setItem(SESSION_KEY,t);if(acc)localStorage.setItem(SESSION_ACC_KEY,JSON.stringify(acc));}catch(e){}}
+function cachedAccount(){
+  try{
+    var t=localStorage.getItem(SESSION_KEY); if(!t) return null;
+    var a=localStorage.getItem(SESSION_ACC_KEY); if(!a) return null;
+    AUTH_TOKEN=t; return JSON.parse(a);
+  }catch(e){ return null; }
+}
+function clearSession(){try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(SESSION_ACC_KEY);}catch(e){}AUTH_TOKEN=null;}
+function forgetSession(){const t=AUTH_TOKEN;clearSession();try{if(t)fetch(API+"/api/logout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:t})});}catch(e){}}
+async function srestore(){
+  let t=null;try{t=localStorage.getItem(SESSION_KEY);}catch(e){}
+  if(!t)return null;AUTH_TOKEN=t;
+  try{
+    const r=await fetch(API+"/api/me?token="+encodeURIComponent(t));
+    const d=await r.json();
+    if(d&&d.ok&&d.account){saveSession(t,d.account);return d.account;}
+    clearSession();return null;
+  }catch(e){ return null; }
+}
+async function sgetAll(){try{const r=await fetch(API+"/api/data"+(AUTH_TOKEN?"?token="+encodeURIComponent(AUTH_TOKEN):""));const d=await r.json();return (d&&d.ok)?(d.data||{}):{};}catch(e){return{};}}
+async function sset(k,v){
+  try{
+    const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:AUTH_TOKEN,key:k,value:v})});
+    const d=await r.json();
+    return (d&&d.ok)?{ok:true}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+  }catch(e){return{ok:false,error:"Connection error"};}
+}
+async function sdel(k){try{await fetch(API+"/api/unset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key:k})});}catch(e){}}
+/* Casting a secret ballot is an ordinary /api/set to vx_el_ballot_*, intercepted
+   on the server so the raw ranking is stored admin-only and the public turnout is
+   bumped. We send it the same way, and read back only ok/err. */
+async function scastBallot(elId,citizenId,ranking){
+  return await sset("vx_el_ballot_"+elId+"_"+citizenId,{elId,citizenId,ranking});
+}
+/* Void a ballot (soft = may recast, hard = barred) — one server act. */
+async function svoid(elId,citizenId,kind,reason){
+  try{
+    const r=await fetch(API+"/api/election/vx-void-ballot",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:AUTH_TOKEN,elId,citizenId,kind,reason})});
+    const d=await r.json();
+    return (d&&d.ok)?{ok:true,key:d.key,record:d.record}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+  }catch(e){return{ok:false,error:"Connection error"};}
+}
+async function sliftBan(key,at){
+  try{
+    const r=await fetch(API+"/api/election/vx-lift-ban",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:AUTH_TOKEN,key,at})});
+    const d=await r.json();
+    return (d&&d.ok)?{ok:true,key:d.key,record:d.record}:{ok:false,error:(d&&d.error)||"Refused by the server"};
+  }catch(e){return{ok:false,error:"Connection error"};}
+}
+async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"ACCESS DENIED"};}catch(e){return {ok:false,error:"Connection error"};}}
+
+/* ── helpers ───────────────────────────────────────────────────────────────── */
+function fmtDate(d){if(d===undefined||d===null||d==="")return "—";const s=(typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d))?d+"T12:00:00":d;const t=typeof s==="number"?s:new Date(s).getTime();if(isNaN(t))return ""+d;return new Date(t).toLocaleDateString("en-US",{month:"short",day:"2-digit",year:"numeric"});}
+function fmtWhen(d){if(!d)return"—";const x=new Date(d);if(isNaN(x))return String(d);return x.toLocaleString("en-US",{month:"short",day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function slugify(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,28)||"party";}
+function mcFaceUrl(n){return "https://mc-heads.net/avatar/"+encodeURIComponent(n||"")+"/64";}
+function McFace({account,size=34,style:ex={}}){
+  const n=account&&(account.mcName||account.username);
+  if(!n) return null;
+  return <img src={mcFaceUrl(n)} alt="" width={size} height={size} loading="lazy"
+    onError={e=>{e.currentTarget.style.visibility="hidden";}}
+    style={{width:size,height:size,borderRadius:3,imageRendering:"pixelated",border:`1px solid ${V.line}`,background:V.bg2,flexShrink:0,...ex}}/>;
+}
+
+/* ── standing / authority ──────────────────────────────────────────────────── */
+// The Federal Electoral Commission is the network administrator — the owner, or
+// anyone granted sysAdmin. It is the sole authority Vindex vests the running of a
+// federal election in. The server enforces this again on every write.
+const isFEC=u=>!!u&&(u.role==="emperor"||u.sysAdmin===true);
+
+// Citizenship categories, as the Department of State records them.
+const VX_CIT_LABEL={citizen:"Citizen",naturalised:"Naturalized",resident:"Permanent Resident",alien:"Registered Alien",revoked:"Revoked",renounced:"Renounced"};
+const DEFAULT_ELIGIBLE=["citizen","naturalised"];
+
+const PHASES=[
+  {v:"draft",       l:"Draft",            color:V.textDD, desc:"The Commission is preparing this election. It is not yet open."},
+  {v:"registration",l:"Nominations Open", color:V.goldL,  desc:"Citizens may file to stand for President."},
+  {v:"voting",      l:"Poll Open",        color:"#6fa8ff",desc:"Enfranchised citizens may cast their ranked ballot."},
+  {v:"count",       l:"Counting",         color:"#e08a3a",desc:"The poll has closed; the Commission is counting the ballots."},
+  {v:"certified",   l:"Certified",        color:V.greenL, desc:"The result is final, certified by the Commission."},
+];
+const phaseOf=s=>PHASES.find(p=>p.v===s)||PHASES[0];
+
+/* ═══════════ THE SCHULZE METHOD ═════════════════════════════════════════════
+   A single-winner, Condorcet-consistent rule. From the ranked ballots we build
+   d[i][j] = the number of voters who rank candidate i above candidate j. The
+   strongest path p[i][j] between every pair is found by a Floyd–Warshall sweep;
+   candidate i is ranked above j when p[i][j] > p[j][i]. The winner is the
+   candidate ranked above every other. Candidates a ballot leaves unranked are
+   treated as tied last on that ballot.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function schulze(cands,ballots){
+  const n=cands.length;
+  const idx={};cands.forEach((c,i)=>{idx[c]=i;});
+  const d=Array.from({length:n},()=>Array(n).fill(0));
+  (ballots||[]).forEach(b=>{
+    const ranked=(b.ranking||[]).filter(c=>idx[c]!=null);
+    const pos={};cands.forEach(c=>{pos[c]=Infinity;});
+    ranked.forEach((c,i)=>{if(pos[c]===Infinity)pos[c]=i;});   // first mention wins if duplicated
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+      if(i!==j && pos[cands[i]]<pos[cands[j]]) d[i][j]++;
+    }
+  });
+  const p=Array.from({length:n},()=>Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(i!==j)p[i][j]=(d[i][j]>d[j][i])?d[i][j]:0;}
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){if(i!==j)for(let k=0;k<n;k++){if(i!==k&&j!==k)
+    p[j][k]=Math.max(p[j][k],Math.min(p[j][i],p[i][k]));}}
+  const order=cands.map((c,i)=>{
+    let wins=0,losses=0;
+    for(let j=0;j<n;j++){if(i===j)continue;if(p[i][j]>p[j][i])wins++;else if(p[j][i]>p[i][j])losses++;}
+    return {id:c,wins,losses};
+  }).sort((a,b)=>b.wins-a.wins||a.losses-b.losses||String(a.id).localeCompare(String(b.id)));
+  // A Schulze winner is beaten by no one. If two share the top (a genuine tie),
+  // report it rather than crowning one silently.
+  const topWins=order.length?order[0].wins:0;
+  const topped=order.filter(o=>o.wins===topWins && o.losses===(order[0]||{}).losses);
+  const winner=order.length?order[0].id:null;
+  const tie=topped.length>1;
+  return {order,winner,tie,tiedWith:topped.map(o=>o.id),d,p,cands};
+}
+// A sanity check on the algorithm, runnable from the console (window.__schulzeTest).
+// The classic Wikipedia example has 45 voters over A,B,C,D,E and winner E.
+if(typeof window!=="undefined"){
+  window.__schulzeTest=function(){
+    const mk=(order,n)=>Array.from({length:n},()=>({ranking:order}));
+    const B=[].concat(
+      mk(["a","c","b","e","d"],5),mk(["a","d","e","c","b"],5),mk(["b","e","d","a","c"],8),
+      mk(["c","a","b","e","d"],3),mk(["c","a","e","b","d"],7),mk(["c","b","a","d","e"],2),
+      mk(["d","c","e","b","a"],7),mk(["e","b","a","d","c"],8));
+    const r=schulze(["a","b","c","d","e"],B);
+    console.log("Schulze test → winner:",r.winner,"(expected e)","order:",r.order.map(o=>o.id).join(">"));
+    return r.winner==="e";
+  };
+}
+
+/* ── UI atoms (Vindex house style) ─────────────────────────────────────────── */
+function Btn({children,onClick,variant="primary",disabled,small,style:ex={}}){
+  const base={fontFamily:"'Playfair Display',serif",fontWeight:700,letterSpacing:"0.06em",fontSize:small?12:13,
+    padding:small?"5px 14px":"8px 20px",border:"1px solid",borderRadius:3,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.45:1,transition:"all .15s"};
+  const variants={
+    primary:{background:`linear-gradient(180deg,${V.panel2},${V.navy})`,borderColor:V.lineL,color:V.text},
+    gold:{background:"linear-gradient(180deg,#3d2f14,#57431f)",borderColor:"#7a6231",color:V.goldL},
+    green:{background:"linear-gradient(180deg,#1c4a24,#2e6b38)",borderColor:"#3f8a4c",color:"#d8f0d0"},
+    danger:{background:"transparent",borderColor:V.redD,color:V.redL},
+    armed:{background:`linear-gradient(180deg,${V.redD},${V.red})`,borderColor:V.redD,color:"#f0d0d0"},
+    ghost:{background:"transparent",borderColor:V.line,color:V.textD},
+  };
+  return <button onClick={disabled?undefined:onClick} style={{...base,...(variants[variant]||variants.primary),...ex}}>{children}</button>;
+}
+function ArmBtn({label,confirmLabel,onConfirm,small,variant}){
+  const [a,setA]=useState(false);
+  useEffect(()=>{if(!a)return;const t=setTimeout(()=>setA(false),4000);return()=>clearTimeout(t);},[a]);
+  return a?<Btn variant="armed" small={small} onClick={()=>{setA(false);onConfirm();}}>{confirmLabel||"Confirm?"}</Btn>
+    :<Btn variant={variant||"danger"} small={small} onClick={()=>setA(true)}>{label}</Btn>;
+}
+function Inp({value,onChange,placeholder,type="text",style:ex={}}){
+  return <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+    style={{width:"100%",background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"8px 12px",color:V.text,fontSize:14,outline:"none",...ex}}
+    onFocus={e=>e.target.style.borderColor=V.gold} onBlur={e=>e.target.style.borderColor=V.line}/>;
+}
+function TA({value,onChange,placeholder,rows=4}){
+  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+    style={{width:"100%",background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"8px 12px",color:V.text,fontSize:14,outline:"none",resize:"vertical",lineHeight:1.6}}
+    onFocus={e=>e.target.style.borderColor=V.gold} onBlur={e=>e.target.style.borderColor=V.line}/>;
+}
+function Sel({value,onChange,options,style:ex={}}){
+  return <select value={value} onChange={e=>onChange(e.target.value)}
+    style={{width:"100%",background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"8px 12px",color:V.text,fontSize:14,outline:"none",fontFamily:"'Crimson Text',serif",...ex}}>
+    {options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+  </select>;
+}
+function FL({children}){return <div className="mono" style={{fontSize:9,color:V.textD,letterSpacing:"0.18em",marginBottom:4,textTransform:"uppercase"}}>{children}</div>;}
+function STitle({children,color}){return <div style={{display:"flex",alignItems:"center",gap:12,margin:"1.7rem 0 1rem"}}>
+  <span className="pf" style={{fontWeight:700,fontSize:13,letterSpacing:"0.26em",textTransform:"uppercase",color:color||V.gold}}>{children}</span>
+  <span style={{flex:1,height:1,background:`linear-gradient(90deg,${V.line},transparent)`}}/></div>;}
+function Toast({msg,color}){if(!msg)return null;return <div style={{position:"fixed",top:14,right:14,zIndex:9999,background:V.panel,border:`1px solid ${color}66`,borderLeft:`3px solid ${color}`,padding:"9px 16px",borderRadius:3,fontFamily:"'Playfair Display',serif",fontSize:12,color,maxWidth:380,animation:"fadeIn .2s ease"}}>{msg}</div>;}
+function Overlay({label}){if(!label)return null;return <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(6,12,26,.96)",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div className="mono" style={{color:V.gold,fontSize:10,letterSpacing:"0.35em",marginBottom:8,animation:"pulse 1s infinite"}}>PROCESSING</div><div className="pf" style={{fontSize:17,color:V.text}}>{label}</div></div></div>;}
+function Seal({file,size=64,style:ex={}}){
+  const [ok,setOk]=useState(true);
+  if(!ok||!file)return <div style={{width:size,height:size,borderRadius:"50%",border:`2px solid ${V.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,background:V.navy,...ex}}><span className="pf" style={{fontWeight:900,fontSize:size*0.36,color:V.gold}}>★</span></div>;
+  return <img src={file} alt="" draggable={false} onError={()=>setOk(false)} style={{width:size,height:size,objectFit:"contain",flexShrink:0,...ex}}/>;
+}
+function PoweredBy(){
+  const [ok,setOk]=useState(true);
+  return <div style={{display:"inline-flex",alignItems:"center",gap:9}}>
+    <span className="mono" style={{fontSize:8,letterSpacing:"0.22em",color:V.textDD,textTransform:"uppercase"}}>Powered by</span>
+    {ok?<img src="vindex/saudkruger.png" alt="Saud Kruger Information Systems" draggable={false} onError={()=>setOk(false)} style={{height:30,width:"auto",objectFit:"contain",borderRadius:4,opacity:.95}}/>
+      :<span className="pf" style={{fontWeight:700,fontSize:12,color:V.textD}}>Saud Kruger Information Systems</span>}
+  </div>;
+}
+function Card({children,accent,style:ex={}}){
+  return <div style={{background:V.panel,border:`1px solid ${V.line}`,borderTop:`3px solid ${accent||V.gold}`,borderRadius:"0 0 4px 4px",padding:"1.1rem 1.25rem",...ex}}>{children}</div>;
+}
+function Empty({children}){return <div style={{fontSize:14,color:V.textDD,fontStyle:"italic",padding:"1.2rem 0"}}>{children}</div>;}
+function Modal({title,onClose,children,width=440}){
+  return <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:9000,background:"rgba(5,10,22,.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",overflowY:"auto"}}>
+    <div style={{maxWidth:width,width:"100%",background:V.panel,border:`1px solid ${V.line}`,borderTop:`3px solid ${V.gold}`,borderRadius:"0 0 5px 5px",padding:"1.6rem",margin:"auto"}}>
+      <div className="pf" style={{fontWeight:900,fontSize:18,color:V.text,marginBottom:"1rem"}}>{title}</div>
+      {children}
+    </div>
+  </div>;
+}
+function PartyBadge({party,small}){
+  const col=(party&&party.colour)||V.textDD;
+  const label=party?(party.abbr||party.name):"Independent";
+  return <span className="mono" style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:small?8.5:10,letterSpacing:"0.12em",
+    color:col,background:col+"18",border:`1px solid ${col}55`,borderRadius:2,padding:"2px 7px",textTransform:"uppercase"}}>
+    <span style={{width:7,height:7,borderRadius:"50%",background:col,flex:"none"}}/>{label}</span>;
+}
+
+/* ── phase ribbon ──────────────────────────────────────────────────────────── */
+function PhaseRibbon({status}){
+  return <div style={{display:"flex",gap:4,flexWrap:"wrap",margin:"0 0 1rem"}}>
+    {PHASES.map(p=>{
+      const on=p.v===status;
+      const done=PHASES.findIndex(x=>x.v===p.v)<PHASES.findIndex(x=>x.v===status);
+      return <div key={p.v} style={{flex:"1 1 110px",textAlign:"center",padding:"7px 6px",borderRadius:3,
+        background:on?p.color+"22":V.bg2,border:`1px solid ${on?p.color:V.line}`,opacity:done?.6:1}}>
+        <div className="mono" style={{fontSize:8,letterSpacing:"0.18em",color:on?p.color:V.textDD,textTransform:"uppercase"}}>{done?"✓ ":""}{p.l}</div>
+      </div>;
+    })}
+  </div>;
+}
+
+/* ── turnout bar ───────────────────────────────────────────────────────────── */
+function Turnout({voted,enfranchised}){
+  const pct=enfranchised>0?Math.min(100,Math.round(voted/enfranchised*100)):0;
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+      <span className="mono" style={{fontSize:9,letterSpacing:"0.18em",color:V.textD,textTransform:"uppercase"}}>Turnout</span>
+      <span className="pf" style={{fontSize:15,fontWeight:700,color:V.goldL}}>{voted}<span style={{color:V.textDD,fontSize:12,fontWeight:400}}> / {enfranchised} enfranchised · {pct}%</span></span>
+    </div>
+    <div style={{height:9,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:5,overflow:"hidden"}}>
+      <div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${V.gold},${V.goldL})`,transition:"width .4s"}}/>
+    </div>
+  </div>;
+}
+
+/* ── candidate card ────────────────────────────────────────────────────────── */
+function CandidateCard({cand,party,account}){
+  return <div style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${(party&&party.colour)||V.gold}`,borderRadius:"0 3px 3px 0",padding:"0.9rem 1rem"}}>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
+      <McFace account={account||{username:cand.username,mcName:cand.mcName}} size={38} style={{borderColor:((party&&party.colour)||V.gold)+"66"}}/>
+      <div style={{minWidth:0}}>
+        <div className="pf" style={{fontSize:16,fontWeight:700,color:V.text,lineHeight:1.15,overflowWrap:"anywhere"}}>{cand.candidateName||cand.username}</div>
+        <div className="mono" style={{fontSize:9.5,color:V.textDD}}>@{cand.username}</div>
+      </div>
+    </div>
+    <div style={{marginBottom:cand.bio?7:0}}><PartyBadge party={party}/></div>
+    {cand.bio&&<div style={{fontSize:13,color:V.textD,lineHeight:1.55}}>{cand.bio}</div>}
+    {cand.runningMate&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>RUNNING MATE · {cand.runningMate}</div>}
+  </div>;
+}
+
+/* ═══════════ PUBLIC BOARD ════════════════════════════════════════════════ */
+function BoardView({el,cands,parties,accounts,tally,result,enfranchised}){
+  const ph=phaseOf(el.status);
+  const voted=(tally&&Array.isArray(tally.voted)?tally.voted.length:(tally&&tally.total)||0);
+  return <div className="fadeIn">
+    <STitle>{el.title||"Presidential Election"}</STitle>
+    <PhaseRibbon status={el.status}/>
+    <Card accent={ph.color} style={{marginBottom:"1.1rem"}}>
+      <div className="pf" style={{fontSize:17,fontWeight:700,color:ph.color}}>{ph.l}</div>
+      <div style={{fontSize:13.5,color:V.textD,marginTop:4,lineHeight:1.6}}>{ph.desc}</div>
+      {(el.pollOpen||el.pollClose)&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:8}}>
+        {el.nomClose&&<div>NOMINATIONS CLOSE · {fmtDate(el.nomClose)}</div>}
+        {el.pollOpen&&<div>POLL OPENS · {fmtDate(el.pollOpen)}</div>}
+        {el.pollClose&&<div>POLL CLOSES · {fmtDate(el.pollClose)}</div>}
+      </div>}
+      <div style={{marginTop:12}}><Turnout voted={voted} enfranchised={enfranchised}/></div>
+    </Card>
+
+    {result&&<ResultView el={el} result={result} cands={cands} parties={parties}/>}
+
+    <STitle>Candidates</STitle>
+    {cands.length===0?<Empty>No candidates have been admitted to the ballot yet.</Empty>:
+      <div className="vx-cards">{cands.map(c=><CandidateCard key={c.username} cand={c} account={accounts[c.username.toLowerCase()]} party={parties[c.assignedParty]}/>)}</div>}
+
+    <STitle>Registered Parties</STitle>
+    {Object.keys(parties).length===0?<Empty>No parties are registered.</Empty>:
+      <div className="vx-cards">{Object.entries(parties).map(([slug,p])=>
+        <div key={slug} style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${p.colour||V.gold}`,borderRadius:"0 3px 3px 0",padding:"0.8rem 1rem"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><PartyBadge party={p}/></div>
+          <div className="pf" style={{fontSize:15,fontWeight:700,color:V.text,marginTop:6}}>{p.name}</div>
+          {p.founder&&<div className="mono" style={{fontSize:9,color:V.textDD,marginTop:3}}>FOUNDED BY @{p.founder}</div>}
+        </div>)}</div>}
+  </div>;
+}
+
+/* ═══════════ RESULT ══════════════════════════════════════════════════════ */
+function ResultView({el,result,cands,parties}){
+  const nameOf=u=>{const c=(cands||[]).find(c=>c.username===u);return c?(c.candidateName||c.username):u;};
+  const order=result.order||[];
+  const n=(result.cands||[]).length;
+  const winnerName=result.tie?null:nameOf(result.winner);
+  return <div style={{margin:"0.5rem 0 1rem"}}>
+    <Card accent={el.status==="certified"?V.greenL:"#e08a3a"}>
+      <div className="mono" style={{fontSize:9,letterSpacing:"0.2em",color:el.status==="certified"?V.greenL:"#e08a3a"}}>
+        {el.status==="certified"?"CERTIFIED RESULT":"PROVISIONAL COUNT"} · SCHULZE METHOD</div>
+      {result.tie
+        ?<div className="pf" style={{fontSize:22,fontWeight:900,color:V.goldL,marginTop:6}}>Tie — {(result.tiedWith||[]).map(nameOf).join(" & ")}</div>
+        :<div style={{display:"flex",alignItems:"center",gap:10,marginTop:6}}>
+           <Seal file="povn.png" size={40}/>
+           <div><div className="mono" style={{fontSize:9,color:V.textDD}}>PRESIDENT-ELECT</div>
+           <div className="pf" style={{fontSize:24,fontWeight:900,color:V.greenL,lineHeight:1.1}}>{winnerName}</div></div>
+         </div>}
+      <div style={{marginTop:12,overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{textAlign:"left",color:V.textD}}>
+            <th style={{padding:"4px 8px"}}>#</th><th style={{padding:"4px 8px"}}>Candidate</th>
+            <th style={{padding:"4px 8px"}}>Party</th><th style={{padding:"4px 8px",textAlign:"right"}}>Pairwise wins</th></tr></thead>
+          <tbody>{order.map((o,i)=>{const c=(cands||[]).find(c=>c.username===o.id);return <tr key={o.id} style={{borderTop:`1px solid ${V.line}`,background:i===0&&!result.tie?"rgba(99,199,77,.08)":"transparent"}}>
+            <td className="pf" style={{padding:"6px 8px",fontWeight:700,color:i===0?V.greenL:V.textD}}>{i+1}</td>
+            <td style={{padding:"6px 8px",color:V.text}}>{nameOf(o.id)}</td>
+            <td style={{padding:"6px 8px"}}>{c&&<PartyBadge party={parties[c.assignedParty]} small/>}</td>
+            <td className="mono" style={{padding:"6px 8px",textAlign:"right",color:V.goldL}}>{o.wins} / {Math.max(0,n-1)}</td></tr>;})}</tbody>
+        </table>
+      </div>
+      {result.d&&<details style={{marginTop:12}}>
+        <summary className="mono" style={{fontSize:10,color:V.textD,cursor:"pointer",letterSpacing:"0.12em"}}>PAIRWISE PREFERENCE MATRIX</summary>
+        <div style={{overflowX:"auto",marginTop:8}}>
+          <table className="vx-matrix"><thead><tr><th style={{color:V.textDD}}>d[row&gt;col]</th>
+            {(result.cands||[]).map(c=><th key={c} style={{color:V.goldL}}>{nameOf(c)}</th>)}</tr></thead>
+            <tbody>{(result.cands||[]).map((r,ri)=><tr key={r}><th style={{color:V.goldL,textAlign:"left"}}>{nameOf(r)}</th>
+              {(result.cands||[]).map((c,ci)=><td key={c} style={{color:ri===ci?V.textDD:(result.d[ri][ci]>result.d[ci][ri]?V.greenL:V.textD)}}>{ri===ci?"—":result.d[ri][ci]}</td>)}</tr>)}</tbody></table>
+        </div>
+      </details>}
+      <div className="mono" style={{fontSize:9,color:V.textDD,marginTop:10}}>
+        {result.ballotsCounted!=null?result.ballotsCounted+" ballots counted · ":""}{result.countedAt?"counted "+fmtWhen(result.countedAt):""}</div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ STAND FOR PRESIDENT ═════════════════════════════════════════ */
+function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,notify}){
+  const eligible=new Set(el.eligibility&&el.eligibility.length?el.eligibility:DEFAULT_ELIGIBLE);
+  const citStatus=myCitizen&&String(myCitizen.status||"");
+  const isCitizen=!!myCitizen&&eligible.has(citStatus);
+  const [name,setName]=useState(()=>(myReg&&myReg.candidateName)||(user&&(user.displayName||user.username))||"");
+  const [bio,setBio]=useState(()=>(myReg&&myReg.bio)||"");
+  const [mate,setMate]=useState(()=>(myReg&&myReg.runningMate)||"");
+  const [partyMode,setPartyMode]=useState("existing");   // existing | new | independent
+  const [partySlug,setPartySlug]=useState("");
+  const [newParty,setNewParty]=useState({name:"",abbr:"",colour:"#c9a05a"});
+  const [busy,setBusy]=useState(false);
+
+  if(!user) return <Card><div className="pf" style={{fontSize:17,color:V.text}}>Sign in to stand</div><div style={{color:V.textD,marginTop:6}}>You must sign in with your Vindex Nation account to file a nomination.</div></Card>;
+
+  if(el.status!=="registration")
+    return <Card accent={V.textDD}><div className="pf" style={{fontSize:17,color:V.text}}>Nominations are closed</div>
+      <div style={{color:V.textD,marginTop:6,lineHeight:1.6}}>Nominations may be filed only while the election is in its <b>Nominations Open</b> phase. This election is currently <b style={{color:phaseOf(el.status).color}}>{phaseOf(el.status).l}</b>.</div></Card>;
+
+  if(!isCitizen)
+    return <Card accent={V.redD}><div className="pf" style={{fontSize:18,color:V.redL}}>Citizenship required</div>
+      <div style={{color:V.textD,marginTop:8,lineHeight:1.7}}>
+        Only an enfranchised citizen of the Republic may stand for President.
+        {myCitizen?<> Your current status is <b style={{color:V.text}}>{VX_CIT_LABEL[citStatus]||citStatus}</b>, which this election does not enfranchise ({[...eligible].map(s=>VX_CIT_LABEL[s]||s).join(", ")}).</>
+          :<> No citizenship record was found for your account.</>}
+      </div>
+      <div style={{marginTop:12}}><a href="state.html" style={{textDecoration:"none"}}><Btn variant="gold">Department of State · Citizenship →</Btn></a></div>
+    </Card>;
+
+  if(myReg){
+    const st=myReg.status||"pending";
+    const col=st==="approved"?V.greenL:st==="rejected"?V.redL:V.goldL;
+    return <div className="fadeIn">
+      <Card accent={col}>
+        <div className="mono" style={{fontSize:9,letterSpacing:"0.2em",color:col}}>YOUR NOMINATION · {st.toUpperCase()}</div>
+        <div className="pf" style={{fontSize:20,fontWeight:800,color:V.text,marginTop:5}}>{myReg.candidateName||user.username}</div>
+        <div style={{marginTop:8}}><PartyBadge party={parties[myReg.assignedParty]}/></div>
+        {myReg.requestedParty&&myReg.requestedParty.new&&myReg.partyStatus!=="approved"&&
+          <div className="mono" style={{fontSize:10,color:V.textDD,marginTop:6}}>REQUESTED NEW PARTY · {myReg.requestedParty.name} (awaiting the Commission)</div>}
+        {myReg.bio&&<div style={{color:V.textD,marginTop:10,lineHeight:1.6}}>{myReg.bio}</div>}
+        {st==="rejected"&&myReg.ruling&&<div style={{marginTop:10,color:V.redL,fontStyle:"italic"}}>Commission: {myReg.ruling}</div>}
+        <div style={{marginTop:14,display:"flex",gap:8}}>
+          <ArmBtn label="Withdraw nomination" confirmLabel="Withdraw?" small onConfirm={async()=>{setBusy(true);const r=await onWithdraw(myReg);setBusy(false);if(!r.ok)notify(r.error,V.redL);}}/>
+        </div>
+      </Card>
+      <div style={{color:V.textDD,fontSize:12.5,marginTop:10,fontStyle:"italic"}}>The Commission rules on every nomination. You may withdraw and refile while nominations remain open.</div>
+    </div>;
+  }
+
+  const activeParties=Object.entries(parties).filter(([,p])=>(p.status||"active")==="active");
+  const file=async()=>{
+    if(busy)return;
+    if(!name.trim()){notify("Enter the name you will appear under.",V.redL);return;}
+    let requestedParty=null,independent=false;
+    if(partyMode==="independent")independent=true;
+    else if(partyMode==="existing"){ if(!partySlug){notify("Choose a party, or stand as an independent.",V.redL);return;} requestedParty={slug:partySlug}; }
+    else { if(!newParty.name.trim()){notify("Name the party you are founding.",V.redL);return;} requestedParty={new:true,name:newParty.name.trim(),abbr:(newParty.abbr||newParty.name).trim().toUpperCase().slice(0,6),colour:newParty.colour}; }
+    setBusy(true);
+    const rec={elId:el.id,username:String(user.username).toLowerCase(),candidateName:name.trim(),bio:bio.trim(),
+      runningMate:mate.trim(),requestedParty,independent,status:"pending",partyStatus:requestedParty&&requestedParty.new?"pending":undefined,filedAt:Date.now()};
+    const r=await onFile(rec);setBusy(false);
+    if(r.ok)notify("Nomination filed — awaiting the Commission.",V.greenL);else notify(r.error,V.redL);
+  };
+  return <div className="fadeIn">
+    <STitle>Stand for President</STitle>
+    <Card>
+      <div style={{fontSize:13.5,color:V.textD,lineHeight:1.6,marginBottom:14}}>You are an enfranchised <b style={{color:V.text}}>{VX_CIT_LABEL[citStatus]||citStatus}</b>. File your nomination below; the Federal Electoral Commission will rule on it before you appear on the ballot.</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div><FL>Name on the ballot</FL><Inp value={name} onChange={setName} placeholder="Your name"/></div>
+        <div><FL>Platform / statement (optional)</FL><TA value={bio} onChange={setBio} placeholder="A short statement for voters."/></div>
+        <div><FL>Running mate — Vice President (optional)</FL><Inp value={mate} onChange={setMate} placeholder="Name of your running mate"/></div>
+        <div>
+          <FL>Party</FL>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+            {[["existing","A registered party"],["new","Found a new party"],["independent","Independent"]].map(([v,l])=>
+              <Btn key={v} small variant={partyMode===v?"gold":"ghost"} onClick={()=>setPartyMode(v)}>{l}</Btn>)}
+          </div>
+          {partyMode==="existing"&&(activeParties.length?
+            <Sel value={partySlug} onChange={setPartySlug} options={[{v:"",l:"— choose a party —"},...activeParties.map(([slug,p])=>({v:slug,l:p.name}))]}/>
+            :<div style={{color:V.textDD,fontStyle:"italic",fontSize:13}}>No parties are registered yet — found one, or stand as an independent.</div>)}
+          {partyMode==="new"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{gridColumn:"1 / -1"}}><Inp value={newParty.name} onChange={v=>setNewParty(p=>({...p,name:v}))} placeholder="Party name"/></div>
+            <Inp value={newParty.abbr} onChange={v=>setNewParty(p=>({...p,abbr:v}))} placeholder="Abbr. (e.g. FP)"/>
+            <input type="color" value={newParty.colour} onChange={e=>setNewParty(p=>({...p,colour:e.target.value}))} style={{width:"100%",height:38,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,cursor:"pointer"}}/>
+            <div className="mono" style={{gridColumn:"1 / -1",fontSize:10,color:V.textDD}}>The Commission must recognise a new party before it appears on the ballot.</div>
+          </div>}
+        </div>
+        {myVoid&&myVoid.kind==="hard"&&<div style={{color:V.redL,fontSize:12.5,fontStyle:"italic"}}>Note: your ballot in this election was voided and you are currently barred from voting in it.</div>}
+        <Btn variant="gold" onClick={file} disabled={busy}>{busy?"Filing…":"File nomination"}</Btn>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ VOTE ════════════════════════════════════════════════════════ */
+function VoteView({el,user,myCitizen,cands,parties,accounts,myBallotCast,myVoid,onCast,notify}){
+  const eligible=new Set(el.eligibility&&el.eligibility.length?el.eligibility:DEFAULT_ELIGIBLE);
+  const citStatus=myCitizen&&String(myCitizen.status||"");
+  const isCitizen=!!myCitizen&&eligible.has(citStatus);
+  const [ranked,setRanked]=useState([]);   // array of candidate usernames, best first
+  const [busy,setBusy]=useState(false);
+  const barred=myVoid&&myVoid.kind==="hard";
+
+  if(!user) return <Card><div className="pf" style={{fontSize:17,color:V.text}}>Sign in to vote</div><div style={{color:V.textD,marginTop:6}}>You must sign in with your Vindex Nation account to cast a ballot.</div></Card>;
+  if(el.status!=="voting")
+    return <Card accent={V.textDD}><div className="pf" style={{fontSize:17,color:V.text}}>The poll is not open</div>
+      <div style={{color:V.textD,marginTop:6,lineHeight:1.6}}>Ballots may be cast only while the election is in its <b>Poll Open</b> phase. It is currently <b style={{color:phaseOf(el.status).color}}>{phaseOf(el.status).l}</b>.</div></Card>;
+  if(!isCitizen)
+    return <Card accent={V.redD}><div className="pf" style={{fontSize:18,color:V.redL}}>Not enfranchised</div>
+      <div style={{color:V.textD,marginTop:8,lineHeight:1.7}}>
+        Only enfranchised citizens may vote in this election ({[...eligible].map(s=>VX_CIT_LABEL[s]||s).join(", ")}).
+        {myCitizen?<> Your status is <b style={{color:V.text}}>{VX_CIT_LABEL[citStatus]||citStatus}</b>.</>:<> No citizenship record was found for your account.</>}
+      </div>
+      <div style={{marginTop:12}}><a href="state.html" style={{textDecoration:"none"}}><Btn variant="gold">Department of State · Citizenship →</Btn></a></div>
+    </Card>;
+  if(myBallotCast)
+    return <Card accent={V.greenL}><div className="pf" style={{fontSize:18,color:V.greenL}}>Your ballot is cast</div>
+      <div style={{color:V.textD,marginTop:8,lineHeight:1.7}}>Your ballot has been recorded. The ballot is secret — your ranking is visible only to the Federal Electoral Commission — and it cannot be changed once cast.</div></Card>;
+  if(barred)
+    return <Card accent={V.redD}><div className="pf" style={{fontSize:18,color:V.redL}}>You may not vote in this election</div>
+      <div style={{color:V.textD,marginTop:8,lineHeight:1.7}}>A previous ballot of yours in this election was voided and you were barred from voting in it again.{myVoid.reason&&<> Reason given: <i>{myVoid.reason}</i></>} If you believe this is in error, contact the Commission.</div></Card>;
+
+  const pool=cands.filter(c=>!ranked.includes(c.username));
+  const nameOf=u=>{const c=cands.find(c=>c.username===u);return c?(c.candidateName||c.username):u;};
+  const move=(i,dir)=>{setRanked(r=>{const n=[...r];const j=i+dir;if(j<0||j>=n.length)return n;[n[i],n[j]]=[n[j],n[i]];return n;});};
+  const cast=async()=>{
+    if(busy)return;
+    if(ranked.length===0){notify("Rank at least one candidate.",V.redL);return;}
+    setBusy(true);
+    const r=await onCast(myCitizen,ranked);setBusy(false);
+    if(r.ok)notify("Ballot cast. Thank you for voting.",V.greenL);else notify(r.error,V.redL);
+  };
+  return <div className="fadeIn">
+    <STitle>Cast Your Ballot</STitle>
+    <Card>
+      <div style={{fontSize:13.5,color:V.textD,lineHeight:1.6,marginBottom:4}}>Rank the candidates in your order of preference — your first choice at the top. You need not rank everyone; any you leave unranked are counted as tied last. The result is decided by the <b style={{color:V.goldL}}>Schulze method</b>.</div>
+      <div className="mono" style={{fontSize:10,color:V.textDD,marginBottom:14}}>🔒 SECRET BALLOT · ONE VOTE · CANNOT BE CHANGED ONCE CAST</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <div>
+          <FL>Your ranking</FL>
+          {ranked.length===0?<div style={{color:V.textDD,fontStyle:"italic",fontSize:13,padding:"10px 0"}}>Add candidates from the right.</div>:
+            ranked.map((u,i)=><div key={u} style={{display:"flex",alignItems:"center",gap:8,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"6px 10px",marginBottom:6}}>
+              <span className="pf" style={{fontWeight:700,color:V.goldL,width:20}}>{i+1}</span>
+              <span style={{flex:1,color:V.text}}>{nameOf(u)}</span>
+              <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:0,color:i===0?V.textDD:V.textD,cursor:"pointer",fontSize:14}}>▲</button>
+              <button onClick={()=>move(i,1)} disabled={i===ranked.length-1} style={{background:"none",border:0,color:i===ranked.length-1?V.textDD:V.textD,cursor:"pointer",fontSize:14}}>▼</button>
+              <button onClick={()=>setRanked(r=>r.filter(x=>x!==u))} style={{background:"none",border:0,color:V.redL,cursor:"pointer",fontSize:14}}>✕</button>
+            </div>)}
+        </div>
+        <div>
+          <FL>Candidates</FL>
+          {pool.length===0?<div style={{color:V.textDD,fontStyle:"italic",fontSize:13,padding:"10px 0"}}>All ranked.</div>:
+            pool.map(c=><button key={c.username} onClick={()=>setRanked(r=>[...r,c.username])}
+              style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,padding:"6px 10px",marginBottom:6,cursor:"pointer",color:V.text}}>
+              <span style={{fontSize:16,color:V.goldL}}>＋</span>
+              <span style={{flex:1}}>{c.candidateName||c.username}</span>
+              <PartyBadge party={parties[c.assignedParty]} small/></button>)}
+        </div>
+      </div>
+      <div style={{marginTop:16,display:"flex",justifyContent:"flex-end"}}>
+        <ArmBtn label="Cast my ballot" confirmLabel="Confirm — this is final" variant="gold" onConfirm={cast}/>
+      </div>
+    </Card>
+  </div>;
+}
+
+/* ═══════════ FEDERAL ELECTORAL COMMISSION ════════════════════════════════ */
+function FECView({raw,elections,selEl,setSelEl,parties,accounts,citizens,reloadAll,notify,setProcessing}){
+  const [tab,setTab]=useState("elections");
+  const el=selEl;
+  const TABS=[["elections","Elections"],["nominations","Nominations"],["parties","Parties"],["ballots","Ballots & Bans"],["count","Count & Certify"]];
+  return <div className="fadeIn">
+    <STitle color={V.goldL}>Federal Electoral Commission</STitle>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+      {TABS.map(([v,l])=><Btn key={v} small variant={tab===v?"gold":"ghost"} onClick={()=>setTab(v)}>{l}</Btn>)}
+    </div>
+    {tab==="elections"&&<FECElections elections={elections} selEl={selEl} setSelEl={setSelEl} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing} raw={raw}/>}
+    {tab!=="elections"&&!el&&<Empty>Create or select an election on the Elections tab first.</Empty>}
+    {tab==="nominations"&&el&&<FECNominations el={el} raw={raw} parties={parties} accounts={accounts} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing}/>}
+    {tab==="parties"&&el&&<FECParties parties={parties} reloadAll={reloadAll} notify={notify}/>}
+    {tab==="ballots"&&el&&<FECBallots el={el} raw={raw} citizens={citizens} accounts={accounts} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing}/>}
+    {tab==="count"&&el&&<FECCount el={el} raw={raw} parties={parties} citizens={citizens} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing}/>}
+  </div>;
+}
+
+function FECElections({elections,selEl,setSelEl,reloadAll,notify,setProcessing,raw}){
+  const [editing,setEditing]=useState(null);   // election object or {new:true}
+  const list=Object.values(elections).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const saveEl=async(e)=>{
+    setProcessing("Saving election…");
+    const map={...(raw["vx_el_elections"]||{}),[e.id]:e};
+    const r=await sset("vx_el_elections",map);
+    setProcessing(null);
+    if(r.ok){setEditing(null);setSelEl(e.id);await reloadAll();notify("Election saved.",V.greenL);}else notify(r.error,V.redL);
+  };
+  const setStatus=async(e,status)=>{
+    setProcessing("Updating phase…");
+    const map={...(raw["vx_el_elections"]||{}),[e.id]:{...e,status}};
+    const r=await sset("vx_el_elections",map);
+    setProcessing(null);
+    if(r.ok){await reloadAll();notify("Phase set to "+phaseOf(status).l+".",V.greenL);}else notify(r.error,V.redL);
+  };
+  const delEl=async(e)=>{
+    setProcessing("Deleting election and all its records…");
+    const keys=Object.keys(raw).filter(k=>
+      k.indexOf("vx_el_reg_"+e.id+"_")===0||k.indexOf("vx_el_ballot_"+e.id+"_")===0||
+      k.indexOf("vx_el_void_"+e.id+"_")===0||k==="vx_el_tally_"+e.id||k==="vx_el_result_"+e.id);
+    for(const k of keys)await sdel(k);
+    const map={...(raw["vx_el_elections"]||{})};delete map[e.id];
+    const r=await sset("vx_el_elections",map);
+    setProcessing(null);
+    if(r.ok){if(selEl&&selEl.id===e.id)setSelEl(null);await reloadAll();notify("Election deleted.",V.textD);}else notify(r.error,V.redL);
+  };
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <div className="mono" style={{fontSize:10,color:V.textD,letterSpacing:"0.14em"}}>{list.length} ELECTION{list.length===1?"":"S"}</div>
+      <Btn small variant="gold" onClick={()=>setEditing({new:true,id:"vxel_"+uid(),title:"Presidential Election",office:"president",status:"draft",eligibility:[...DEFAULT_ELIGIBLE],createdAt:Date.now()})}>+ New election</Btn>
+    </div>
+    {list.length===0&&<Empty>No elections yet. Create one to begin.</Empty>}
+    {list.map(e=>{const sel=selEl&&selEl.id===e.id;const ph=phaseOf(e.status);
+      return <div key={e.id} style={{background:V.panel,border:`1px solid ${sel?V.gold:V.line}`,borderLeft:`3px solid ${ph.color}`,borderRadius:"0 3px 3px 0",padding:"0.9rem 1.1rem",marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div>
+            <div className="pf" style={{fontSize:17,fontWeight:700,color:V.text}}>{e.title}</div>
+            <div className="mono" style={{fontSize:9,color:ph.color,letterSpacing:"0.14em",marginTop:3}}>{ph.l.toUpperCase()} · {(e.eligibility||DEFAULT_ELIGIBLE).map(s=>(VX_CIT_LABEL[s]||s)).join(", ")}</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {!sel&&<Btn small variant="ghost" onClick={()=>setSelEl(e.id)}>Select</Btn>}
+            <Btn small variant="ghost" onClick={()=>setEditing(e)}>Edit</Btn>
+            <ArmBtn label="Delete" confirmLabel="Delete all?" small onConfirm={()=>delEl(e)}/>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}}>
+          {PHASES.map(p=><Btn key={p.v} small variant={e.status===p.v?"gold":"ghost"} onClick={()=>setStatus(e,p.v)}>{p.l}</Btn>)}
+        </div>
+      </div>;})}
+    {editing&&<ElectionEditor el={editing} onClose={()=>setEditing(null)} onSave={saveEl}/>}
+  </div>;
+}
+function ElectionEditor({el,onClose,onSave}){
+  const [f,setF]=useState({title:el.title||"",nomClose:el.nomClose||"",pollOpen:el.pollOpen||"",pollClose:el.pollClose||"",eligibility:el.eligibility||[...DEFAULT_ELIGIBLE]});
+  const toggle=s=>setF(p=>({...p,eligibility:p.eligibility.includes(s)?p.eligibility.filter(x=>x!==s):[...p.eligibility,s]}));
+  return <Modal title={el.new?"New election":"Edit election"} onClose={onClose}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div><FL>Title</FL><Inp value={f.title} onChange={v=>setF(p=>({...p,title:v}))} placeholder="Presidential Election 2026"/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+        <div><FL>Nominations close</FL><Inp type="date" value={f.nomClose} onChange={v=>setF(p=>({...p,nomClose:v}))}/></div>
+        <div><FL>Poll opens</FL><Inp type="date" value={f.pollOpen} onChange={v=>setF(p=>({...p,pollOpen:v}))}/></div>
+        <div><FL>Poll closes</FL><Inp type="date" value={f.pollClose} onChange={v=>setF(p=>({...p,pollClose:v}))}/></div>
+      </div>
+      <div><FL>Who is enfranchised</FL>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["citizen","naturalised","resident"].map(s=><Btn key={s} small variant={f.eligibility.includes(s)?"gold":"ghost"} onClick={()=>toggle(s)}>{VX_CIT_LABEL[s]}</Btn>)}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:6}}>
+        <Btn variant="gold" onClick={()=>{if(!f.title.trim())return;onSave({...el,new:undefined,title:f.title.trim(),nomClose:f.nomClose,pollOpen:f.pollOpen,pollClose:f.pollClose,eligibility:f.eligibility.length?f.eligibility:[...DEFAULT_ELIGIBLE]});}}>Save</Btn>
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
+function FECNominations({el,raw,parties,accounts,reloadAll,notify,setProcessing}){
+  const regs=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_reg_"+el.id+"_")===0).map(k=>({...raw[k],_key:k})),[raw,el.id]);
+  const rule=async(reg,patch)=>{
+    setProcessing("Recording ruling…");
+    let partyMap=raw["vx_el_parties"]||{};
+    let assignedParty=patch.assignedParty!==undefined?patch.assignedParty:reg.assignedParty;
+    // Approving a candidate who requested a NEW party recognises that party now.
+    if(patch.status==="approved"&&reg.requestedParty&&reg.requestedParty.new&&reg.partyStatus!=="approved"){
+      const slug=slugify(reg.requestedParty.name);
+      partyMap={...partyMap,[slug]:{name:reg.requestedParty.name,abbr:reg.requestedParty.abbr||reg.requestedParty.name.toUpperCase().slice(0,6),colour:reg.requestedParty.colour||V.gold,status:"active",founder:reg.username,foundedAt:Date.now()}};
+      const pr=await sset("vx_el_parties",partyMap);
+      if(!pr.ok){setProcessing(null);notify(pr.error,V.redL);return;}
+      assignedParty=slug;patch.partyStatus="approved";
+    } else if(patch.status==="approved"&&reg.requestedParty&&reg.requestedParty.slug&&assignedParty===undefined){
+      assignedParty=reg.requestedParty.slug;
+    }
+    const next={...reg,...patch,assignedParty};delete next._key;
+    const r=await sset(reg._key,next);
+    setProcessing(null);
+    if(r.ok){await reloadAll();notify("Ruling recorded.",V.greenL);}else notify(r.error,V.redL);
+  };
+  const del=async(reg)=>{setProcessing("Removing nomination…");await sdel(reg._key);setProcessing(null);await reloadAll();notify("Nomination removed.",V.textD);};
+  if(regs.length===0)return <Empty>No nominations have been filed for this election.</Empty>;
+  return <div>
+    {regs.sort((a,b)=>(a.filedAt||0)-(b.filedAt||0)).map(reg=>{
+      const st=reg.status||"pending";const col=st==="approved"?V.greenL:st==="rejected"?V.redL:V.goldL;
+      const activeParties=Object.entries(parties).filter(([,p])=>(p.status||"active")==="active");
+      return <div key={reg._key} style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${col}`,borderRadius:"0 3px 3px 0",padding:"0.9rem 1.1rem",marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <McFace account={accounts[reg.username]||{username:reg.username}} size={34}/>
+            <div><div className="pf" style={{fontSize:16,fontWeight:700,color:V.text}}>{reg.candidateName||reg.username}</div>
+            <div className="mono" style={{fontSize:9,color:V.textDD}}>@{reg.username} · {st.toUpperCase()}</div></div>
+          </div>
+          <PartyBadge party={parties[reg.assignedParty]}/>
+        </div>
+        {reg.requestedParty&&reg.requestedParty.new&&<div className="mono" style={{fontSize:10,color:V.goldL,marginTop:7}}>⬥ REQUESTS NEW PARTY · {reg.requestedParty.name} ({reg.requestedParty.abbr})</div>}
+        {reg.requestedParty&&reg.requestedParty.slug&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>REQUESTED PARTY · {(parties[reg.requestedParty.slug]||{}).name||reg.requestedParty.slug}</div>}
+        {reg.independent&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>STANDS AS INDEPENDENT</div>}
+        {reg.bio&&<div style={{color:V.textD,marginTop:8,fontSize:13,lineHeight:1.55}}>{reg.bio}</div>}
+        {reg.runningMate&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:6}}>RUNNING MATE · {reg.runningMate}</div>}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12,alignItems:"center"}}>
+          <div style={{minWidth:180,flex:"0 1 220px"}}>
+            <Sel value={reg.assignedParty||""} onChange={v=>rule(reg,{assignedParty:v||undefined})}
+              options={[{v:"",l:"— Independent —"},...activeParties.map(([slug,p])=>({v:slug,l:p.name}))]}/>
+          </div>
+          <Btn small variant="green" onClick={()=>rule(reg,{status:"approved"})}>Admit to ballot</Btn>
+          <Btn small variant="danger" onClick={()=>rule(reg,{status:"rejected"})}>Reject</Btn>
+          <ArmBtn label="Delete" confirmLabel="Delete?" small onConfirm={()=>del(reg)}/>
+        </div>
+      </div>;})}
+  </div>;
+}
+
+function FECParties({parties,reloadAll,notify}){
+  const [editing,setEditing]=useState(null);
+  const save=async(slug,p)=>{
+    const map={...parties,[slug]:p};
+    const r=await sset("vx_el_parties",map);
+    if(r.ok){setEditing(null);await reloadAll();notify("Party saved.",V.greenL);}else notify(r.error,V.redL);
+  };
+  const del=async(slug)=>{const map={...parties};delete map[slug];const r=await sset("vx_el_parties",map);if(r.ok){await reloadAll();notify("Party removed.",V.textD);}else notify(r.error,V.redL);};
+  return <div>
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+      <Btn small variant="gold" onClick={()=>setEditing({new:true,name:"",abbr:"",colour:"#c9a05a",status:"active"})}>+ New party</Btn>
+    </div>
+    {Object.keys(parties).length===0&&<Empty>No parties registered.</Empty>}
+    {Object.entries(parties).map(([slug,p])=><div key={slug} style={{display:"flex",alignItems:"center",gap:12,background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${p.colour||V.gold}`,borderRadius:"0 3px 3px 0",padding:"0.8rem 1rem",marginBottom:8}}>
+      <PartyBadge party={p}/>
+      <div style={{flex:1}}><div className="pf" style={{fontSize:15,fontWeight:700,color:V.text}}>{p.name}</div>
+        {p.founder&&<div className="mono" style={{fontSize:9,color:V.textDD}}>FOUNDED BY @{p.founder}</div>}</div>
+      <Btn small variant="ghost" onClick={()=>setEditing({slug,...p})}>Edit</Btn>
+      <ArmBtn label="Delete" confirmLabel="Delete?" small onConfirm={()=>del(slug)}/>
+    </div>)}
+    {editing&&<PartyEditor party={editing} onClose={()=>setEditing(null)} onSave={save}/>}
+  </div>;
+}
+function PartyEditor({party,onClose,onSave}){
+  const [f,setF]=useState({name:party.name||"",abbr:party.abbr||"",colour:party.colour||"#c9a05a"});
+  return <Modal title={party.new?"New party":"Edit party"} onClose={onClose} width={400}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div><FL>Name</FL><Inp value={f.name} onChange={v=>setF(p=>({...p,name:v}))} placeholder="Federalist Party"/></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 80px",gap:8}}>
+        <div><FL>Abbreviation</FL><Inp value={f.abbr} onChange={v=>setF(p=>({...p,abbr:v}))} placeholder="FP"/></div>
+        <div><FL>Colour</FL><input type="color" value={f.colour} onChange={e=>setF(p=>({...p,colour:e.target.value}))} style={{width:"100%",height:38,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,cursor:"pointer"}}/></div>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:4}}>
+        <Btn variant="gold" onClick={()=>{if(!f.name.trim())return;const slug=party.slug||slugify(f.name);onSave(slug,{name:f.name.trim(),abbr:(f.abbr||f.name).trim().toUpperCase().slice(0,6),colour:f.colour,status:"active",founder:party.founder,foundedAt:party.foundedAt||Date.now()});}}>Save</Btn>
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      </div>
+    </div>
+  </Modal>;
+}
+
+function FECBallots({el,raw,citizens,accounts,reloadAll,notify,setProcessing}){
+  // Secret ballots are visible to the Commission only; each appears in the snapshot
+  // as a vx_el_ballot_<el>_<citizenId> key carrying the raw ranking.
+  const ballots=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_ballot_"+el.id+"_")===0)
+    .map(k=>({...raw[k],_key:k,citizenId:k.slice(("vx_el_ballot_"+el.id+"_").length)})),[raw,el.id]);
+  const voids=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_void_"+el.id+"_")===0).map(k=>({...raw[k],_key:k})),[raw,el.id]);
+  const [voiding,setVoiding]=useState(null);
+  const citName=cid=>{const c=(citizens||[]).find(c=>String(c.id||c._id)===String(cid));return c?(c.name||c.username):cid;};
+  const doVoid=async(cid,kind,reason)=>{
+    setProcessing("Voiding ballot…");
+    const r=await svoid(el.id,cid,kind,reason);
+    setProcessing(null);
+    if(r.ok){setVoiding(null);await reloadAll();notify(kind==="hard"?"Ballot voided and elector barred.":"Ballot voided.",V.goldL);}else notify(r.error,V.redL);
+  };
+  const lift=async(v)=>{setProcessing("Lifting ban…");const r=await sliftBan(v._key,v.at);setProcessing(null);if(r.ok){await reloadAll();notify("Ban lifted — the elector may vote again.",V.greenL);}else notify(r.error,V.redL);};
+  return <div>
+    <div className="mono" style={{fontSize:10,color:V.textD,letterSpacing:"0.14em",marginBottom:4}}>🔒 SECRET — VISIBLE TO THE COMMISSION ONLY</div>
+    <div style={{fontSize:12.5,color:V.textDD,marginBottom:14,fontStyle:"italic"}}>Voiding strikes a ballot and removes it from the turnout. A <b>soft</b> void lets the elector vote again; a <b>hard</b> void bars them from this election.</div>
+    <STitle>Ballots cast ({ballots.length})</STitle>
+    {ballots.length===0?<Empty>No ballots in the box.</Empty>:ballots.map(b=>
+      <div key={b._key} style={{display:"flex",alignItems:"center",gap:12,background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,padding:"0.7rem 1rem",marginBottom:7,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 200px",minWidth:0}}>
+          <div className="pf" style={{fontSize:14,color:V.text}}>{b.citizenName||citName(b.citizenId)} <span className="mono" style={{fontSize:9,color:V.textDD}}>{b.castBy?"@"+b.castBy:""}</span></div>
+          <div className="mono" style={{fontSize:10,color:V.textDD,marginTop:2}}>RANKED {(b.ranking||[]).length} · {fmtWhen(b.at||b.castAt)}</div>
+        </div>
+        <Btn small variant="danger" onClick={()=>setVoiding(b)}>Void…</Btn>
+      </div>)}
+    <STitle>Voids & bans ({voids.length})</STitle>
+    {voids.length===0?<Empty>No ballots have been voided.</Empty>:voids.map(v=>
+      <div key={v._key} style={{background:V.panel,border:`1px solid ${v.kind==="hard"?V.redD:V.line}`,borderLeft:`3px solid ${v.kind==="hard"?V.red:V.goldL}`,borderRadius:"0 3px 3px 0",padding:"0.8rem 1rem",marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+          <div><div className="pf" style={{fontSize:14,color:V.text}}>{v.citizenName||citName(v.citizenId)} <span className="mono" style={{fontSize:9,color:V.textDD}}>{v.username?"@"+v.username:""}</span></div>
+          <div className="mono" style={{fontSize:9,color:v.kind==="hard"?V.redL:V.goldL,marginTop:2}}>{v.kind==="hard"?"BARRED":"VOIDED (SOFT)"} · {fmtWhen(v.at)}</div></div>
+          {v.kind==="hard"&&<ArmBtn label="Lift ban" confirmLabel="Lift?" small variant="ghost" onConfirm={()=>lift(v)}/>}
+        </div>
+        {v.reason&&<div style={{color:V.textD,fontStyle:"italic",marginTop:6,fontSize:13}}>“{v.reason}”</div>}
+        {v.byName&&<div className="mono" style={{fontSize:9,color:V.textDD,marginTop:4}}>BY {v.byName}</div>}
+      </div>)}
+    {voiding&&<VoidModal b={voiding} onClose={()=>setVoiding(null)} onVoid={doVoid} citName={citName}/>}
+  </div>;
+}
+function VoidModal({b,onClose,onVoid,citName}){
+  const [kind,setKind]=useState("soft");const [reason,setReason]=useState("");
+  return <Modal title="Void a ballot" onClose={onClose}>
+    <div style={{color:V.textD,marginBottom:12,lineHeight:1.6}}>Striking the ballot of <b style={{color:V.text}}>{b.citizenName||citName(b.citizenId)}</b>. The elector is shown the reason.</div>
+    <div style={{display:"flex",gap:6,marginBottom:12}}>
+      <Btn small variant={kind==="soft"?"gold":"ghost"} onClick={()=>setKind("soft")}>Soft — may recast</Btn>
+      <Btn small variant={kind==="hard"?"armed":"ghost"} onClick={()=>setKind("hard")}>Hard — bar from election</Btn>
+    </div>
+    <FL>Reason (shown to the elector)</FL>
+    <TA value={reason} onChange={setReason} placeholder="Why this ballot is being voided."/>
+    <div style={{display:"flex",gap:8,marginTop:14}}>
+      <Btn variant={kind==="hard"?"armed":"gold"} onClick={()=>{if(!reason.trim())return;onVoid(b.citizenId,kind,reason.trim());}}>{kind==="hard"?"Void & bar":"Void ballot"}</Btn>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+    </div>
+  </Modal>;
+}
+
+function FECCount({el,raw,parties,citizens,reloadAll,notify,setProcessing}){
+  const cands=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_reg_"+el.id+"_")===0)
+    .map(k=>raw[k]).filter(r=>r&&(r.status==="approved")),[raw,el.id]);
+  const ballots=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_ballot_"+el.id+"_")===0).map(k=>raw[k]),[raw,el.id]);
+  const result=raw["vx_el_result_"+el.id];
+  const runCount=async()=>{
+    if(cands.length<1){notify("No admitted candidates to count.",V.redL);return;}
+    setProcessing("Counting ballots (Schulze)…");
+    const ids=cands.map(c=>c.username);
+    const r=schulze(ids,ballots);
+    const rec={elId:el.id,winner:r.winner,tie:r.tie,tiedWith:r.tiedWith,order:r.order,d:r.d,p:r.p,cands:ids,
+      candidates:cands.map(c=>({id:c.username,name:c.candidateName||c.username,party:c.assignedParty||null})),
+      ballotsCounted:ballots.length,countedAt:Date.now()};
+    const res=await sset("vx_el_result_"+el.id,rec);
+    // Move into the Counting phase so the public board shows the provisional result.
+    if(res.ok&&el.status==="voting"){const map={...(raw["vx_el_elections"]||{}),[el.id]:{...el,status:"count"}};await sset("vx_el_elections",map);}
+    setProcessing(null);
+    if(res.ok){await reloadAll();notify("Count complete — provisional result published.",V.greenL);}else notify(res.error,V.redL);
+  };
+  const certify=async()=>{
+    setProcessing("Certifying…");
+    const map={...(raw["vx_el_elections"]||{}),[el.id]:{...el,status:"certified",certifiedAt:Date.now()}};
+    const r=await sset("vx_el_elections",map);
+    setProcessing(null);
+    if(r.ok){await reloadAll();notify("Result certified.",V.greenL);}else notify(r.error,V.redL);
+  };
+  return <div>
+    <Card accent="#e08a3a" style={{marginBottom:14}}>
+      <div className="pf" style={{fontSize:16,fontWeight:700,color:V.text}}>Run the count</div>
+      <div style={{color:V.textD,marginTop:6,lineHeight:1.6,fontSize:13.5}}>Computes the Schulze result from the <b>{ballots.length}</b> secret ballot{ballots.length===1?"":"s"} over <b>{cands.length}</b> admitted candidate{cands.length===1?"":"s"}, and publishes it as the provisional result. You may re-run it until the result is certified.</div>
+      <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+        <Btn variant="gold" onClick={runCount} disabled={el.status==="certified"}>Count ballots</Btn>
+        {result&&el.status!=="certified"&&<ArmBtn label="Certify result" confirmLabel="Certify — this locks it" variant="ghost" onConfirm={certify}/>}
+        {el.status==="certified"&&<span className="mono" style={{fontSize:10,color:V.greenL,alignSelf:"center"}}>✓ CERTIFIED {fmtWhen(el.certifiedAt)}</span>}
+      </div>
+    </Card>
+    {result&&<ResultView el={el} result={result} cands={result.candidates?result.candidates.map(c=>({username:c.id,candidateName:c.name,assignedParty:c.party})):cands} parties={parties}/>}
+  </div>;
+}
+
+/* ── sign-in modal ─────────────────────────────────────────────────────────── */
+function AuthModal({onClose,onAuth}){
+  const [u,setU]=useState("");const [p,setP]=useState("");const [err,setErr]=useState("");const [busy,setBusy]=useState(false);
+  const go=async()=>{
+    if(busy)return;
+    if(!u.trim()||!p){setErr("Enter your credentials.");return;}
+    setBusy(true);setErr("");
+    const res=await slogin(u,p);
+    if(!res.ok){setErr(res.error==="ACCESS DENIED"?"Credentials rejected.":res.error);setBusy(false);return;}
+    onAuth(res.account);
+  };
+  return <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:9000,background:"rgba(5,10,22,.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
+    <div style={{maxWidth:400,width:"100%",background:V.panel,border:`1px solid ${V.line}`,borderTop:`3px solid ${V.gold}`,borderRadius:"0 0 5px 5px",padding:"1.7rem"}} onKeyDown={e=>{if(e.key==="Enter")go();}}>
+      <div style={{textAlign:"center",marginBottom:"1.2rem"}}>
+        <Seal file="vindexcoa.png" size={56} style={{margin:"0 auto 10px",display:"block"}}/>
+        <div className="mono" style={{fontSize:9,letterSpacing:"0.4em",color:V.gold}}>VINDEX NATION</div>
+        <div className="pf" style={{fontWeight:900,fontSize:20,color:V.text,marginTop:4}}>Sign In</div>
+        <div style={{fontSize:13,color:V.textD,fontStyle:"italic",marginTop:6,lineHeight:1.6}}>Use your Vindex Nation account. The public record is readable without signing in.</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+        <div><FL>Username</FL><Inp value={u} onChange={setU} placeholder="Username"/></div>
+        <div><FL>Password</FL><Inp value={p} onChange={setP} type="password" placeholder="Password"/></div>
+        {err&&<div className="mono" style={{fontSize:10,color:V.redL,background:"#2a1215",border:`1px solid ${V.redD}66`,padding:"7px 12px",borderRadius:2}}>{err}</div>}
+        <Btn variant="gold" onClick={go} disabled={busy}>{busy?"Verifying…":"Sign In"}</Btn>
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      </div>
+    </div>
+  </div>;
+}
+
+/* ── nav rail ──────────────────────────────────────────────────────────────── */
+function Rail({sections,tab,onTab}){
+  return <nav className="grail">
+    <div className="grail-grp">Federal Elections</div>
+    {sections.map(s=><button key={s.v} className={"grail-i"+(tab===s.v?" on":"")} onClick={()=>onTab(s.v)}>
+      {s.dot&&<span className="grail-dot" style={{background:s.dot}}/>}
+      <span>{s.l}</span>{tab===s.v&&<span className="grail-ar">●</span>}
+    </button>)}
+  </nav>;
+}
+
+/* ── APP ─────────────────────────────────────────────────────────────────── */
+function App(){
+  const [raw,setRaw]=useState({});
+  const [loaded,setLoaded]=useState(false);
+  const [tab,setTab]=useState("board");
+  const [user,setUser]=useState(()=>cachedAccount());
+  const [authOpen,setAuthOpen]=useState(false);
+  const [toast,setToast]=useState({msg:"",color:V.gold});
+  const [processing,setProcessing]=useState(null);
+  const [selElId,setSelElId]=useState(null);
+  const notify=useCallback((msg,color=V.gold)=>{setToast({msg,color});setTimeout(()=>setToast(t=>t.msg===msg?{msg:"",color}:t),4000);},[]);
+  const reloadAll=useCallback(async()=>{const r=await sgetAll();setRaw(r);return r;},[]);
+
+  useEffect(()=>{
+    const restoring=srestore();
+    sgetAll().then(r=>{setRaw(r);setLoaded(true);});
+    restoring.then(acc=>{if(acc)setUser(acc);else if(!AUTH_TOKEN)setUser(null);});
+  },[]);
+
+  const accounts=useMemo(()=>{const out={};Object.values(raw["mi_accounts"]||{}).forEach(a=>{if(a&&a.username)out[String(a.username).toLowerCase()]=a;});return out;},[raw]);
+  const elections=useMemo(()=>raw["vx_el_elections"]||{},[raw]);
+  const parties=useMemo(()=>raw["vx_el_parties"]||{},[raw]);
+  // Citizen register (array of records) for screening and turnout.
+  const citizenRecords=useMemo(()=>Object.values(raw["vx_state_citizens"]||{}),[raw]);
+
+  // The election on view: the admin's selection, else the newest non-certified one,
+  // else the newest of all.
+  const current=useMemo(()=>{
+    const list=Object.values(elections).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    if(selElId&&elections[selElId])return elections[selElId];
+    return list.find(e=>e.status!=="certified")||list[0]||null;
+  },[elections,selElId]);
+
+  const meUser=String(user?.username||"").toLowerCase();
+  const myCitizen=useMemo(()=>citizenRecords.find(c=>String(c.username||"").toLowerCase()===meUser)||null,[citizenRecords,meUser]);
+
+  // Per-election derived data.
+  const elId=current&&current.id;
+  const cands=useMemo(()=>!elId?[]:Object.keys(raw).filter(k=>k.indexOf("vx_el_reg_"+elId+"_")===0)
+    .map(k=>raw[k]).filter(r=>r&&r.status==="approved")
+    .sort((a,b)=>(a.filedAt||0)-(b.filedAt||0)),[raw,elId]);
+  const tally=useMemo(()=>elId?raw["vx_el_tally_"+elId]:null,[raw,elId]);
+  const result=useMemo(()=>elId?raw["vx_el_result_"+elId]:null,[raw,elId]);
+  const enfranchised=useMemo(()=>{
+    if(!current)return 0;
+    const elig=new Set(current.eligibility&&current.eligibility.length?current.eligibility:DEFAULT_ELIGIBLE);
+    return citizenRecords.filter(c=>elig.has(String(c.status||""))).length;
+  },[citizenRecords,current]);
+  const myReg=useMemo(()=>(!elId||!meUser)?null:raw["vx_el_reg_"+elId+"_"+meUser]||null,[raw,elId,meUser]);
+  const myBallotCast=useMemo(()=>{
+    if(!elId||!myCitizen)return false;
+    const cid=myCitizen.id||myCitizen._id;
+    // The ballot itself is secret; a voter sees their own turnout entry in the tally.
+    const voted=tally&&Array.isArray(tally.voted)&&tally.voted.map(String).includes(String(cid));
+    const haveKey=!!raw["vx_el_ballot_"+elId+"_"+cid];   // admins also see the key
+    return !!(voted||haveKey);
+  },[elId,myCitizen,tally,raw]);
+  const myVoid=useMemo(()=>{
+    if(!elId||!meUser)return null;
+    const k="vx_el_void_"+elId+"_u_"+meUser;
+    return raw[k]||null;
+  },[raw,elId,meUser]);
+
+  const fec=isFEC(user);
+  const sections=[
+    {v:"board",l:"The Election"},
+    {v:"stand",l:"Stand for President"},
+    {v:"vote",l:"Vote",dot:current&&current.status==="voting"?V.greenL:null},
+    ...(fec?[{v:"fec",l:"Electoral Commission",dot:V.goldL}]:[]),
+  ];
+  const standing=user?(fec?"Federal Electoral Commission":(myCitizen?(VX_CIT_LABEL[myCitizen.status]||"Citizen"):"Signed in")):"";
+
+  // File / withdraw / cast handlers.
+  const onFile=useCallback(async(rec)=>{const key="vx_el_reg_"+rec.elId+"_"+rec.username;const r=await sset(key,rec);if(r.ok)await reloadAll();return r;},[reloadAll]);
+  const onWithdraw=useCallback(async(reg)=>{const key="vx_el_reg_"+reg.elId+"_"+String(reg.username).toLowerCase();await sdel(key);await reloadAll();return{ok:true};},[reloadAll]);
+  const onCast=useCallback(async(cit,ranking)=>{const cid=cit.id||cit._id;const r=await scastBallot(current.id,cid,ranking);if(r.ok)await reloadAll();return r;},[current,reloadAll]);
+
+  return <div style={{minHeight:"100vh",background:`radial-gradient(ellipse 80% 45% at 50% -5%, #1c3a6e55, transparent 60%), ${V.bg}`}}>
+    <Toast msg={toast.msg} color={toast.color}/>
+    <Overlay label={processing}/>
+    <div style={{background:`linear-gradient(180deg,${V.navy},${V.bg2})`,borderBottom:`2px solid ${V.gold}55`}}>
+      <div style={{maxWidth:1080,margin:"0 auto",padding:"0.8rem 1.2rem",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+        <a href="index.html" className="mono" style={{fontSize:8,letterSpacing:"0.1em",color:V.textD,textDecoration:"none",border:`1px solid ${V.line}`,borderRadius:2,padding:"4px 9px",flexShrink:0}}>← VINTRANET</a>
+        <a href="vindex.html" className="mono" style={{fontSize:8,letterSpacing:"0.1em",color:V.textD,textDecoration:"none",border:`1px solid ${V.line}`,borderRadius:2,padding:"4px 9px",flexShrink:0}}>← GOVERNMENT</a>
+        <Seal file="vindexcoa.png" size={44}/>
+        <div style={{flex:1,minWidth:170}}>
+          <div className="pf" style={{fontWeight:900,fontSize:16.5,letterSpacing:"0.05em",color:V.text,lineHeight:1.1}}>Federal Elections</div>
+          <div className="mono" style={{fontSize:8,letterSpacing:"0.3em",color:V.gold,marginTop:2}}>FEDERAL ELECTORAL COMMISSION · E PLURIBUS UNUM</div>
+        </div>
+        {user?<div style={{display:"flex",alignItems:"center",gap:10}}>
+          <McFace account={user} size={30}/>
+          <div style={{textAlign:"right",lineHeight:1.25}}>
+            <div className="pf" style={{fontWeight:700,fontSize:12.5,color:V.text}}>{user.displayName||user.username}</div>
+            <div className="mono" style={{fontSize:7.5,letterSpacing:"0.14em",color:fec?V.goldL:V.textDD}}>{standing.toUpperCase()}</div>
+          </div>
+          <Btn small variant="ghost" onClick={()=>{forgetSession();setUser(null);if(tab==="fec")setTab("board");notify("Signed out.",V.textD);}}>Sign out</Btn>
+        </div>:<Btn small variant="gold" onClick={()=>setAuthOpen(true)}>Sign In</Btn>}
+      </div>
+    </div>
+
+    <div className="gshell">
+      <Rail sections={sections} tab={tab} onTab={setTab}/>
+      <div>
+        {!loaded&&<div style={{textAlign:"center",padding:"4rem"}}><div className="mono" style={{fontSize:10,letterSpacing:"0.35em",color:V.textDD,animation:"pulse 1.4s infinite"}}>LOADING…</div></div>}
+        {loaded&&!current&&tab!=="fec"&&<Card><div className="pf" style={{fontSize:18,color:V.text}}>No election is scheduled</div>
+          <div style={{color:V.textD,marginTop:8,lineHeight:1.6}}>The Federal Electoral Commission has not opened a presidential election yet. Check back when one is called.</div></Card>}
+        {loaded&&current&&tab==="board"&&<BoardView el={current} cands={cands} parties={parties} accounts={accounts} tally={tally} result={result} enfranchised={enfranchised}/>}
+        {loaded&&current&&tab==="stand"&&<StandView el={current} user={user} myCitizen={myCitizen} myReg={myReg} myVoid={myVoid} parties={parties} onFile={onFile} onWithdraw={onWithdraw} notify={notify}/>}
+        {loaded&&current&&tab==="vote"&&<VoteView el={current} user={user} myCitizen={myCitizen} cands={cands} parties={parties} accounts={accounts} myBallotCast={myBallotCast} myVoid={myVoid} onCast={onCast} notify={notify}/>}
+        {loaded&&fec&&tab==="fec"&&<FECView raw={raw} elections={elections} selEl={current} setSelEl={setSelElId} parties={parties} accounts={accounts} citizens={citizenRecords} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing}/>}
+      </div>
+    </div>
+
+    <div style={{borderTop:`1px solid ${V.line}`,padding:"1.1rem 1.2rem 1.5rem"}}>
+      <div style={{maxWidth:1080,margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <div className="mono" style={{fontSize:8.5,letterSpacing:"0.26em",color:V.textDD}}>FEDERAL ELECTORAL COMMISSION · REPUBLIC OF VINDEX NATION</div>
+        <PoweredBy/>
+      </div>
+    </div>
+
+    {authOpen&&<AuthModal onClose={()=>setAuthOpen(false)}
+      onAuth={acc=>{setUser(acc);setAuthOpen(false);sgetAll().then(r=>setRaw(prev=>({...prev,...r})));notify("Signed in as "+(acc.displayName||acc.username)+".",V.goldL);}}/>}
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

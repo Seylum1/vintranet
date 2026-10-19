@@ -631,6 +631,8 @@ function GovRail({sections,tab,onTab,gov,current}){
           {open&&VX_DEPTS.map(d=><RailDept key={d.id} d={d} gov={gov} current={current} sub/>)}
         </React.Fragment>;
       })}
+      <div className="grail-grp">Federal Elections</div>
+      <a className="grail-i" href="velections.html">Presidential Election <span className="grail-ar">↗</span></a>
     </>}
     {!hub&&<>
       <div className="grail-grp">Departments</div>
