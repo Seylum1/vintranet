@@ -414,7 +414,10 @@ async function sset(key,value){try{const r=await fetch(API+"/api/set",{method:"P
 async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 // A registration no longer signs you in: the account is created awaiting review,
 // and the server returns no session at all until it is approved.
-async function registerAccount(username,passwordHash,firstName,lastName,citizenship){try{const r=await fetch(API+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,passwordHash,firstName,lastName,citizenship})});const d=await r.json();if(d&&d.ok)return {ok:true,pending:true,message:d.message||""};return {ok:false,closed:!!(d&&d.closed),error:(d&&d.error)||"Registration was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
+// `asAlt` creates the account as an alt of the signed-in user: the server links it
+// from the session token and admits it on creation. A normal registration sends no
+// token and arrives pending.
+async function registerAccount(username,passwordHash,firstName,lastName,citizenship,asAlt){try{const body={username,passwordHash,firstName,lastName,citizenship};if(asAlt){body.asAlt=true;body.token=AUTH_TOKEN;}const r=await fetch(API+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json();if(d&&d.ok)return {ok:true,pending:!!d.pending,alt:!!d.alt,message:d.message||""};return {ok:false,closed:!!(d&&d.closed),error:(d&&d.error)||"Registration was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
 async function setRoleplayName(firstName,lastName){try{const r=await fetch(API+"/api/set-name",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,firstName,lastName})});const d=await r.json();if(d&&d.ok){saveSession(AUTH_TOKEN,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Refused."};}catch{return {ok:false,error:"Connection error."};}}
 // An account still needs a roleplay name if it predates the first/last-name
 // rule: no display name, one that restates the username, or a single word.
@@ -538,7 +541,7 @@ function Tag({children,color}){return <span style={{...serif,fontSize:11,fontWei
   color:color||INK2,border:`1px solid ${(color||RULED)}66`,borderRadius:2,padding:"1px 7px",whiteSpace:"nowrap"}}>{children}</span>;}
 
 /* ── the auth chip (top-right) ───────────────────────────────────────────── */
-function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onSignOut}){
+function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onAlt,onSignOut}){
   const wrap={position:"fixed",top:0,right:0,zIndex:40,display:"flex",alignItems:"center",gap:11,
     padding:"9px 16px",...serif,fontSize:12.5,flexWrap:"wrap",justifyContent:"flex-end"};
   const link={background:"none",border:0,...serif,fontSize:12.5,color:SEAL,cursor:"pointer",padding:2,
@@ -555,6 +558,7 @@ function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onSignOut}
       style={{width:22,height:22,imageRendering:"pixelated",border:`1px solid ${RULED}`,verticalAlign:"middle"}}
       onError={e=>{e.currentTarget.style.display="none";}}/>
     <button style={{...link,color:INK2,textDecorationColor:"transparent"}} onClick={onProfile}>{user.displayName||user.username}</button>
+    {onAlt&&<>{dot}<button style={link} onClick={onAlt} title="Create a linked account for another of your Minecraft accounts">New alt</button></>}
     {isMod(user)&&<>{dot}<button style={link} onClick={onAdmin}>Administration</button></>}
     {dot}<button style={link} onClick={onSignOut}>Sign out</button>
   </div>;
@@ -601,7 +605,8 @@ function SignIn({onClose,onDone,switchRegister}){
 }
 
 /* ── register (public, Minecraft-verified, country-neutral) ──────────────── */
-function Register({onClose,onDone,switchSignIn}){
+function Register({onClose,onDone,switchSignIn,altOf}){
+  const altMode=!!altOf;
   const [u,setU]=useState(""),[fn,setFn]=useState(""),[ln,setLn]=useState(""),[p,setP]=useState(""),[p2,setP2]=useState("");
   const [cit,setCit]=useState("");
   const [err,setErr]=useState(""),[busy,setBusy]=useState(false);
@@ -617,37 +622,53 @@ function Register({onClose,onDone,switchSignIn}){
     if(!cit){setErr("Choose the nation your primary citizenship is in.");return;}
     setBusy(true);setErr("");
     const hash=await sha256(p);
-    const r=await registerAccount(u.trim(),hash,fn.trim(),ln.trim(),cit);
+    const r=await registerAccount(u.trim(),hash,fn.trim(),ln.trim(),cit,altMode);
     setBusy(false);
     if(!r.ok){setErr(r.error);return;}
     // A registration is a request to join, not a joining: no session comes back.
     setDone(true);};
 
-  if(done)return <Overlay onClose={onClose}><ModalHead title="Account created" onClose={onClose}/>
+  if(done)return <Overlay onClose={onClose}><ModalHead title={altMode?"Alt account created":"Account created"} onClose={onClose}/>
     <div style={{padding:"18px 24px 24px"}}>
-      <div style={{...serif,fontSize:16,color:INK,marginBottom:10}}>Your account is under review.</div>
-      <Note>An administrator will look over your registration shortly. You'll be able to sign in once it
-        has been approved — try again a little later.</Note>
-      {nationOf(cit)&&<Note>Once you are admitted to the network, your request for the citizenship of{" "}
-        <b>{nationOf(cit).l}</b> is put before {nationOf(cit).office}, which decides it. Until it does,
-        you are stateless.</Note>}
+      {altMode
+        ?<>
+          <div style={{...serif,fontSize:16,color:INK,marginBottom:10}}>Your alt account is under review.</div>
+          <Note>It is linked to <b>{altOf.displayName||altOf.username}</b> and an administrator will look it over
+            shortly. Once it is approved, sign out and sign in as <b>{u.trim()}</b> to use it. Administrators
+            can see it is your alt.</Note>
+          {nationOf(cit)&&<Note>Once the alt is admitted, its request for the citizenship of <b>{nationOf(cit).l}</b>
+            {" "}is put before {nationOf(cit).office}, which decides it. Until then, it is stateless.</Note>}
+        </>
+        :<>
+          <div style={{...serif,fontSize:16,color:INK,marginBottom:10}}>Your account is under review.</div>
+          <Note>An administrator will look over your registration shortly. You'll be able to sign in once it
+            has been approved — try again a little later.</Note>
+          {nationOf(cit)&&<Note>Once you are admitted to the network, your request for the citizenship of{" "}
+            <b>{nationOf(cit).l}</b> is put before {nationOf(cit).office}, which decides it. Until it does,
+            you are stateless.</Note>}
+        </>}
       <Btn kind="seal" onClick={onClose}>Close</Btn>
     </div>
   </Overlay>;
 
   const closed=reg&&reg.open===false;
-  return <Overlay onClose={onClose}><ModalHead title="Register" onClose={onClose}/>
+  return <Overlay onClose={onClose}><ModalHead title={altMode?"Create an alt account":"Register"} onClose={onClose}/>
     <div style={{padding:"18px 24px 24px"}} onKeyDown={e=>{if(e.key==="Enter"&&!closed)go();}}>
       {closed
         ?<>
           <div style={{...serif,fontSize:16,color:INK,marginBottom:10}}>Registration is closed.</div>
           <Note err>{reg.reason||"The network is not accepting new accounts at the moment."}</Note>
-          <Btn kind="ghost" onClick={switchSignIn}>I already have an account</Btn>
+          <Btn kind="ghost" onClick={altMode?onClose:switchSignIn}>{altMode?"Close":"I already have an account"}</Btn>
         </>
         :<>
-          <Note>Your username must be a real Minecraft account — it is checked against Mojang. Your roleplay
-            name is who you are on the network; it appears on every register and document.
-            Registrations are reviewed before they may sign in.</Note>
+          {altMode
+            ?<Note>An alt account is a second account for another of your Minecraft accounts — for a different
+              character or background. It uses that Minecraft name (checked against Mojang) and its own password,
+              and works like any other account. It is linked to <b>{altOf.displayName||altOf.username}</b>, and
+              administrators can see that it is your alt.</Note>
+            :<Note>Your username must be a real Minecraft account — it is checked against Mojang. Your roleplay
+              name is who you are on the network; it appears on every register and document.
+              Registrations are reviewed before they may sign in.</Note>}
           {err&&<Note err>{err}</Note>}
           <Field label="Minecraft username"><Inp value={u} onChange={e=>setU(e.target.value)} autoFocus placeholder="Your exact Minecraft name"/></Field>
           <div style={{display:"flex",gap:12}}>
@@ -683,8 +704,8 @@ function Register({onClose,onDone,switchSignIn}){
           </div>
 
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-            <Btn kind="seal" onClick={go} disabled={busy}>{busy?"Creating…":"Create account"}</Btn>
-            <Btn kind="ghost" onClick={switchSignIn}>I already have one</Btn>
+            <Btn kind="seal" onClick={go} disabled={busy}>{busy?"Creating…":(altMode?"Create alt account":"Create account")}</Btn>
+            <Btn kind="ghost" onClick={altMode?onClose:switchSignIn}>{altMode?"Cancel":"I already have one"}</Btn>
           </div>
         </>}
     </div>
@@ -888,9 +909,11 @@ function PendingRow({acc,user,notify,reload}){
       style={{width:34,height:34,imageRendering:"pixelated",border:`1px solid ${RULED}`}}
       onError={e=>{e.currentTarget.style.visibility="hidden";}}/>
     <div style={{minWidth:150}}>
-      <div style={{...serif,fontSize:15,fontWeight:600,color:INK}}>{acc.displayName||acc.username}</div>
+      <div style={{...serif,fontSize:15,fontWeight:600,color:INK}}>{acc.displayName||acc.username}
+        {acc.alt&&<span style={{marginLeft:8}}><Tag color="#8a5a1c">ALT</Tag></span>}</div>
       <div style={{...serif,fontSize:12,color:INK3}}>{acc.username}
-        {acc.registeredAt?" · applied "+new Date(acc.registeredAt).toLocaleDateString():""}</div>
+        {acc.registeredAt?" · applied "+new Date(acc.registeredAt).toLocaleDateString():""}
+        {acc.alt&&acc.altOf&&<span style={{color:"#8a5a1c"}}> · alt of @{acc.altOf}</span>}</div>
     </div>
     {/* The nation they named. It is not this panel's to decide — admitting the
         account is what puts the request before that nation's ministry — but the
@@ -975,8 +998,11 @@ function Row({acc,raw,user,notify,reload,onProfile}){
           {acc.role==="emperor"&&<span style={{marginLeft:6}}><Tag color="#b8902f">OWNER</Tag></span>}
           {acc.sysMod&&!acc.sysAdmin&&<span style={{marginLeft:6}}><Tag color="#2f6d3f">MODERATOR</Tag></span>}
           {acc.banned&&<span style={{marginLeft:6}}><Tag color={SEAL}>SUSPENDED</Tag></span>}
+          {acc.alt&&<span style={{marginLeft:6}}><Tag color="#8a5a1c">ALT</Tag></span>}
           {isPending(acc)&&<span style={{marginLeft:6}}><Tag color={SEAL}>UNDER REVIEW</Tag></span>}</div>
-        <div style={{...serif,fontSize:12,color:INK3}}>{acc.username}</div>
+        <div style={{...serif,fontSize:12,color:INK3}}>{acc.username}
+          {acc.alt&&acc.altOf&&<span style={{color:"#8a5a1c"}}> · alt of <button onClick={e=>{e.stopPropagation();onProfile&&onProfile(acc.altOf);}}
+            style={{background:"none",border:0,...serif,fontSize:12,color:"#8a5a1c",cursor:onProfile?"pointer":"default",textDecoration:onProfile?"underline":"none",padding:0}}>@{acc.altOf}</button></span>}</div>
       </div>
       <span style={{flex:1}}/>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end",maxWidth:420}}>
@@ -1408,6 +1434,7 @@ function VintranetApp(){
       onDirectory={()=>open({t:"directory"})}
       onProfile={()=>open({t:"profile",username:user.username})}
       onAdmin={()=>open({t:"admin"})}
+      onAlt={user?()=>setView({t:"alt"}):null}
       onSignOut={()=>{forgetSession();setUser(null);setView(null);notify("You have been signed out.",true);}}/>
     {notice&&ReactDOM.createPortal(<StatelessNotice user={user} raw={raw}/>,notice)}
     {toast&&<div style={{position:"fixed",top:44,right:16,zIndex:80,maxWidth:340,...serif,fontSize:13.5,
@@ -1416,6 +1443,7 @@ function VintranetApp(){
     {view&&view.t==="signin"&&<SignIn onClose={()=>setView(null)} switchRegister={()=>setView({t:"register"})}
       onDone={acc=>{setUser(acc);setView(null);notify("Signed in as "+(acc.displayName||acc.username)+".",true);}}/>}
     {view&&view.t==="register"&&<Register onClose={()=>setView(null)} switchSignIn={()=>setView({t:"signin"})}/>}
+    {view&&view.t==="alt"&&user&&<Register altOf={user} onClose={()=>setView(null)}/>}
     {view&&view.t==="admin"&&isMod(user)&&<Admin user={user} raw={raw} reload={loadRaw}
       onProfile={un=>open({t:"profile",username:un})} onClose={()=>setView(null)} notify={notify}/>}
     {view&&view.t==="directory"&&<Directory raw={raw} onOpen={un=>open({t:"profile",username:un})} onClose={()=>setView(null)}/>}
