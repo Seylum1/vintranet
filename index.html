@@ -412,6 +412,10 @@ async function saveRecord(collection,record){try{const r=await fetch(API+"/api/w
 async function deleteRecord(collection,id){try{const r=await fetch(API+"/api/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,collection,id})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch{return {ok:false,error:"Connection error."};}}
 async function sset(key,value){try{const r=await fetch(API+"/api/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,key,value})});const d=await r.json();return d&&d.ok?{ok:true}:{ok:false,error:(d&&d.error)||"Refused."};}catch{return {ok:false,error:"Connection error."};}}
 async function slogin(username,password){try{const r=await fetch(API+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:String(username||"").trim(),password})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Sign in was refused"};}catch(e){return {ok:false,error:"Connection error"};}}
+// The player's own accounts — their main and its alts — and switching between them
+// without a password (an alt has none; you sign in once as the main).
+async function fetchMyAccounts(){try{const r=await fetch(API+"/api/my-accounts?token="+encodeURIComponent(AUTH_TOKEN||""));const d=await r.json();return (d&&d.ok)?d:{ok:false,error:(d&&d.error)||"Could not load your accounts"};}catch(e){return {ok:false,error:"Connection error"};}}
+async function switchAccount(username){try{const r=await fetch(API+"/api/switch-account",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:AUTH_TOKEN,username})});const d=await r.json();if(d&&d.ok){AUTH_TOKEN=d.token;saveSession(d.token,d.account);return {ok:true,account:d.account};}return {ok:false,error:(d&&d.error)||"Could not switch account"};}catch(e){return {ok:false,error:"Connection error"};}}
 // A registration no longer signs you in: the account is created awaiting review,
 // and the server returns no session at all until it is approved.
 // `asAlt` creates the account as an alt of the signed-in user: the server links it
@@ -541,7 +545,7 @@ function Tag({children,color}){return <span style={{...serif,fontSize:11,fontWei
   color:color||INK2,border:`1px solid ${(color||RULED)}66`,borderRadius:2,padding:"1px 7px",whiteSpace:"nowrap"}}>{children}</span>;}
 
 /* ── the auth chip (top-right) ───────────────────────────────────────────── */
-function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onAlt,onSignOut}){
+function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onAccounts,onSignOut}){
   const wrap={position:"fixed",top:0,right:0,zIndex:40,display:"flex",alignItems:"center",gap:11,
     padding:"9px 16px",...serif,fontSize:12.5,flexWrap:"wrap",justifyContent:"flex-end"};
   const link={background:"none",border:0,...serif,fontSize:12.5,color:SEAL,cursor:"pointer",padding:2,
@@ -558,7 +562,7 @@ function Chip({user,onSignIn,onRegister,onDirectory,onProfile,onAdmin,onAlt,onSi
       style={{width:22,height:22,imageRendering:"pixelated",border:`1px solid ${RULED}`,verticalAlign:"middle"}}
       onError={e=>{e.currentTarget.style.display="none";}}/>
     <button style={{...link,color:INK2,textDecorationColor:"transparent"}} onClick={onProfile}>{user.displayName||user.username}</button>
-    {onAlt&&<>{dot}<button style={link} onClick={onAlt} title="Create a linked account for another of your Minecraft accounts">New alt</button></>}
+    {onAccounts&&<>{dot}<button style={link} onClick={onAccounts} title="Switch between your main account and your alts, or create one">Accounts</button></>}
     {isMod(user)&&<>{dot}<button style={link} onClick={onAdmin}>Administration</button></>}
     {dot}<button style={link} onClick={onSignOut}>Sign out</button>
   </div>;
@@ -604,6 +608,55 @@ function SignIn({onClose,onDone,switchRegister}){
   </Overlay>;
 }
 
+/* ── my accounts: switch between a main and its alts ─────────────────────────
+   A player signs in once as their main and moves between it and their alts here,
+   with no second password. The list comes from the server (the alt link is hidden
+   from the public directory, so it is served to the player separately). */
+function Switcher({user,onClose,onSwitched,onCreateAlt,notify}){
+  const [data,setData]=useState(null),[err,setErr]=useState(""),[busy,setBusy]=useState("");
+  useEffect(()=>{fetchMyAccounts().then(d=>{if(d.ok)setData(d);else setErr(d.error);});},[]);
+  const pick=async(a)=>{
+    if(busy||a.username===(data&&data.current))return;
+    setBusy(a.username);
+    const r=await switchAccount(a.username);
+    setBusy("");
+    if(r.ok){notify&&notify("Now acting as "+(r.account.displayName||r.account.username)+".",true);onSwitched(r.account);}
+    else setErr(r.error);
+  };
+  return <Overlay onClose={onClose}><ModalHead title="My accounts" onClose={onClose}/>
+    <div style={{padding:"18px 24px 24px"}}>
+      <Note>Your main account and its alts. Switch between them without a password — your alts have none,
+        so you sign in just once, as your main.</Note>
+      {err&&<Note err>{err}</Note>}
+      {!data&&!err&&<div style={{...serif,color:INK3,fontStyle:"italic"}}>Loading…</div>}
+      {data&&data.accounts.map(a=>{
+        const current=a.username===data.current;
+        const switchable=a.approved&&!a.banned&&!current;
+        return <div key={a.username} style={{display:"flex",alignItems:"center",gap:12,
+          border:`1px solid ${current?SEAL:RULE}`,background:current?"#fdf6f4":"#fffdf8",padding:"10px 14px",marginBottom:6,flexWrap:"wrap"}}>
+          <img src={mcFaceUrl(a.mcName||a.username)} alt="" width={32} height={32}
+            style={{width:32,height:32,imageRendering:"pixelated",border:`1px solid ${RULED}`}}
+            onError={e=>{e.currentTarget.style.visibility="hidden";}}/>
+          <div style={{minWidth:120,flex:1}}>
+            <div style={{...serif,fontSize:15,fontWeight:600,color:INK}}>{a.displayName||a.username}
+              {a.isMain?<span style={{marginLeft:8}}><Tag color="#2f6d3f">MAIN</Tag></span>
+                :<span style={{marginLeft:8}}><Tag color="#8a5a1c">ALT</Tag></span>}
+              {!a.approved&&<span style={{marginLeft:6}}><Tag color={SEAL}>UNDER REVIEW</Tag></span>}
+              {a.banned&&<span style={{marginLeft:6}}><Tag color={SEAL}>SUSPENDED</Tag></span>}</div>
+            <div style={{...serif,fontSize:12,color:INK3}}>{a.username}</div>
+          </div>
+          {current?<span style={{...serif,fontSize:12,color:SEAL,fontWeight:600}}>Signed in</span>
+            :<Btn small kind="seal" disabled={!switchable} onClick={()=>pick(a)}>
+              {busy===a.username?"Switching…":switchable?"Switch to this":(a.banned?"Suspended":"Awaiting review")}</Btn>}
+        </div>;
+      })}
+      <div style={{marginTop:14,borderTop:`1px solid ${RULE}`,paddingTop:14}}>
+        <Btn kind="ghost" onClick={onCreateAlt}>+ Create an alt account</Btn>
+      </div>
+    </div>
+  </Overlay>;
+}
+
 /* ── register (public, Minecraft-verified, country-neutral) ──────────────── */
 function Register({onClose,onDone,switchSignIn,altOf}){
   const altMode=!!altOf;
@@ -617,11 +670,15 @@ function Register({onClose,onDone,switchSignIn,altOf}){
   const go=async()=>{if(busy)return;
     if(!u.trim()){setErr("Enter your Minecraft username.");return;}
     if(!fn.trim()||!ln.trim()){setErr("Enter your roleplay character's first and last name.");return;}
-    if(p.length<4){setErr("Choose a password of at least 4 characters.");return;}
-    if(p!==p2){setErr("The two passwords do not match.");return;}
+    // An alt has no password of its own — it is only ever entered by switching from
+    // the main — so a password is asked for and checked only on a normal registration.
+    if(!altMode){
+      if(p.length<4){setErr("Choose a password of at least 4 characters.");return;}
+      if(p!==p2){setErr("The two passwords do not match.");return;}
+    }
     if(!cit){setErr("Choose the nation your primary citizenship is in.");return;}
     setBusy(true);setErr("");
-    const hash=await sha256(p);
+    const hash=altMode?"":await sha256(p);
     const r=await registerAccount(u.trim(),hash,fn.trim(),ln.trim(),cit,altMode);
     setBusy(false);
     if(!r.ok){setErr(r.error);return;}
@@ -675,8 +732,13 @@ function Register({onClose,onDone,switchSignIn,altOf}){
             <div style={{flex:1}}><Field label="First name"><Inp value={fn} onChange={e=>setFn(e.target.value)}/></Field></div>
             <div style={{flex:1}}><Field label="Last name"><Inp value={ln} onChange={e=>setLn(e.target.value)}/></Field></div>
           </div>
-          <Field label="Password"><Inp type="password" value={p} onChange={e=>setP(e.target.value)}/></Field>
-          <Field label="Confirm password"><Inp type="password" value={p2} onChange={e=>setP2(e.target.value)}/></Field>
+          {altMode
+            ?<Note>No password is set for an alt — you never sign into it directly. Sign in as your main,
+              then switch to this alt from the account menu.</Note>
+            :<>
+              <Field label="Password"><Inp type="password" value={p} onChange={e=>setP(e.target.value)}/></Field>
+              <Field label="Confirm password"><Inp type="password" value={p2} onChange={e=>setP2(e.target.value)}/></Field>
+            </>}
 
           {/* The nation the newcomer belongs to — asked once, here, and answered by
               that nation's foreign ministry rather than by this form. */}
@@ -1236,6 +1298,12 @@ function Profile({username,raw,user,onOpenAdmin,onClose}){
   const acc=raw?Object.values(raw.mi_accounts||{}).find(a=>a&&String(a.username||"").toLowerCase()===String(username||"").toLowerCase()):null;
   const p=acc?buildProfile(acc,raw,user):null;
   const isMe=user&&String(user.username||"").toLowerCase()===String(username||"").toLowerCase();
+  // The alt relationship is for administrators only (the server sends alt/altOf just
+  // to them). A main's profile lists its alts; an alt's profile names its main.
+  const adm=isAdmin(user);
+  const myAlts=(adm&&raw&&acc)?Object.values(raw.mi_accounts||{})
+    .filter(x=>x&&x.alt&&String(x.altOf||"").toLowerCase()===String(acc.username||"").toLowerCase())
+    .sort((a,b)=>((a.displayName||a.username)||"").localeCompare((b.displayName||b.username)||"")):[];
   return <Overlay onClose={onClose} wide>
     <ModalHead title={isMe?"My record":"Player record"} onClose={onClose}/>
     <div style={{padding:"18px 24px 26px"}}>
@@ -1253,6 +1321,18 @@ function Profile({username,raw,user,onOpenAdmin,onClose}){
             <div style={{...serif,fontSize:14,fontStyle:"italic",color:INK2,marginTop:6}}>{summaryOf(p.countries)}</div>
           </div>
         </div>
+
+        {/* alt relationship — administrators only */}
+        {adm&&(acc.alt||myAlts.length>0)&&<div style={{border:`1px solid #8a5a1c55`,borderLeft:`4px solid #8a5a1c`,
+          background:"#fdf8f0",padding:"12px 15px",marginBottom:16}}>
+          <div style={{...serif,fontSize:11,fontWeight:700,letterSpacing:".12em",textTransform:"uppercase",color:"#8a5a1c",marginBottom:6}}>
+            Alt accounts · administrators only</div>
+          {acc.alt&&acc.altOf&&<div style={{...serif,fontSize:14,color:INK,marginBottom:myAlts.length?6:0}}>
+            This is an <b>alt</b> of <b>@{acc.altOf}</b>{acc.altCreatedBy&&acc.altCreatedBy!==acc.altOf?" (created by @"+acc.altCreatedBy+")":""}.</div>}
+          {myAlts.length>0&&<div style={{...serif,fontSize:14,color:INK}}>
+            {acc.alt?"Other a":"A"}lts linked to this account:{" "}
+            {myAlts.map((a,i)=><span key={a.username}>{i>0?", ":""}<b>{a.displayName||a.username}</b> <span style={{color:INK3}}>@{a.username}</span>{a.approved===false?<span style={{color:SEAL}}> (under review)</span>:null}</span>)}.</div>}
+        </div>}
 
         {/* three nations */}
         <div style={{display:"grid",gridTemplateColumns:"1fr",gap:14}}>
@@ -1434,7 +1514,7 @@ function VintranetApp(){
       onDirectory={()=>open({t:"directory"})}
       onProfile={()=>open({t:"profile",username:user.username})}
       onAdmin={()=>open({t:"admin"})}
-      onAlt={user?()=>setView({t:"alt"}):null}
+      onAccounts={user?()=>setView({t:"switch"}):null}
       onSignOut={()=>{forgetSession();setUser(null);setView(null);notify("You have been signed out.",true);}}/>
     {notice&&ReactDOM.createPortal(<StatelessNotice user={user} raw={raw}/>,notice)}
     {toast&&<div style={{position:"fixed",top:44,right:16,zIndex:80,maxWidth:340,...serif,fontSize:13.5,
@@ -1443,7 +1523,10 @@ function VintranetApp(){
     {view&&view.t==="signin"&&<SignIn onClose={()=>setView(null)} switchRegister={()=>setView({t:"register"})}
       onDone={acc=>{setUser(acc);setView(null);notify("Signed in as "+(acc.displayName||acc.username)+".",true);}}/>}
     {view&&view.t==="register"&&<Register onClose={()=>setView(null)} switchSignIn={()=>setView({t:"signin"})}/>}
-    {view&&view.t==="alt"&&user&&<Register altOf={user} onClose={()=>setView(null)}/>}
+    {view&&view.t==="alt"&&user&&<Register altOf={user} onClose={()=>setView({t:"switch"})}/>}
+    {view&&view.t==="switch"&&user&&<Switcher user={user} notify={notify} onClose={()=>setView(null)}
+      onCreateAlt={()=>setView({t:"alt"})}
+      onSwitched={acc=>{setUser(acc);setView(null);setRaw(null);loadRaw();notify("Signed in as "+(acc.displayName||acc.username)+".",true);}}/>}
     {view&&view.t==="admin"&&isMod(user)&&<Admin user={user} raw={raw} reload={loadRaw}
       onProfile={un=>open({t:"profile",username:un})} onClose={()=>setView(null)} notify={notify}/>}
     {view&&view.t==="directory"&&<Directory raw={raw} onOpen={un=>open({t:"profile",username:un})} onClose={()=>setView(null)}/>}
