@@ -16,7 +16,9 @@ body{background:#0b1930;color:#e8ebf2;font-family:'Crimson Text',Georgia,serif;m
 input,select,textarea{font-family:'Crimson Text',Georgia,serif;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 @keyframes pulse{0%,100%{opacity:.6;}50%{opacity:1;}}
+@keyframes spin{to{transform:rotate(360deg);}}
 .fadeIn{animation:fadeIn .3s ease both;}
+.vspin{width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .6s linear infinite;flex:none;}
 .mono{font-family:'Share Tech Mono',monospace;}
 .pf{font-family:'Playfair Display',Georgia,serif;}
 /* standing rail — identical furniture to the government portal */
@@ -218,9 +220,22 @@ if(typeof window!=="undefined"){
 }
 
 /* ── UI atoms (Vindex house style) ─────────────────────────────────────────── */
-function Btn({children,onClick,variant="primary",disabled,small,style:ex={}}){
+// Any button whose click handler returns a promise shows an inline spinner and a
+// "loading" label until it settles, and disables itself meanwhile — so a slow write
+// (the backend cold-starts) never leaves the button looking untouched or inviting a
+// second click. Synchronous handlers (tab switches, opening a modal) are unaffected.
+function Btn({children,onClick,variant="primary",disabled,small,busyLabel,style:ex={}}){
+  const [busy,setBusy]=useState(false);
+  const mounted=React.useRef(true);
+  useEffect(()=>()=>{mounted.current=false;},[]);
+  const handle=e=>{
+    if(disabled||busy||!onClick)return;
+    const r=onClick(e);
+    if(r&&typeof r.then==="function"){setBusy(true);Promise.resolve(r).catch(()=>{}).finally(()=>{if(mounted.current)setBusy(false);});}
+  };
+  const off=disabled||busy;
   const base={fontFamily:"'Playfair Display',serif",fontWeight:700,letterSpacing:"0.06em",fontSize:small?12:13,
-    padding:small?"5px 14px":"8px 20px",border:"1px solid",borderRadius:3,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.45:1,transition:"all .15s"};
+    padding:small?"5px 14px":"8px 20px",border:"1px solid",borderRadius:3,cursor:off?"not-allowed":"pointer",opacity:off?.55:1,transition:"all .15s"};
   const variants={
     primary:{background:`linear-gradient(180deg,${V.panel2},${V.navy})`,borderColor:V.lineL,color:V.text},
     gold:{background:"linear-gradient(180deg,#3d2f14,#57431f)",borderColor:"#7a6231",color:V.goldL},
@@ -229,13 +244,22 @@ function Btn({children,onClick,variant="primary",disabled,small,style:ex={}}){
     armed:{background:`linear-gradient(180deg,${V.redD},${V.red})`,borderColor:V.redD,color:"#f0d0d0"},
     ghost:{background:"transparent",borderColor:V.line,color:V.textD},
   };
-  return <button onClick={disabled?undefined:onClick} style={{...base,...(variants[variant]||variants.primary),...ex}}>{children}</button>;
+  return <button onClick={handle} disabled={off} style={{...base,...(variants[variant]||variants.primary),...ex}}>
+    {busy?<span style={{display:"inline-flex",alignItems:"center",gap:7}}><span className="vspin"/>{busyLabel||"Working…"}</span>:children}
+  </button>;
 }
-function ArmBtn({label,confirmLabel,onConfirm,small,variant}){
+// A two-step destructive button: the first press arms it (reverting after 4s), the
+// second runs the action and stays armed + busy until it settles.
+function ArmBtn({label,confirmLabel,onConfirm,small,variant,busyLabel}){
   const [a,setA]=useState(false);
-  useEffect(()=>{if(!a)return;const t=setTimeout(()=>setA(false),4000);return()=>clearTimeout(t);},[a]);
-  return a?<Btn variant="armed" small={small} onClick={()=>{setA(false);onConfirm();}}>{confirmLabel||"Confirm?"}</Btn>
-    :<Btn variant={variant||"danger"} small={small} onClick={()=>setA(true)}>{label}</Btn>;
+  const [pending,setPending]=useState(false);
+  useEffect(()=>{if(!a||pending)return;const t=setTimeout(()=>setA(false),4000);return()=>clearTimeout(t);},[a,pending]);
+  if(!a) return <Btn variant={variant||"danger"} small={small} onClick={()=>setA(true)}>{label}</Btn>;
+  return <Btn variant="armed" small={small} busyLabel={busyLabel||"Working…"} onClick={()=>{
+    const r=onConfirm&&onConfirm();
+    if(r&&typeof r.then==="function"){setPending(true);return Promise.resolve(r).catch(()=>{}).finally(()=>{setPending(false);setA(false);});}
+    setA(false);return r;
+  }}>{confirmLabel||"Confirm?"}</Btn>;
 }
 function Inp({value,onChange,placeholder,type="text",style:ex={}}){
   return <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
@@ -258,7 +282,9 @@ function STitle({children,color}){return <div style={{display:"flex",alignItems:
   <span className="pf" style={{fontWeight:700,fontSize:13,letterSpacing:"0.26em",textTransform:"uppercase",color:color||V.gold}}>{children}</span>
   <span style={{flex:1,height:1,background:`linear-gradient(90deg,${V.line},transparent)`}}/></div>;}
 function Toast({msg,color}){if(!msg)return null;return <div style={{position:"fixed",top:14,right:14,zIndex:9999,background:V.panel,border:`1px solid ${color}66`,borderLeft:`3px solid ${color}`,padding:"9px 16px",borderRadius:3,fontFamily:"'Playfair Display',serif",fontSize:12,color,maxWidth:380,animation:"fadeIn .2s ease"}}>{msg}</div>;}
-function Overlay({label}){if(!label)return null;return <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(6,12,26,.96)",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div className="mono" style={{color:V.gold,fontSize:10,letterSpacing:"0.35em",marginBottom:8,animation:"pulse 1s infinite"}}>PROCESSING</div><div className="pf" style={{fontSize:17,color:V.text}}>{label}</div></div></div>;}
+// A subtle, non-blocking "working" chip at the foot of the screen — enough to show
+// something is in flight without throwing a full-screen wall up over the page.
+function Overlay({label}){if(!label)return null;return <div style={{position:"fixed",left:"50%",bottom:18,transform:"translateX(-50%)",zIndex:99999,background:V.panel,border:`1px solid ${V.gold}66`,borderRadius:22,padding:"8px 18px",display:"flex",alignItems:"center",gap:9,boxShadow:"0 8px 26px rgba(0,0,0,.45)",animation:"fadeIn .2s ease"}}><span className="vspin" style={{color:V.gold}}/><span className="pf" style={{fontSize:13,color:V.text}}>{label}</span></div>;}
 function Seal({file,size=64,style:ex={}}){
   const [ok,setOk]=useState(true);
   if(!ok||!file)return <div style={{width:size,height:size,borderRadius:"50%",border:`2px solid ${V.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,background:V.navy,...ex}}><span className="pf" style={{fontWeight:900,fontSize:size*0.36,color:V.gold}}>★</span></div>;
@@ -415,18 +441,58 @@ function ResultView({el,result,cands,parties}){
   </div>;
 }
 
+/* A type-ahead over the Department of State's citizen register. A candidate picks
+   their running mate from the actual citizenry rather than typing a free name, so
+   the Vice-Presidential nominee is always a real person on the roll. */
+function CitizenPicker({citizens,accounts,selfUser,value,onChange,placeholder}){
+  const [q,setQ]=useState("");const [open,setOpen]=useState(false);
+  const people=useMemo(()=>{
+    const self=String(selfUser||"").toLowerCase();
+    const seen=new Set();const out=[];
+    (citizens||[]).forEach(c=>{
+      const u=String(c.username||"").toLowerCase();
+      if(!u||u===self||seen.has(u))return;
+      if(!["citizen","naturalised"].includes(String(c.status||"")))return;   // actual citizens only
+      seen.add(u);
+      const name=c.name||(accounts[u]&&(accounts[u].displayName||accounts[u].username))||u;
+      out.push({username:u,name,status:c.status});
+    });
+    return out.sort((a,b)=>a.name.localeCompare(b.name));
+  },[citizens,accounts,selfUser]);
+  const needle=q.trim().toLowerCase();
+  const matches=needle?people.filter(p=>p.name.toLowerCase().includes(needle)||p.username.includes(needle)).slice(0,8):[];
+  if(value) return <div style={{display:"flex",alignItems:"center",gap:10,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"7px 12px"}}>
+    <McFace account={{username:value.username,mcName:(accounts[value.username]||{}).mcName}} size={26}/>
+    <div style={{flex:1,minWidth:0}}><div style={{color:V.text}}>{value.name}</div><div className="mono" style={{fontSize:9,color:V.textDD}}>@{value.username}</div></div>
+    <button onClick={()=>onChange(null)} style={{background:"none",border:0,color:V.redL,cursor:"pointer",fontSize:12}}>✕ change</button>
+  </div>;
+  return <div style={{position:"relative"}} onBlur={()=>setTimeout(()=>setOpen(false),150)}>
+    <Inp value={q} onChange={v=>{setQ(v);setOpen(true);}} placeholder={placeholder||"Search citizens of Vindex by name…"}/>
+    {open&&needle&&<div style={{position:"absolute",zIndex:50,left:0,right:0,top:"100%",marginTop:4,background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,maxHeight:240,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.45)"}}>
+      {matches.length===0?<div style={{padding:"8px 12px",color:V.textDD,fontStyle:"italic",fontSize:13}}>No matching citizen on the register.</div>:
+        matches.map(p=><button key={p.username} onClick={()=>{onChange({username:p.username,name:p.name});setQ("");setOpen(false);}}
+          style={{display:"flex",alignItems:"center",gap:9,width:"100%",textAlign:"left",background:"transparent",border:0,borderBottom:`1px solid ${V.line}`,padding:"7px 12px",cursor:"pointer",color:V.text}}>
+          <McFace account={{username:p.username,mcName:(accounts[p.username]||{}).mcName}} size={24}/>
+          <span style={{flex:1,minWidth:0}}>{p.name} <span className="mono" style={{fontSize:9,color:V.textDD}}>@{p.username}</span></span>
+          <span className="mono" style={{fontSize:8,color:V.textDD}}>{(VX_CIT_LABEL[p.status]||"").toUpperCase()}</span>
+        </button>)}
+    </div>}
+  </div>;
+}
+
 /* ═══════════ STAND FOR PRESIDENT ═════════════════════════════════════════ */
-function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,notify}){
+function StandView({el,user,myCitizen,myReg,myVoid,parties,citizens,accounts,onFile,onWithdraw,notify}){
   const eligible=new Set(el.eligibility&&el.eligibility.length?el.eligibility:DEFAULT_ELIGIBLE);
   const citStatus=myCitizen&&String(myCitizen.status||"");
   const isCitizen=!!myCitizen&&eligible.has(citStatus);
-  const [name,setName]=useState(()=>(myReg&&myReg.candidateName)||(user&&(user.displayName||user.username))||"");
+  // The ballot name is NOT the candidate's to set — it is their official name, taken
+  // from their citizen record (falling back to the account's display name).
+  const forcedName=(myCitizen&&myCitizen.name)||(user&&(user.displayName||user.username))||"";
   const [bio,setBio]=useState(()=>(myReg&&myReg.bio)||"");
-  const [mate,setMate]=useState(()=>(myReg&&myReg.runningMate)||"");
+  const [mate,setMate]=useState(()=>myReg&&myReg.runningMate?{username:myReg.runningMateUser||"",name:myReg.runningMate}:null);
   const [partyMode,setPartyMode]=useState("existing");   // existing | new | independent
   const [partySlug,setPartySlug]=useState("");
   const [newParty,setNewParty]=useState({name:"",abbr:"",colour:"#c9a05a"});
-  const [busy,setBusy]=useState(false);
 
   if(!user) return <Card><div className="pf" style={{fontSize:17,color:V.text}}>Sign in to stand</div><div style={{color:V.textD,marginTop:6}}>You must sign in with your Vindex Nation account to file a nomination.</div></Card>;
 
@@ -454,10 +520,11 @@ function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,not
         <div style={{marginTop:8}}><PartyBadge party={parties[myReg.assignedParty]}/></div>
         {myReg.requestedParty&&myReg.requestedParty.new&&myReg.partyStatus!=="approved"&&
           <div className="mono" style={{fontSize:10,color:V.textDD,marginTop:6}}>REQUESTED NEW PARTY · {myReg.requestedParty.name} (awaiting the Commission)</div>}
+        {myReg.runningMate&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:6}}>RUNNING MATE · {myReg.runningMate}{myReg.runningMateUser?" (@"+myReg.runningMateUser+")":""}</div>}
         {myReg.bio&&<div style={{color:V.textD,marginTop:10,lineHeight:1.6}}>{myReg.bio}</div>}
         {st==="rejected"&&myReg.ruling&&<div style={{marginTop:10,color:V.redL,fontStyle:"italic"}}>Commission: {myReg.ruling}</div>}
         <div style={{marginTop:14,display:"flex",gap:8}}>
-          <ArmBtn label="Withdraw nomination" confirmLabel="Withdraw?" small onConfirm={async()=>{setBusy(true);const r=await onWithdraw(myReg);setBusy(false);if(!r.ok)notify(r.error,V.redL);}}/>
+          <ArmBtn label="Withdraw nomination" confirmLabel="Withdraw?" small busyLabel="Withdrawing…" onConfirm={()=>onWithdraw(myReg).then(r=>{if(!r.ok)notify(r.error,V.redL);})}/>
         </div>
       </Card>
       <div style={{color:V.textDD,fontSize:12.5,marginTop:10,fontStyle:"italic"}}>The Commission rules on every nomination. You may withdraw and refile while nominations remain open.</div>
@@ -466,16 +533,16 @@ function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,not
 
   const activeParties=Object.entries(parties).filter(([,p])=>(p.status||"active")==="active");
   const file=async()=>{
-    if(busy)return;
-    if(!name.trim()){notify("Enter the name you will appear under.",V.redL);return;}
+    if(!forcedName.trim()){notify("Your citizen record has no name on it — contact the Department of State.",V.redL);return;}
+    if(!mate||!mate.username){notify("Pick a running mate — a presidential ticket needs a Vice-Presidential nominee.",V.redL);return;}
     let requestedParty=null,independent=false;
     if(partyMode==="independent")independent=true;
     else if(partyMode==="existing"){ if(!partySlug){notify("Choose a party, or stand as an independent.",V.redL);return;} requestedParty={slug:partySlug}; }
     else { if(!newParty.name.trim()){notify("Name the party you are founding.",V.redL);return;} requestedParty={new:true,name:newParty.name.trim(),abbr:(newParty.abbr||newParty.name).trim().toUpperCase().slice(0,6),colour:newParty.colour}; }
-    setBusy(true);
-    const rec={elId:el.id,username:String(user.username).toLowerCase(),candidateName:name.trim(),bio:bio.trim(),
-      runningMate:mate.trim(),requestedParty,independent,status:"pending",partyStatus:requestedParty&&requestedParty.new?"pending":undefined,filedAt:Date.now()};
-    const r=await onFile(rec);setBusy(false);
+    const rec={elId:el.id,username:String(user.username).toLowerCase(),candidateName:forcedName.trim(),bio:bio.trim(),
+      runningMate:mate?mate.name:"",runningMateUser:mate?mate.username:undefined,
+      requestedParty,independent,status:"pending",partyStatus:requestedParty&&requestedParty.new?"pending":undefined,filedAt:Date.now()};
+    const r=await onFile(rec);
     if(r.ok)notify("Nomination filed — awaiting the Commission.",V.greenL);else notify(r.error,V.redL);
   };
   return <div className="fadeIn">
@@ -483,9 +550,19 @@ function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,not
     <Card>
       <div style={{fontSize:13.5,color:V.textD,lineHeight:1.6,marginBottom:14}}>You are an enfranchised <b style={{color:V.text}}>{VX_CIT_LABEL[citStatus]||citStatus}</b>. File your nomination below; the Federal Electoral Commission will rule on it before you appear on the ballot.</div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div><FL>Name on the ballot</FL><Inp value={name} onChange={setName} placeholder="Your name"/></div>
+        <div><FL>Name on the ballot</FL>
+          <div style={{display:"flex",alignItems:"center",gap:9,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"8px 12px"}}>
+            <McFace account={user} size={26}/>
+            <div style={{flex:1,minWidth:0}}><div style={{color:V.text,fontSize:15}}>{forcedName}</div><div className="mono" style={{fontSize:9,color:V.textDD}}>@{user.username}</div></div>
+            <span className="mono" style={{fontSize:8,color:V.textDD,letterSpacing:"0.14em"}}>🔒 FIXED</span>
+          </div>
+          <div className="mono" style={{fontSize:9.5,color:V.textDD,marginTop:5}}>Taken from your citizen record — it cannot be changed here.</div>
+        </div>
         <div><FL>Platform / statement (optional)</FL><TA value={bio} onChange={setBio} placeholder="A short statement for voters."/></div>
-        <div><FL>Running mate — Vice President (optional)</FL><Inp value={mate} onChange={setMate} placeholder="Name of your running mate"/></div>
+        <div><FL>Running mate — Vice President (required)</FL>
+          <CitizenPicker citizens={citizens} accounts={accounts} selfUser={user.username} value={mate} onChange={setMate}/>
+          <div className="mono" style={{fontSize:9.5,color:V.textDD,marginTop:5}}>A presidential ticket must name a Vice-Presidential running mate from the citizenry.</div>
+        </div>
         <div>
           <FL>Party</FL>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
@@ -503,9 +580,25 @@ function StandView({el,user,myCitizen,myReg,myVoid,parties,onFile,onWithdraw,not
           </div>}
         </div>
         {myVoid&&myVoid.kind==="hard"&&<div style={{color:V.redL,fontSize:12.5,fontStyle:"italic"}}>Note: your ballot in this election was voided and you are currently barred from voting in it.</div>}
-        <Btn variant="gold" onClick={file} disabled={busy}>{busy?"Filing…":"File nomination"}</Btn>
+        <Btn variant="gold" onClick={file} busyLabel="Filing…">File nomination</Btn>
       </div>
     </Card>
+  </div>;
+}
+
+/* A candidate shown with their face, party and running-mate ticket. */
+function TicketFaces({c,accounts,parties,size=34}){
+  const acct=u=>accounts[String(u||"").toLowerCase()]||{username:u};
+  return <div style={{display:"flex",alignItems:"center",gap:9,flex:1,minWidth:0}}>
+    <McFace account={acct(c.username)} size={size}/>
+    <div style={{minWidth:0}}>
+      <div style={{color:V.text,fontWeight:600,overflowWrap:"anywhere"}}>{c.candidateName||c.username}</div>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginTop:3,flexWrap:"wrap"}}>
+        {parties&&<PartyBadge party={parties[c.assignedParty]} small/>}
+        {c.runningMate&&<span className="mono" style={{fontSize:9,color:V.textDD,display:"inline-flex",alignItems:"center",gap:4}}>
+          <McFace account={acct(c.runningMateUser)} size={16}/> VP · {c.runningMate}</span>}
+      </div>
+    </div>
   </div>;
 }
 
@@ -515,7 +608,6 @@ function VoteView({el,user,myCitizen,cands,parties,accounts,myBallotCast,myVoid,
   const citStatus=myCitizen&&String(myCitizen.status||"");
   const isCitizen=!!myCitizen&&eligible.has(citStatus);
   const [ranked,setRanked]=useState([]);   // array of candidate usernames, best first
-  const [busy,setBusy]=useState(false);
   const barred=myVoid&&myVoid.kind==="hard";
 
   if(!user) return <Card><div className="pf" style={{fontSize:17,color:V.text}}>Sign in to vote</div><div style={{color:V.textD,marginTop:6}}>You must sign in with your Vindex Nation account to cast a ballot.</div></Card>;
@@ -536,15 +628,17 @@ function VoteView({el,user,myCitizen,cands,parties,accounts,myBallotCast,myVoid,
   if(barred)
     return <Card accent={V.redD}><div className="pf" style={{fontSize:18,color:V.redL}}>You may not vote in this election</div>
       <div style={{color:V.textD,marginTop:8,lineHeight:1.7}}>A previous ballot of yours in this election was voided and you were barred from voting in it again.{myVoid.reason&&<> Reason given: <i>{myVoid.reason}</i></>} If you believe this is in error, contact the Commission.</div></Card>;
+  if(cands.length===0)
+    return <Card accent={V.textDD}><div className="pf" style={{fontSize:17,color:V.text}}>No candidates on the ballot</div>
+      <div style={{color:V.textD,marginTop:6,lineHeight:1.6}}>The poll is open, but the Commission has not yet admitted any candidates to the ballot. Check back shortly.</div></Card>;
 
   const pool=cands.filter(c=>!ranked.includes(c.username));
-  const nameOf=u=>{const c=cands.find(c=>c.username===u);return c?(c.candidateName||c.username):u;};
+  const candOf=u=>cands.find(c=>c.username===u);
+  const nameOf=u=>{const c=candOf(u);return c?(c.candidateName||c.username):u;};
   const move=(i,dir)=>{setRanked(r=>{const n=[...r];const j=i+dir;if(j<0||j>=n.length)return n;[n[i],n[j]]=[n[j],n[i]];return n;});};
   const cast=async()=>{
-    if(busy)return;
     if(ranked.length===0){notify("Rank at least one candidate.",V.redL);return;}
-    setBusy(true);
-    const r=await onCast(myCitizen,ranked);setBusy(false);
+    const r=await onCast(myCitizen,ranked);
     if(r.ok)notify("Ballot cast. Thank you for voting.",V.greenL);else notify(r.error,V.redL);
   };
   return <div className="fadeIn">
@@ -556,26 +650,25 @@ function VoteView({el,user,myCitizen,cands,parties,accounts,myBallotCast,myVoid,
         <div>
           <FL>Your ranking</FL>
           {ranked.length===0?<div style={{color:V.textDD,fontStyle:"italic",fontSize:13,padding:"10px 0"}}>Add candidates from the right.</div>:
-            ranked.map((u,i)=><div key={u} style={{display:"flex",alignItems:"center",gap:8,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"6px 10px",marginBottom:6}}>
-              <span className="pf" style={{fontWeight:700,color:V.goldL,width:20}}>{i+1}</span>
-              <span style={{flex:1,color:V.text}}>{nameOf(u)}</span>
+            ranked.map((u,i)=>{const c=candOf(u);return <div key={u} style={{display:"flex",alignItems:"center",gap:8,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,padding:"6px 10px",marginBottom:6}}>
+              <span className="pf" style={{fontWeight:700,color:V.goldL,width:20,flex:"none"}}>{i+1}</span>
+              {c?<TicketFaces c={c} accounts={accounts} parties={parties} size={30}/>:<span style={{flex:1,color:V.text}}>{nameOf(u)}</span>}
               <button onClick={()=>move(i,-1)} disabled={i===0} style={{background:"none",border:0,color:i===0?V.textDD:V.textD,cursor:"pointer",fontSize:14}}>▲</button>
               <button onClick={()=>move(i,1)} disabled={i===ranked.length-1} style={{background:"none",border:0,color:i===ranked.length-1?V.textDD:V.textD,cursor:"pointer",fontSize:14}}>▼</button>
               <button onClick={()=>setRanked(r=>r.filter(x=>x!==u))} style={{background:"none",border:0,color:V.redL,cursor:"pointer",fontSize:14}}>✕</button>
-            </div>)}
+            </div>;})}
         </div>
         <div>
           <FL>Candidates</FL>
           {pool.length===0?<div style={{color:V.textDD,fontStyle:"italic",fontSize:13,padding:"10px 0"}}>All ranked.</div>:
             pool.map(c=><button key={c.username} onClick={()=>setRanked(r=>[...r,c.username])}
               style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",background:V.panel,border:`1px solid ${V.line}`,borderRadius:3,padding:"6px 10px",marginBottom:6,cursor:"pointer",color:V.text}}>
-              <span style={{fontSize:16,color:V.goldL}}>＋</span>
-              <span style={{flex:1}}>{c.candidateName||c.username}</span>
-              <PartyBadge party={parties[c.assignedParty]} small/></button>)}
+              <span style={{fontSize:16,color:V.goldL,flex:"none"}}>＋</span>
+              <TicketFaces c={c} accounts={accounts} parties={parties} size={30}/></button>)}
         </div>
       </div>
       <div style={{marginTop:16,display:"flex",justifyContent:"flex-end"}}>
-        <ArmBtn label="Cast my ballot" confirmLabel="Confirm — this is final" variant="gold" onConfirm={cast}/>
+        <ArmBtn label="Cast my ballot" confirmLabel="Confirm — this is final" variant="gold" busyLabel="Casting…" onConfirm={cast}/>
       </div>
     </Card>
   </div>;
@@ -671,7 +764,7 @@ function ElectionEditor({el,onClose,onSave}){
         </div>
       </div>
       <div style={{display:"flex",gap:8,marginTop:6}}>
-        <Btn variant="gold" onClick={()=>{if(!f.title.trim())return;onSave({...el,new:undefined,title:f.title.trim(),nomClose:f.nomClose,pollOpen:f.pollOpen,pollClose:f.pollClose,eligibility:f.eligibility.length?f.eligibility:[...DEFAULT_ELIGIBLE]});}}>Save</Btn>
+        <Btn variant="gold" busyLabel="Saving…" onClick={()=>{if(!f.title.trim())return;return onSave({...el,new:undefined,title:f.title.trim(),nomClose:f.nomClose,pollOpen:f.pollOpen,pollClose:f.pollClose,eligibility:f.eligibility.length?f.eligibility:[...DEFAULT_ELIGIBLE]});}}>Save</Btn>
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
       </div>
     </div>
@@ -680,32 +773,49 @@ function ElectionEditor({el,onClose,onSave}){
 
 function FECNominations({el,raw,parties,accounts,reloadAll,notify,setProcessing}){
   const regs=useMemo(()=>Object.keys(raw).filter(k=>k.indexOf("vx_el_reg_"+el.id+"_")===0).map(k=>({...raw[k],_key:k})),[raw,el.id]);
+  // Ruling on the nomination itself — admit to or reject from the ballot. This no
+  // longer touches parties: party recognition is its own decision, below.
   const rule=async(reg,patch)=>{
     setProcessing("Recording ruling…");
-    let partyMap=raw["vx_el_parties"]||{};
-    let assignedParty=patch.assignedParty!==undefined?patch.assignedParty:reg.assignedParty;
-    // Approving a candidate who requested a NEW party recognises that party now.
-    if(patch.status==="approved"&&reg.requestedParty&&reg.requestedParty.new&&reg.partyStatus!=="approved"){
-      const slug=slugify(reg.requestedParty.name);
-      partyMap={...partyMap,[slug]:{name:reg.requestedParty.name,abbr:reg.requestedParty.abbr||reg.requestedParty.name.toUpperCase().slice(0,6),colour:reg.requestedParty.colour||V.gold,status:"active",founder:reg.username,foundedAt:Date.now()}};
-      const pr=await sset("vx_el_parties",partyMap);
-      if(!pr.ok){setProcessing(null);notify(pr.error,V.redL);return;}
-      assignedParty=slug;patch.partyStatus="approved";
-    } else if(patch.status==="approved"&&reg.requestedParty&&reg.requestedParty.slug&&assignedParty===undefined){
-      assignedParty=reg.requestedParty.slug;
-    }
-    const next={...reg,...patch,assignedParty};delete next._key;
+    const next={...reg,...patch};delete next._key;
     const r=await sset(reg._key,next);
     setProcessing(null);
     if(r.ok){await reloadAll();notify("Ruling recorded.",V.greenL);}else notify(r.error,V.redL);
   };
+  // Recognising a requested NEW party — a separate act from admitting the candidate
+  // to the ballot (a candidate may be admitted while their party is still pending,
+  // and a party may be approved without the candidate being on the ballot). The
+  // approved party is entered on the register and assigned to this candidate.
+  const approveParty=async(reg)=>{
+    if(!(reg.requestedParty&&reg.requestedParty.new)){notify("No new party was requested on this nomination.",V.redL);return;}
+    setProcessing("Recognising party…");
+    const slug=slugify(reg.requestedParty.name);
+    const partyMap={...(raw["vx_el_parties"]||{}),[slug]:{name:reg.requestedParty.name,abbr:reg.requestedParty.abbr||reg.requestedParty.name.toUpperCase().slice(0,6),colour:reg.requestedParty.colour||V.gold,status:"active",founder:reg.username,foundedAt:Date.now()}};
+    const pr=await sset("vx_el_parties",partyMap);
+    if(!pr.ok){setProcessing(null);notify(pr.error,V.redL);return;}
+    const next={...reg,partyStatus:"approved",assignedParty:slug};delete next._key;
+    const r=await sset(reg._key,next);
+    setProcessing(null);
+    if(r.ok){await reloadAll();notify("Party recognised — "+reg.requestedParty.name+".",V.greenL);}else notify(r.error,V.redL);
+  };
+  const denyParty=async(reg)=>{
+    setProcessing("Denying party…");
+    const next={...reg,partyStatus:"denied",assignedParty:undefined};delete next._key;
+    const r=await sset(reg._key,next);
+    setProcessing(null);
+    if(r.ok){await reloadAll();notify("Party denied — candidate stands with no party unless reassigned.",V.textD);}else notify(r.error,V.redL);
+  };
   const del=async(reg)=>{setProcessing("Removing nomination…");await sdel(reg._key);setProcessing(null);await reloadAll();notify("Nomination removed.",V.textD);};
   if(regs.length===0)return <Empty>No nominations have been filed for this election.</Empty>;
+  const activeParties=Object.entries(parties).filter(([,p])=>(p.status||"active")==="active");
   return <div>
     {regs.sort((a,b)=>(a.filedAt||0)-(b.filedAt||0)).map(reg=>{
-      const st=reg.status||"pending";const col=st==="approved"?V.greenL:st==="rejected"?V.redL:V.goldL;
-      const activeParties=Object.entries(parties).filter(([,p])=>(p.status||"active")==="active");
-      return <div key={reg._key} style={{background:V.panel,border:`1px solid ${V.line}`,borderLeft:`3px solid ${col}`,borderRadius:"0 3px 3px 0",padding:"0.9rem 1.1rem",marginBottom:10}}>
+      const st=reg.status||"pending";const admitted=st==="approved";
+      const col=admitted?V.greenL:st==="rejected"?V.redL:V.goldL;
+      const ps=reg.partyStatus;
+      const mateAcct=accounts[String(reg.runningMateUser||"").toLowerCase()];
+      return <div key={reg._key} style={{background:admitted?"rgba(99,199,77,.09)":V.panel,border:`1px solid ${admitted?V.greenL+"88":V.line}`,borderLeft:`3px solid ${col}`,borderRadius:"0 3px 3px 0",padding:"0.9rem 1.1rem",marginBottom:10}}>
+        {admitted&&<div className="mono" style={{fontSize:9,letterSpacing:"0.2em",color:V.greenL,marginBottom:9}}>✓ ADMITTED — ON THE BALLOT</div>}
         <div style={{display:"flex",justifyContent:"space-between",gap:10,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <McFace account={accounts[reg.username]||{username:reg.username}} size={34}/>
@@ -714,17 +824,34 @@ function FECNominations({el,raw,parties,accounts,reloadAll,notify,setProcessing}
           </div>
           <PartyBadge party={parties[reg.assignedParty]}/>
         </div>
-        {reg.requestedParty&&reg.requestedParty.new&&<div className="mono" style={{fontSize:10,color:V.goldL,marginTop:7}}>⬥ REQUESTS NEW PARTY · {reg.requestedParty.name} ({reg.requestedParty.abbr})</div>}
-        {reg.requestedParty&&reg.requestedParty.slug&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>REQUESTED PARTY · {(parties[reg.requestedParty.slug]||{}).name||reg.requestedParty.slug}</div>}
+        {reg.runningMate&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:8,display:"flex",alignItems:"center",gap:5}}>RUNNING MATE · <McFace account={mateAcct||{username:reg.runningMateUser}} size={16}/> {reg.runningMate}{reg.runningMateUser?" (@"+reg.runningMateUser+")":""}</div>}
         {reg.independent&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>STANDS AS INDEPENDENT</div>}
+        {reg.requestedParty&&reg.requestedParty.slug&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:7}}>REQUESTED PARTY · {(parties[reg.requestedParty.slug]||{}).name||reg.requestedParty.slug}</div>}
         {reg.bio&&<div style={{color:V.textD,marginTop:8,fontSize:13,lineHeight:1.55}}>{reg.bio}</div>}
-        {reg.runningMate&&<div className="mono" style={{fontSize:10,color:V.textDD,marginTop:6}}>RUNNING MATE · {reg.runningMate}</div>}
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12,alignItems:"center"}}>
+
+        {reg.requestedParty&&reg.requestedParty.new&&<div style={{marginTop:11,background:V.bg2,border:`1px solid ${ps==="approved"?V.greenL+"66":ps==="denied"?V.redD:V.goldL+"55"}`,borderRadius:3,padding:"9px 11px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span style={{width:11,height:11,borderRadius:"50%",background:reg.requestedParty.colour||V.gold,flex:"none"}}/>
+            <div style={{flex:1,minWidth:0}}><span className="pf" style={{color:V.text,fontWeight:700}}>{reg.requestedParty.name}</span> <span className="mono" style={{fontSize:9,color:V.textDD}}>({reg.requestedParty.abbr})</span></div>
+            <span className="mono" style={{fontSize:8.5,letterSpacing:"0.14em",color:ps==="approved"?V.greenL:ps==="denied"?V.redL:V.goldL}}>NEW PARTY · {(ps||"pending").toUpperCase()}</span>
+          </div>
+          <div style={{display:"flex",gap:6,marginTop:9,flexWrap:"wrap"}}>
+            {ps!=="approved"&&<Btn small variant="green" onClick={()=>approveParty(reg)}>Approve party</Btn>}
+            {ps!=="approved"&&ps!=="denied"&&<Btn small variant="danger" onClick={()=>denyParty(reg)}>Deny party</Btn>}
+            {ps==="approved"&&<ArmBtn label="Revoke recognition" confirmLabel="Revoke?" small variant="ghost" onConfirm={()=>denyParty(reg)}/>}
+            {ps==="denied"&&<Btn small variant="ghost" onClick={()=>approveParty(reg)}>Reconsider & approve</Btn>}
+          </div>
+        </div>}
+
+        <div style={{height:1,background:V.line,margin:"12px 0"}}/>
+        <div className="mono" style={{fontSize:8.5,letterSpacing:"0.14em",color:V.textDD,marginBottom:7}}>BALLOT ADMISSION &amp; PARTY ASSIGNMENT</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           <div style={{minWidth:180,flex:"0 1 220px"}}>
             <Sel value={reg.assignedParty||""} onChange={v=>rule(reg,{assignedParty:v||undefined})}
-              options={[{v:"",l:"— Independent —"},...activeParties.map(([slug,p])=>({v:slug,l:p.name}))]}/>
+              options={[{v:"",l:"— No party (Independent) —"},...activeParties.map(([slug,p])=>({v:slug,l:p.name}))]}/>
           </div>
-          <Btn small variant="green" onClick={()=>rule(reg,{status:"approved"})}>Admit to ballot</Btn>
+          {!admitted&&<Btn small variant="green" onClick={()=>rule(reg,{status:"approved"})}>Admit to ballot</Btn>}
+          {admitted&&<ArmBtn label="Remove from ballot" confirmLabel="Remove?" small variant="ghost" onConfirm={()=>rule(reg,{status:"pending"})}/>}
           <Btn small variant="danger" onClick={()=>rule(reg,{status:"rejected"})}>Reject</Btn>
           <ArmBtn label="Delete" confirmLabel="Delete?" small onConfirm={()=>del(reg)}/>
         </div>
@@ -765,7 +892,7 @@ function PartyEditor({party,onClose,onSave}){
         <div><FL>Colour</FL><input type="color" value={f.colour} onChange={e=>setF(p=>({...p,colour:e.target.value}))} style={{width:"100%",height:38,background:V.bg2,border:`1px solid ${V.line}`,borderRadius:3,cursor:"pointer"}}/></div>
       </div>
       <div style={{display:"flex",gap:8,marginTop:4}}>
-        <Btn variant="gold" onClick={()=>{if(!f.name.trim())return;const slug=party.slug||slugify(f.name);onSave(slug,{name:f.name.trim(),abbr:(f.abbr||f.name).trim().toUpperCase().slice(0,6),colour:f.colour,status:"active",founder:party.founder,foundedAt:party.foundedAt||Date.now()});}}>Save</Btn>
+        <Btn variant="gold" busyLabel="Saving…" onClick={()=>{if(!f.name.trim())return;const slug=party.slug||slugify(f.name);return onSave(slug,{name:f.name.trim(),abbr:(f.abbr||f.name).trim().toUpperCase().slice(0,6),colour:f.colour,status:"active",founder:party.founder,foundedAt:party.foundedAt||Date.now()});}}>Save</Btn>
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
       </div>
     </div>
@@ -810,10 +937,10 @@ function FECBallots({el,raw,citizens,accounts,reloadAll,notify,setProcessing}){
         {v.reason&&<div style={{color:V.textD,fontStyle:"italic",marginTop:6,fontSize:13}}>“{v.reason}”</div>}
         {v.byName&&<div className="mono" style={{fontSize:9,color:V.textDD,marginTop:4}}>BY {v.byName}</div>}
       </div>)}
-    {voiding&&<VoidModal b={voiding} onClose={()=>setVoiding(null)} onVoid={doVoid} citName={citName}/>}
+    {voiding&&<VoidModal b={voiding} onClose={()=>setVoiding(null)} onVoid={doVoid} citName={citName} notify={notify}/>}
   </div>;
 }
-function VoidModal({b,onClose,onVoid,citName}){
+function VoidModal({b,onClose,onVoid,citName,notify}){
   const [kind,setKind]=useState("soft");const [reason,setReason]=useState("");
   return <Modal title="Void a ballot" onClose={onClose}>
     <div style={{color:V.textD,marginBottom:12,lineHeight:1.6}}>Striking the ballot of <b style={{color:V.text}}>{b.citizenName||citName(b.citizenId)}</b>. The elector is shown the reason.</div>
@@ -824,7 +951,7 @@ function VoidModal({b,onClose,onVoid,citName}){
     <FL>Reason (shown to the elector)</FL>
     <TA value={reason} onChange={setReason} placeholder="Why this ballot is being voided."/>
     <div style={{display:"flex",gap:8,marginTop:14}}>
-      <Btn variant={kind==="hard"?"armed":"gold"} onClick={()=>{if(!reason.trim())return;onVoid(b.citizenId,kind,reason.trim());}}>{kind==="hard"?"Void & bar":"Void ballot"}</Btn>
+      <Btn variant={kind==="hard"?"armed":"gold"} busyLabel={kind==="hard"?"Barring…":"Voiding…"} onClick={()=>{if(!reason.trim()){notify&&notify("Give a reason.",V.redL);return;}return onVoid(b.citizenId,kind,reason.trim());}}>{kind==="hard"?"Void & bar":"Void ballot"}</Btn>
       <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
     </div>
   </Modal>;
@@ -872,13 +999,12 @@ function FECCount({el,raw,parties,citizens,reloadAll,notify,setProcessing}){
 
 /* ── sign-in modal ─────────────────────────────────────────────────────────── */
 function AuthModal({onClose,onAuth}){
-  const [u,setU]=useState("");const [p,setP]=useState("");const [err,setErr]=useState("");const [busy,setBusy]=useState(false);
+  const [u,setU]=useState("");const [p,setP]=useState("");const [err,setErr]=useState("");
   const go=async()=>{
-    if(busy)return;
     if(!u.trim()||!p){setErr("Enter your credentials.");return;}
-    setBusy(true);setErr("");
+    setErr("");
     const res=await slogin(u,p);
-    if(!res.ok){setErr(res.error==="ACCESS DENIED"?"Credentials rejected.":res.error);setBusy(false);return;}
+    if(!res.ok){setErr(res.error==="ACCESS DENIED"?"Credentials rejected.":res.error);return;}
     onAuth(res.account);
   };
   return <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,zIndex:9000,background:"rgba(5,10,22,.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem"}}>
@@ -893,7 +1019,7 @@ function AuthModal({onClose,onAuth}){
         <div><FL>Username</FL><Inp value={u} onChange={setU} placeholder="Username"/></div>
         <div><FL>Password</FL><Inp value={p} onChange={setP} type="password" placeholder="Password"/></div>
         {err&&<div className="mono" style={{fontSize:10,color:V.redL,background:"#2a1215",border:`1px solid ${V.redD}66`,padding:"7px 12px",borderRadius:2}}>{err}</div>}
-        <Btn variant="gold" onClick={go} disabled={busy}>{busy?"Verifying…":"Sign In"}</Btn>
+        <Btn variant="gold" onClick={go} busyLabel="Verifying…">Sign In</Btn>
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
       </div>
     </div>
@@ -1018,7 +1144,7 @@ function App(){
         {loaded&&!current&&tab!=="fec"&&<Card><div className="pf" style={{fontSize:18,color:V.text}}>No election is scheduled</div>
           <div style={{color:V.textD,marginTop:8,lineHeight:1.6}}>The Federal Electoral Commission has not opened a presidential election yet. Check back when one is called.</div></Card>}
         {loaded&&current&&tab==="board"&&<BoardView el={current} cands={cands} parties={parties} accounts={accounts} tally={tally} result={result} enfranchised={enfranchised}/>}
-        {loaded&&current&&tab==="stand"&&<StandView el={current} user={user} myCitizen={myCitizen} myReg={myReg} myVoid={myVoid} parties={parties} onFile={onFile} onWithdraw={onWithdraw} notify={notify}/>}
+        {loaded&&current&&tab==="stand"&&<StandView el={current} user={user} myCitizen={myCitizen} myReg={myReg} myVoid={myVoid} parties={parties} citizens={citizenRecords} accounts={accounts} onFile={onFile} onWithdraw={onWithdraw} notify={notify}/>}
         {loaded&&current&&tab==="vote"&&<VoteView el={current} user={user} myCitizen={myCitizen} cands={cands} parties={parties} accounts={accounts} myBallotCast={myBallotCast} myVoid={myVoid} onCast={onCast} notify={notify}/>}
         {loaded&&fec&&tab==="fec"&&<FECView raw={raw} elections={elections} selEl={current} setSelEl={setSelElId} parties={parties} accounts={accounts} citizens={citizenRecords} reloadAll={reloadAll} notify={notify} setProcessing={setProcessing}/>}
       </div>

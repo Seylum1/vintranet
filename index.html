@@ -454,6 +454,11 @@ const NATION_CHOICES=[
   {v:"wilden",short:"Wilden",l:"Wilden",                   color:"#7d1a22",service:"wmfa.html", office:"the Ministry of Foreign Affairs"},
 ];
 const nationOf=v=>NATION_CHOICES.find(n=>n.v===v)||null;
+// Each nation's citizenship register, and the id prefix its records use — so the
+// administrator can enter a citizen directly when admitting an account, bypassing
+// the nation's ministry. The ministry is told after the fact by an acknowledgement
+// notice (the record carries adminGranted/acknowledged flags it reads).
+const CIT_REGISTER={vindex:{key:"vx_state_citizens",prefix:"cit_"},lech:{key:"mfa_citizens",prefix:"cit_"},wilden:{key:"wx_state_citizens",prefix:"wcit_"}};
 // Holding a nationality, as the three registers record it. Residence and the
 // registered-alien categories are not nationality; a revoked or renounced record
 // is the loss of one. Anything else leaves a person stateless.
@@ -853,6 +858,30 @@ function PendingRow({acc,user,notify,reload}){
     if(res.ok){notify(approve?((acc.displayName||acc.username)+" admitted to the network."):"Registration rejected and removed.",true);reload();}
     else notify(res.error||"Refused.",false);
   };
+  // The nation named at registration, if any — what a direct citizenship grant goes to.
+  const grantCountry=(acc.citizenshipRequest||{}).country;
+  const grantNation=nationOf(grantCountry);
+  // Admit the account AND enter them on their named nation's register at once,
+  // bypassing the ministry's request queue. The register record is flagged
+  // adminGranted/acknowledged so the ministry sees an acknowledgement notice rather
+  // than a pending request; the account's own request is closed as "granted".
+  const grant=async()=>{
+    const reg=CIT_REGISTER[grantCountry];
+    if(!reg)return;
+    setBusy(true);
+    const nm=acc.displayName||acc.username;
+    const today=new Date().toISOString().slice(0,10);
+    const rid=reg.prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+    const citRes=await saveRecord(reg.key,{id:rid,username:acc.username,name:nm,nationality:"",status:"citizen",
+      since:today,notes:"Citizenship granted directly by the network administrator on admission.",
+      adminGranted:true,acknowledged:false,grantedBy:user.username,grantedAt:Date.now()});
+    if(!citRes.ok){setBusy(false);notify(citRes.error||"The register could not be written.",false);return;}
+    const accRes=await saveRecord("accounts",{...acc,approved:true,approvedAt:Date.now(),approvedBy:user.username,
+      citizenshipRequest:{...(acc.citizenshipRequest||{}),status:"granted",decidedAt:Date.now(),decidedBy:user.username}});
+    setBusy(false);
+    if(accRes.ok){notify(nm+" admitted and granted "+grantNation.short+" citizenship.",true);reload();}
+    else notify(accRes.error||"Admitted, but the account could not be updated.",false);
+  };
   return <div style={{border:`1px solid ${RULE}`,borderLeft:`4px solid ${SEAL}`,background:"#fffdf8",
     marginBottom:6,padding:"10px 14px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
     <img src={mcFaceUrl(acc.mcName||acc.username)} alt="" width={34} height={34}
@@ -873,7 +902,10 @@ function PendingRow({acc,user,notify,reload}){
       title="Primary citizenship named at registration">{nationOf(acc.citizenshipRequest.country).short}</span>}
     <span style={{flex:1}}/>
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-      <Btn small kind="seal" disabled={busy} onClick={()=>decide(true)}>Approve</Btn>
+      {grantNation&&<Btn small kind="seal" disabled={busy} onClick={grant}
+        title={"Admit and grant "+grantNation.l+" citizenship directly, bypassing "+grantNation.office}>
+        {busy?"Working…":"Approve & grant "+grantNation.short+" citizenship"}</Btn>}
+      <Btn small kind={grantNation?"ghost":"seal"} disabled={busy} onClick={()=>decide(true)}>{grantNation?"Approve only":"Approve"}</Btn>
       {armed
         ?<Btn small kind="danger" disabled={busy} onClick={()=>{setArmed(false);decide(false);}}>Confirm rejection</Btn>
         :<Btn small kind="ghost" disabled={busy} onClick={()=>setArmed(true)}>Reject</Btn>}

@@ -1086,6 +1086,30 @@ function PanelPassports({passports,visas,accounts,citizens,onAction,notify,setPr
     </div>
   </div>;
 }
+// Citizenships the network administrator granted directly on admission, bypassing
+// the Department's queue. The record is already on the register; this is only a
+// notice the Department must acknowledge so the grant does not pass unseen.
+function AdminGrantNotices({citizens,onAction,notify,setProcessing}){
+  const pending=Object.values(citizens||{}).filter(c=>c&&c.adminGranted&&!c.acknowledged)
+    .sort((a,b)=>(a.grantedAt||0)-(b.grantedAt||0));
+  if(pending.length===0)return null;
+  const ack=async(c)=>{setProcessing("Acknowledging…");await onAction("updateCitizen",{id:c.id,acknowledged:true,acknowledgedAt:Date.now()});setProcessing(null);notify("Acknowledged "+(c.name||c.username)+".",V.greenL);};
+  return <div style={{background:"#0d2016",border:`1px solid ${V.green}66`,borderLeft:`3px solid ${V.greenL}`,
+    borderRadius:"0 3px 3px 0",padding:"1rem 1.1rem",marginBottom:"1.3rem"}}>
+    <div className="mono" style={{fontSize:9,color:V.greenL,letterSpacing:"0.12em",marginBottom:"0.5rem"}}>
+      ADMINISTRATOR-GRANTED CITIZENSHIP — ACKNOWLEDGE ({pending.length})</div>
+    <div style={{fontSize:12.5,color:V.textD,fontStyle:"italic",lineHeight:1.6,marginBottom:"0.85rem"}}>
+      The network administrator granted these citizenships directly on admission. They are already on the
+      register below — acknowledge each so the Department has seen it.</div>
+    {pending.map((c,i)=><div key={c.id} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",
+      padding:"0.55rem 0",borderBottom:i<pending.length-1?`1px solid ${V.line}`:"none"}}>
+      <span className="pf" style={{fontWeight:700,fontSize:14,color:V.text}}>{c.name||c.username}</span>
+      {c.username&&<span className="mono" style={{fontSize:10,color:V.textD}}>@{c.username}</span>}
+      <span className="mono" style={{fontSize:9,color:V.textDD,flex:1}}>granted by {c.grantedBy||"admin"}{c.grantedAt?" · "+fmtDate(c.grantedAt):""}</span>
+      <Btn small variant="green" onClick={()=>ack(c)}>Acknowledge</Btn>
+    </div>)}
+  </div>;
+}
 function PanelCitizenship({citizens,accounts,onAction,notify,setProcessing}){
   const [acct,setAcct]=useState("");const [name,setName]=useState("");const [username,setUsername]=useState("");const [nationality,setNationality]=useState("");const [status,setStatus]=useState("citizen");const [since,setSince]=useState(new Date().toISOString().slice(0,10));const [notes,setNotes]=useState("");const [saving,setSaving]=useState(false);
   const list=Object.values(citizens||{}).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
@@ -1098,6 +1122,7 @@ function PanelCitizenship({citizens,accounts,onAction,notify,setProcessing}){
       <NewAccountRequests accounts={accounts} citizens={citizens}
         onAction={onAction} notify={notify} setProcessing={setProcessing}/>
     </div>
+    <AdminGrantNotices citizens={citizens} onAction={onAction} notify={notify} setProcessing={setProcessing}/>
     {claims.length>0&&<div style={{background:"#241c08",border:`1px solid ${V.gold}44`,borderLeft:`3px solid ${V.gold}`,borderRadius:"0 3px 3px 0",padding:"1rem 1.1rem",margin:"0.8rem 0"}}>
       <div className="mono" style={{fontSize:9,color:V.goldL,letterSpacing:"0.1em",marginBottom:"0.7rem"}}>PENDING ACCOUNT CLAIMS ({claims.length})</div>
       {claims.map(c=><div key={c.id} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",padding:"0.5rem 0",borderBottom:`1px solid ${V.line}`}}>

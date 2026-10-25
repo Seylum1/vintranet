@@ -1,0 +1,2126 @@
+// Empire of Lech — intranet backend (MongoDB)
+// Step 2: prove the DB pipe (/health) + one-time data import from Sheets.
+// Logins, per-record rules, and data endpoints come next.
+//
+// The database key is read from a private setting (MONGODB_URI) in Render.
+// It is NEVER written in this file or in GitHub.
+
+const express = require("express");
+const cors = require("cors");
+const crypto = require("crypto");
+const { MongoClient } = require("mongodb");
+
+const app = express();
+app.set("trust proxy", true);   // Render sits behind a proxy; needed for real client IPs
+// Lock browser access to your site once its final URL is known: set ALLOWED_ORIGIN
+// in Render (e.g. https://you.github.io, comma-separated for several). Writes need
+// a token regardless, so this is defence-in-depth. Defaults to open if unset.
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
+app.use(cors({ origin: ALLOWED_ORIGIN === "*" ? true : ALLOWED_ORIGIN.split(",").map(s => s.trim()) }));
+app.use(express.json({ limit: "8mb" }));
+
+const uri = process.env.MONGODB_URI;
+if (!uri) {
+  console.error("Missing MONGODB_URI. Set it in Render's Environment settings.");
+  process.exit(1);
+}
+const ADMIN_KEY = process.env.ADMIN_KEY || "";
+
+// The two existing Sheets backends (the same public URLs already in your HTML).
+const SOURCES = {
+  moi: "https://script.google.com/macros/s/AKfycbxLu8jQehAZJEvMEeCLoHc9S2C4FM8o9fQh8Pp4gMzDNwwIG0S9qLJ5-1gyGM1c_InUfQ/exec",
+  bk:  "https://script.google.com/macros/s/AKfycbz37c5Okp9c7PkXv38x2lq7Is3RifkJPee5ASb2KQfA7EJgsN0NwrigmiRr1a_G0E6d4Q/exec",
+};
+
+const client = new MongoClient(uri);
+let db = null;
+
+app.get("/", (req, res) => res.type("text").send("Lech backend is running. Try /health"));
+
+app.get("/health", async (req, res) => {
+  try { await db.command({ ping: 1 }); res.json({ ok: true, db: "connected" }); }
+  catch (e) { res.status(500).json({ ok: false, db: "error", error: e.message }); }
+});
+
+// A well-formed Minecraft name (3–16 of letters/digits/underscore). Format is
+// checked first; existence is then confirmed live against Mojang below.
+const MC_NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
+// Confirms the name belongs to a real Minecraft account and returns its canonical
+// spelling + UUID (used for the default avatar). Any network trouble is reported
+// as "error" so registration fails closed rather than accepting an unverified name.
+async function verifyMinecraftName(name) {
+  try {
+    const r = await fetch("https://api.mojang.com/users/profiles/minecraft/" + encodeURIComponent(name));
+    if (r.status === 200) { const d = await r.json(); if (d && d.id) return { ok: true, uuid: d.id, name: d.name || name }; return { ok: false, reason: "not_found" }; }
+    if (r.status === 204 || r.status === 404) return { ok: false, reason: "not_found" };
+    return { ok: false, reason: "error" };
+  } catch (e) { return { ok: false, reason: "error" }; }
+}
+
+// ── LOGIN & SESSIONS ───────────────────────────────────────────────────────────
+// Verifies against the hashes carried over from the old system (salted or legacy
+// unsalted SHA-256), so everyone's existing password keeps working. Issues a
+// random session token stored in Mongo with a 12-hour life.
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+function sha256hex(s) { return crypto.createHash("sha256").update(String(s), "utf8").digest("hex"); }
+function verifyPassword(acc, pw) {
+  if (!acc || !acc.passwordHash) return false;
+  if (acc.salt) return acc.passwordHash === sha256hex(acc.salt + ":" + pw);
+  return acc.passwordHash === sha256hex(pw);
+}
+function sanitizeAccount(a) { if (!a) return a; const { passwordHash, salt, ...rest } = a; return rest; }
+
+// ── MASTER PASSWORD (Emperor override) ───────────────────────────────────────
+// A single Imperial override the Emperor sets from the panel: entered with any
+// real account's username, it signs in as that account. It is stored ONLY as a
+// salted hash in the `secrets` collection, which is never handed out by any
+// read endpoint (see /api/data and /api/collection) — so it can't be pulled
+// through the API or reconstructed from the browser. There is no way to read it
+// back; it can only be re-set or cleared.
+async function getMasterSecret() {
+  try { return await db.collection("secrets").findOne({ _id: "master_password" }); }
+  catch (e) { return null; }
+}
+function verifyMasterPassword(secret, pw) {
+  if (!secret || !secret.passwordHash || !pw) return false;
+  return secret.passwordHash === sha256hex(String(secret.salt || "") + ":" + pw);
+}
+
+async function actorFromReq(req) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : (req.query.token || (req.body && req.body.token) || "");
+  if (!token) return null;
+  const s = await db.collection("sessions").findOne({ _id: token });
+  if (!s || !s.exp || s.exp < Date.now()) { if (s) await db.collection("sessions").deleteOne({ _id: token }); return null; }
+  const acc = await db.collection("accounts").findOne({ _id: s.username });
+  // A banned account is locked out at once: its session is destroyed the moment
+  // it is used again, so a ban takes effect without waiting for a sign-out. An
+  // account awaiting review carries no authority either.
+  if (acc && (acc.banned || acc.approved === false)) {
+    await db.collection("sessions").deleteMany({ username: acc._id });
+    return null;
+  }
+  return acc;
+}
+
+// Brute-force throttle: too many wrong guesses from one IP+username locks that
+// pair out for a cool-down. In-memory (resets on redeploy), which is plenty for
+// slowing an online guessing attack.
+const LOGIN_FAILS = new Map();
+const MAX_FAILS = 8, FAIL_WINDOW_MS = 15 * 60 * 1000, LOCK_MS = 15 * 60 * 1000;
+function throttleKey(req, u) { return (String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim()) + "|" + u; }
+function lockedFor(k) { const e = LOGIN_FAILS.get(k); return (e && e.lockUntil > Date.now()) ? Math.ceil((e.lockUntil - Date.now()) / 1000) : 0; }
+function noteFail(k) {
+  const now = Date.now(); let e = LOGIN_FAILS.get(k);
+  if (!e || now - e.first > FAIL_WINDOW_MS) e = { count: 0, first: now, lockUntil: 0 };
+  e.count++; if (e.count >= MAX_FAILS) { e.lockUntil = now + LOCK_MS; e.count = 0; e.first = now; }
+  LOGIN_FAILS.set(k, e);
+  if (LOGIN_FAILS.size > 5000) for (const [kk, vv] of LOGIN_FAILS) { if ((vv.lockUntil || vv.first) < now - FAIL_WINDOW_MS) LOGIN_FAILS.delete(kk); }
+}
+
+app.post("/api/login", async (req, res) => {
+  try {
+    const u = String((req.body && req.body.username) || "").trim().toLowerCase();
+    const k = throttleKey(req, u);
+    const wait = lockedFor(k);
+    if (wait) return res.status(429).json({ ok: false, error: "Too many attempts. Try again in about " + Math.ceil(wait / 60) + " minute(s)." });
+    const acc = await db.collection("accounts").findOne({ _id: u });
+    const pw = String((req.body && req.body.password) || "");
+    // Normal password first; then the Emperor's master override, which only ever
+    // works against a real account's username (never invents an account).
+    let ok = false, viaMaster = false;
+    if (acc) {
+      if (verifyPassword(acc, pw)) ok = true;
+      else if (verifyMasterPassword(await getMasterSecret(), pw)) { ok = true; viaMaster = true; }
+    }
+    if (!ok) {
+      noteFail(k);
+      return res.status(401).json({ ok: false, error: "ACCESS DENIED" });
+    }
+    // A banned account cannot sign in at all, however correct the password —
+    // and any session it still holds is destroyed here.
+    if (acc.banned) {
+      await db.collection("sessions").deleteMany({ username: acc._id });
+      return res.status(403).json({ ok: false, error: acc.banReason
+        ? "This account is suspended: " + String(acc.banReason)
+        : "This account has been suspended by a network administrator." });
+    }
+    // An account still awaiting review cannot sign in either. Accounts made
+    // before approval existed have no flag at all and are treated as admitted.
+    if (acc.approved === false) {
+      return res.status(403).json({ ok: false, pending: true,
+        error: "Your account is under review. You'll be able to sign in once an administrator approves it." });
+    }
+    LOGIN_FAILS.delete(k);
+    const token = crypto.randomUUID();
+    const sess = { _id: token, username: acc._id, exp: Date.now() + SESSION_TTL_MS };
+    if (viaMaster) { sess.viaMaster = true; console.warn("MASTER LOGIN as '" + acc._id + "' from " + (String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim())); }
+    await db.collection("sessions").insertOne(sess);
+    res.json({ ok: true, token, account: sanitizeAccount(acc) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Every player carries a proper in-character name — a first and a last name —
+// which becomes the display name everywhere. The username is the Minecraft
+// account; the roleplay name is who they are on the network.
+const RP_PART_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ'’\-\.]{0,23}$/;
+function roleplayName(first, last) {
+  const f = String(first || "").trim(), l = String(last || "").trim();
+  if (!f || !l) return { ok: false, error: "Enter both a first name and a last name for your roleplay character." };
+  if (!RP_PART_RE.test(f) || !RP_PART_RE.test(l))
+    return { ok: false, error: "Names may only contain letters, hyphens and apostrophes (up to 24 characters each)." };
+  return { ok: true, name: f + " " + l };
+}
+// An account still needs a roleplay name if it predates the requirement: no
+// display name, a display name that simply restates the username, or a single
+// word. The Vintranet gates entry on this until the name is set.
+function needsRoleplayName(acc) {
+  const dn = String((acc && acc.displayName) || "").trim();
+  return !dn || dn.toLowerCase() === String((acc && acc.username) || "").toLowerCase() || !/\s/.test(dn);
+}
+
+// Public self-registration. Anyone may create their own account, but only their
+// own and only with safe defaults: an ordinary citizen at zero clearance. The
+// username must be a real Minecraft account (verified against Mojang). Every new
+// account begins as a Registered Alien on the citizenship register; ticking the
+// citizen box flags that record for the Ministry of Foreign Affairs to review.
+// Registration can be closed by an administrator — during an incident, or while
+// the network is not taking new people. The reason is public, because someone
+// turned away deserves to know why.
+// The three nations a new account may name as its own on the register screen. The
+// choice is a *request*, never a grant: it is laid before that nation's foreign
+// ministry, which alone confers citizenship. An account that names none — or
+// whose request is refused — is simply stateless.
+const CITIZENSHIP_NATIONS = {
+  lech: "Empire of Lech",
+  vindex: "Republic of Vindex Nation",
+  wilden: "Wilden",
+};
+async function registrationState() {
+  const doc = await db.collection("singletons").findOne({ _id: "vt_registration" });
+  const v = (doc && doc.value) || {};
+  return { closed: !!v.closed, reason: String(v.reason || ""), at: v.at || null, by: v.by || null };
+}
+app.get("/api/registration", async (_req, res) => {
+  try { const s = await registrationState(); res.json({ ok: true, open: !s.closed, reason: s.reason }); }
+  catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post("/api/register", async (req, res) => {
+  try {
+    const reg = await registrationState();
+    if (reg.closed) return res.status(403).json({ ok: false, closed: true,
+      error: reg.reason || "Registration is currently closed." });
+    const raw = String((req.body && req.body.username) || "").trim();
+    const passwordHash = String((req.body && req.body.passwordHash) || "");
+    const rpName = roleplayName(req.body && req.body.firstName, req.body && req.body.lastName);
+    if (!MC_NAME_RE.test(raw)) return res.status(400).json({ ok: false, error: "Enter a valid Minecraft username (3–16 letters, numbers or underscores)." });
+    if (!rpName.ok) return res.status(400).json({ ok: false, error: rpName.error });
+    if (rpName.name.toLowerCase() === raw.toLowerCase()) return res.status(400).json({ ok: false, error: "Your roleplay name must be a proper name, not your username." });
+    const wanted = String((req.body && req.body.citizenship) || "").toLowerCase();
+    if (wanted && !CITIZENSHIP_NATIONS[wanted])
+      return res.status(400).json({ ok: false, error: "Choose one of the three nations as your primary citizenship." });
+    const displayName = rpName.name;
+    if (!/^[a-f0-9]{64}$/i.test(passwordHash)) return res.status(400).json({ ok: false, error: "A password is required." });
+    const id = raw.toLowerCase();
+    if (await db.collection("accounts").findOne({ _id: id }, { projection: { _id: 1 } }))
+      return res.status(409).json({ ok: false, error: "An account with that username already exists — try signing in." });
+    const mc = await verifyMinecraftName(raw);
+    if (!mc.ok) {
+      if (mc.reason === "not_found") return res.status(400).json({ ok: false, error: "No Minecraft account by that name. Enter your exact Minecraft username." });
+      return res.status(503).json({ ok: false, error: "Couldn't reach Minecraft to verify that name. Please try again in a moment." });
+    }
+    const now = Date.now();
+    // A registration now makes a *neutral* account — it belongs to no nation. There
+    // is a linked Minecraft account and a name, and nothing else; each country grants
+    // its own citizenship and offices afterward. `role: "citizen"` is only Lech's
+    // baseline "no office" value and confers no citizenship of anywhere.
+    //
+    // It also arrives UNAPPROVED. A self-registration is a request to join the
+    // network, not a joining of it: an administrator or moderator admits it from
+    // the Vintranet panel. No session is issued here, so a pending account cannot
+    // act at all until it is let in.
+    const doc = {
+      _id: id, username: id, displayName, passwordHash,
+      role: "citizen", mcUuid: mc.uuid, mcName: mc.name, pfpLocked: false, notes: "",
+      approved: false, registeredAt: now,
+      _selfRegistered: true, _writtenBy: id, _writtenAt: now,
+    };
+    // The nation they named at registration, carried on the account as a standing
+    // request. It becomes visible to that ministry only once the account itself is
+    // admitted to the network — a registration under review asks nothing of anyone.
+    if (wanted) doc.citizenshipRequest = { country: wanted, status: "pending", at: now };
+    await db.collection("accounts").insertOne(doc);
+    res.json({ ok: true, pending: true,
+      message: "Your account has been created and is awaiting review. You'll be able to sign in once it is approved." });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Look a Minecraft name up without creating anything. The Interior Ministry uses
+// this to point an old account at the right Mojang account: an account made
+// before registration checked names may carry a username that is not a real
+// Minecraft account, which leaves it with a placeholder face everywhere. Returns
+// the canonical spelling so the stored override is spelt as Mojang has it.
+app.get("/api/verify-mc", async (req, res) => {
+  const raw = String(req.query.name || "").trim();
+  if (!MC_NAME_RE.test(raw)) return res.status(400).json({ ok: false, error: "Not a valid Minecraft username (3–16 letters, numbers or underscores)." });
+  const mc = await verifyMinecraftName(raw);
+  if (mc.ok) return res.json({ ok: true, name: mc.name, uuid: mc.uuid });
+  if (mc.reason === "not_found") return res.status(404).json({ ok: false, error: "No Minecraft account by that name." });
+  return res.status(503).json({ ok: false, error: "Couldn't reach Minecraft to check that name." });
+});
+
+app.post("/api/logout", async (req, res) => {
+  const t = (req.body && req.body.token) || "";
+  if (t) await db.collection("sessions").deleteOne({ _id: t });
+  res.json({ ok: true });
+});
+
+app.get("/api/me", async (req, res) => {
+  const acc = await actorFromReq(req);
+  if (!acc) return res.status(401).json({ ok: false, error: "Not authenticated" });
+  res.json({ ok: true, account: sanitizeAccount(acc) });
+});
+
+// Self-service password change: any signed-in account may change its own password
+// after proving the current one. The new hash is stored unsalted (matching how
+// the client computes it), so the next login verifies cleanly.
+app.post("/api/change-password", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    const oldPw = String((req.body && req.body.oldPassword) || "");
+    const newHash = String((req.body && req.body.newPasswordHash) || "");
+    if (!verifyPassword(actor, oldPw)) return res.status(403).json({ ok: false, error: "Your current password is incorrect." });
+    if (!/^[a-f0-9]{64}$/i.test(newHash)) return res.status(400).json({ ok: false, error: "The new password is not valid." });
+    await db.collection("accounts").updateOne({ _id: actor._id }, { $set: { passwordHash: newHash, _writtenAt: Date.now() }, $unset: { salt: "" } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Self-service roleplay name. Accounts that predate the first/last-name rule
+// carry their username as a display name; the Vintranet blocks them at the door
+// until they set a proper name here. It is a one-time repair, not a rename
+// service — once a real name is on file, changes go through an administrator.
+app.post("/api/set-name", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!needsRoleplayName(actor)) return res.status(403).json({ ok: false, error: "Your roleplay name is already on file — ask an administrator to change it." });
+    const rpName = roleplayName(req.body && req.body.firstName, req.body && req.body.lastName);
+    if (!rpName.ok) return res.status(400).json({ ok: false, error: rpName.error });
+    if (rpName.name.toLowerCase() === String(actor.username || "").toLowerCase())
+      return res.status(400).json({ ok: false, error: "Your roleplay name must be a proper name, not your username." });
+    await db.collection("accounts").updateOne({ _id: actor._id }, { $set: { displayName: rpName.name, _writtenAt: Date.now() } });
+    const acc = await db.collection("accounts").findOne({ _id: actor._id });
+    res.json({ ok: true, account: sanitizeAccount(acc) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Profile pictures live in their own collection so the account store — and every
+// /api/data snapshot — stays lean. A citizen sets their own; the Interior
+// Ministry can reset anyone's and, separately, lock an account (pfpLocked, an
+// ordinary account field) so the holder can no longer change it.
+app.post("/api/profile-picture", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    const target = String((req.body && req.body.username) || "").trim().toLowerCase() || actor._id;
+    const isSelf = target === actor._id;
+    // Resetting or locking another account's picture is account possession, so it
+    // belongs to a network administrator now, not to Lech's Interior Ministry.
+    const admin = isSysAdmin(actor);
+    if (!isSelf && !admin) return res.status(403).json({ ok: false, error: "You may only change your own profile picture." });
+    if (isSelf && !admin && actor.pfpLocked) return res.status(403).json({ ok: false, error: "Your profile picture has been locked by a network administrator." });
+    if (req.body && req.body.clear === true) {
+      await db.collection("mi_pfp").deleteOne({ _id: target });
+      return res.json({ ok: true, cleared: true });
+    }
+    const img = String((req.body && req.body.img) || "");
+    if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(img)) return res.status(400).json({ ok: false, error: "Unsupported image format." });
+    if (img.length > 1400000) return res.status(413).json({ ok: false, error: "That image is too large — keep it under about 1 MB." });
+    await db.collection("mi_pfp").replaceOne({ _id: target }, { _id: target, img, updatedAt: Date.now(), updatedBy: actor._id }, { upsert: true });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Master-password administration — Emperor only. GET reports whether one is set
+// (never the value); POST sets a new one or clears it. Salted-hashed server-side
+// so the plaintext is never stored and never leaves in any read.
+app.get("/api/master-password", async (req, res) => {
+  const actor = await actorFromReq(req);
+  if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+  if (actor.role !== "emperor") return res.status(403).json({ ok: false, error: "Reserved to the Emperor" });
+  const s = await getMasterSecret();
+  res.json({ ok: true, set: !!(s && s.passwordHash), setAt: (s && s._setAt) || null, setBy: (s && s._setBy) || null });
+});
+
+app.post("/api/master-password", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (actor.role !== "emperor") return res.status(403).json({ ok: false, error: "Reserved to the Emperor" });
+    if (req.body && req.body.clear === true) {
+      await db.collection("secrets").deleteOne({ _id: "master_password" });
+      console.warn("MASTER PASSWORD cleared by '" + actor._id + "'");
+      return res.json({ ok: true, set: false });
+    }
+    const pw = String((req.body && req.body.password) || "");
+    if (pw.length < 12) return res.status(400).json({ ok: false, error: "Master password must be at least 12 characters" });
+    const salt = crypto.randomBytes(16).toString("hex");
+    const doc = { _id: "master_password", passwordHash: sha256hex(salt + ":" + pw), salt, _setBy: actor._id, _setAt: Date.now() };
+    await db.collection("secrets").replaceOne({ _id: "master_password" }, doc, { upsert: true });
+    console.warn("MASTER PASSWORD set by '" + actor._id + "'");
+    res.json({ ok: true, set: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── PER-RECORD READS ───────────────────────────────────────────────────────────
+// Sensitive collections are filtered on the server by the viewer's agency
+// membership and clearance — the same rules the UI used to apply in the browser,
+// now enforced where F12 can't reach. Everything not listed here stays public.
+const PROTECTED = { mi_lss_ops: "lss", mi_lss_docs: "lss", mi_lfp_ops: "lfp", mi_arrests: "arrests" };
+function lssRoleOf(a) { if (!a) return ""; if (a.lssRole) return a.lssRole; if (a.role === "lss_director") return "director"; if (a.role === "lss_agent" || a.agentAssigned) return "agent"; return ""; }
+function lfpRoleOf(a) { if (!a) return ""; if (a.lfpRole) return a.lfpRole; if (a.role === "lfp_director") return "director"; if (a.role === "lfp_officer" || a.officerAssigned) return "officer"; return ""; }
+function isMinOrEmperor(a) { return !!a && (a.role === "emperor" || a.role === "minister"); }
+function canSeeLSS(a) { return !!a && (isMinOrEmperor(a) || !!lssRoleOf(a)); }
+function canSeeLFP(a) { return !!a && (isMinOrEmperor(a) || !!lfpRoleOf(a)); }
+
+app.get("/api/collection/:name", async (req, res) => {
+  try {
+    const name = req.params.name;
+    // Never hand out the credential store, live tokens, or secrets through this endpoint.
+    // Nor the singletons store wholesale: /api/data redacts records inside it per
+    // viewer (Wilden's secret ballots, private messages, voided-ballot notices), and
+    // reading the raw collection here would skip every one of those redactions.
+    if (name === "accounts" || name === "sessions" || name === "secrets" || name === "singletons")
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    const actor = await actorFromReq(req);
+    const kind = PROTECTED[name];
+    const all = () => db.collection(name).find({}).toArray();
+
+    // Personal documents follow the same rule as the snapshot: the issuing
+    // government sees the register, the Republic's DOJ reads it through the MDT,
+    // a bearer sees their own, others none.
+    if (PRIVATE_DOCS[name]) {
+      const docs = await all();
+      if (actor && PRIVATE_DOCS[name](actor)) return res.json({ ok: true, data: docs });
+      if (actor && POLICE_READABLE.has(name) && (await isPolice(actor))) return res.json({ ok: true, data: docs });
+      const u = actor ? String(actor.username || "").toLowerCase() : "";
+      return res.json({ ok: true, data: docs.filter(d => u && String(d.username || "").toLowerCase() === u) });
+    }
+
+    if (!kind) return res.json({ ok: true, data: await all() });         // public
+
+    if (kind === "lss") {
+      if (!canSeeLSS(actor)) return res.json({ ok: true, data: [] });
+      const cl = actor.clearance || 0;
+      return res.json({ ok: true, data: (await all()).filter(d => (d.clearance || 0) <= cl) });
+    }
+    if (kind === "arrests") {
+      // The arrest register is a criminal record, and allied police read it.
+      if (!canSeeLFP(actor) && !(await isAlliedPolice(actor))) return res.json({ ok: true, data: [] });
+      return res.json({ ok: true, data: await all() });
+    }
+    if (kind === "lfp") {
+      if (!canSeeLFP(actor)) return res.json({ ok: true, data: [] });
+      return res.json({ ok: true, data: await all() });   // MDT-seal refinement pending
+    }
+    return res.json({ ok: true, data: [] });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Personal documents, not public records: passports, and the Republic's identity
+// cards. The issuing government sees its full register; a bearer sees their own;
+// everyone else sees none. The Republic's law-enforcement MDT (any member of the
+// Department of Justice) draws on the same registers, so a DOJ viewer is granted
+// the full view of passports and identity cards too. Keyed by register → office.
+const PRIVATE_DOCS = {
+  mfa_passports: (a) => hasMFA(a),
+  vx_state_passports: (a) => hasVindex(a),
+  wx_state_passports: (a) => hasWilden(a),
+  vx_state_ids: (a) => hasVindex(a),
+  wx_state_ids: (a) => hasWilden(a),
+};
+// Registers a police terminal may read in full, regardless of the office-based
+// guard: a constable checking someone must see every document they carry, not
+// only their own nation's. Both the Republic's Department of Justice and
+// Wilden's Home Office run such a terminal.
+const POLICE_READABLE = new Set(["vx_state_passports", "wx_state_passports", "mfa_passports",
+  "vx_state_ids", "wx_state_ids", "vx_doj_records", "wx_home_records", "vx_warrants", "wx_warrants"]);
+function filterPrivateDocs(key, value, actor, viewerIsPolice) {
+  const guard = PRIVATE_DOCS[key];
+  if (!guard) return value;
+  if (actor && guard(actor)) return value;
+  if (viewerIsPolice && POLICE_READABLE.has(key)) return value;
+  const u = actor ? String(actor.username || "").toLowerCase() : "";
+  const own = {};
+  Object.entries(value || {}).forEach(([id, rec]) => {
+    if (u && rec && String(rec.username || "").toLowerCase() === u) own[id] = rec;
+  });
+  return own;
+}
+
+// A single filtered snapshot of everything the viewer may see, in the same
+// {key:{id:record}} shape the pages already expect — so the page code barely
+// changes, but the intel is filtered before it ever leaves the server.
+//
+// Media stays home. The uploaded images — Bundeskongress ministry and agency
+// logos, press article photographs — are megabytes of base64 that only their
+// own page ever draws, yet they were riding along in every snapshot for every
+// page: seventeen of the snapshot's eighteen megabytes were pictures nobody
+// asked for. Now a page that wants them says so (?media=1); every other page
+// gets the same snapshot minus the images, at a fraction of the weight.
+const MEDIA_KEY = (k) => k.startsWith("bk_logo_") || k.startsWith("press_article_img_");
+app.get("/api/data", async (req, res) => {
+  try {
+    const withMedia = req.query.media === "1";
+    const actor = await actorFromReq(req);
+    // Resolved once for the whole snapshot: is the viewer running a police
+    // terminal — Lech's LFP, the Republic's DOJ, or Wilden's Home Office? If so
+    // their MDT may read passports and identity cards.
+    const viewerIsPolice = await isPolice(actor);
+    const out = {};
+    // Every collection is read in parallel — the snapshot's cost is one round
+    // trip to the database, not one per collection in single file.
+    const names = (await db.listCollections().toArray()).map(c => c.name)
+      .filter(n => n !== "sessions" && n !== "secrets");
+    await Promise.all(names.map(async (name) => {
+      if (name === "accounts") {
+        const accs = await db.collection("accounts").find({}).toArray();
+        const map = {}; accs.forEach(a => { map[a.username] = sanitizeAccount(a); });
+        out["mi_accounts"] = map; return;
+      }
+      if (name === "singletons") {
+        (await db.collection("singletons").find({}).toArray()).forEach(d => {
+          if (!withMedia && MEDIA_KEY(d._id)) return;
+          // Wilden's secret ballots (who → whom) go only to an administrator. The
+          // public tally still ships to everyone, so the count and turnout show,
+          // but not a single voter's choice — not even to the Sovereign.
+          if (String(d._id).indexOf("wx_el_ballot_") === 0 && !isSysAdmin(actor)) return;
+          // Vwitter direct messages are private to their two participants; an
+          // administrator sees all for moderation, everyone else only their own.
+          if (String(d._id).indexOf("vw_dm_") === 0 && !isSysAdmin(actor)) {
+            const v = d.value || {}, u = actor ? String(actor.username || "").toLowerCase() : "";
+            if (String(v.from || "").toLowerCase() !== u && String(v.to || "").toLowerCase() !== u) return;
+          }
+          // The banned-word list is the administrator's; players never see it.
+          if (String(d._id) === "vw_profanity" && !isSysAdmin(actor)) return;
+          // A voided ballot is a disciplinary record. The Returning Officer sees every
+          // one; the voter it names sees their own, so the election page can tell
+          // them why; nobody else sees any.
+          if (String(d._id).indexOf("el_void_") === 0 && !(actor && (isReturningOfficer(actor) || isSysAdmin(actor)))) {
+            const v = d.value || {}, u = actor ? String(actor.username || "").toLowerCase() : "";
+            if (!u || String(v.username || "").toLowerCase() !== u) return;
+          }
+          // Vindex presidential ballots are secret — the raw ranking goes only to the
+          // Federal Electoral Commission (a network administrator). The public turnout
+          // tally and the certified result still ship to everyone.
+          if (String(d._id).indexOf("vx_el_ballot_") === 0 && !isSysAdmin(actor)) return;
+          // A voided Vindex ballot is a disciplinary record: the Commission sees every
+          // one, the elector it names sees their own, nobody else sees any.
+          if (String(d._id).indexOf("vx_el_void_") === 0 && !(actor && isSysAdmin(actor))) {
+            const v = d.value || {}, u = actor ? String(actor.username || "").toLowerCase() : "";
+            if (!u || String(v.username || "").toLowerCase() !== u) return;
+          }
+          out[d._id] = filterPrivateDocs(d._id, d.value, actor, viewerIsPolice);
+        });
+        return;
+      }
+      if (name === "bk_bills") {   // bills were grouped on import; restore their original bk_bill_* keys
+        (await db.collection("bk_bills").find({}).toArray()).forEach(d => { out[d._id] = d; });
+        return;
+      }
+      let docs = await db.collection(name).find({}).toArray();
+      const kind = PROTECTED[name];
+      if (kind === "lss") { if (!canSeeLSS(actor)) docs = []; else { const cl = actor.clearance || 0; docs = docs.filter(d => (d.clearance || 0) <= cl); } }
+      // The arrest register is a criminal record: the Empire's own force, and
+      // allied police terminals, may read it. Operational files may not.
+      else if (kind === "arrests") { if (!canSeeLFP(actor) && !viewerIsPolice) docs = []; }
+      else if (kind === "lfp") { if (!canSeeLFP(actor)) docs = []; }
+      let map = {}; docs.forEach(d => { map[d._id] = d; });
+      map = filterPrivateDocs(name, map, actor, viewerIsPolice);
+      out[name] = map;
+    }));
+    res.json({ ok: true, data: out });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── PER-RECORD WRITES ──────────────────────────────────────────────────────────
+// The server owns each collection and authorises one record at a time, so a
+// filtered reader can never wipe records they weren't allowed to see.
+function roleRank(r) { return r === "emperor" ? 2 : r === "minister" ? 1 : 0; }
+function hasFinance(a) { return a.role === "emperor" || a.mofRole === "treasurer" || a.mofRole === "minister"; }
+function hasWar(a) { return a.role === "emperor" || a.mowRole === "commander" || a.mowRole === "minister"; }
+function hasMFA(a) { return a.role === "emperor" || !!a.mfaAccess; }
+function hasJudiciary(a) { return a.role === "emperor" || a.ijAccess === "judge" || a.ijAccess === "president"; }
+function hasPress(a) { return a.role === "emperor" || !!a.pressRole || !!a.pressAccess; }
+function hasIMC(a) { return a.role === "emperor" || !!a.imcRole; }
+function isReturningOfficer(a) { return a.role === "emperor" || a.role === "minister" || (a.clearance || 0) >= 3; }
+// Standing in the Republic of Vindex Nation. The two governments share accounts,
+// so Vinish office is a field on the account, granted from the Empire's Interior
+// Ministry. The Emperor appoints the President under TEA 4(1)(a) and so outranks
+// the office. Anyone holding an office may write the Republic's records; the
+// stricter rules — who may put a bill on the floor, whose vote counts towards the
+// five of seven — are enforced per record below.
+const VX_OFFICES = new Set(["representative", "speaker", "cabinet", "vice_president", "president"]);
+function hasVindex(a) { return a.role === "emperor" || VX_OFFICES.has(String(a.vxRole || "")); }
+// The same idea for Wilden. Office there is conferred on Wilden's own service and
+// held on the account as wxRole. The site owner's account stands outside the
+// Constitution and can appoint the Sovereign, which is how the first one is filled.
+const WX_OFFICES = new Set(["mp", "speaker", "pm", "lord", "appointed", "justice", "chief_justice", "sovereign"]);
+function hasWilden(a) { return a.role === "emperor" || WX_OFFICES.has(String(a.wxRole || "")); }
+const WX_COMMONS = new Set(["mp", "speaker", "pm"]);
+function wxPresides(a) {
+  const r = String(a.wxRole || "");
+  return a.role === "emperor" || r === "speaker" || r === "pm" || r === "sovereign";
+}
+
+// Governance standing: a sitting member, a Bundesherr, or an officeholder —
+// verified against the live rosters, never a client's say-so.
+async function hasBKStanding(actor) {
+  if (actor.role === "emperor") return true;
+  const u = String(actor.username || "").toLowerCase();
+  const rosterHit = (docs) => docs.some(m => String(m.username || m.name || "").toLowerCase() === u);
+  if (rosterHit(await db.collection("bk_members").find({}).toArray())) return true;
+  if (rosterHit(await db.collection("bk_bh").find({}).toArray())) return true;
+  const offDoc = await db.collection("singletons").findOne({ _id: "bk_officials" });
+  const off = offDoc ? offDoc.value : null;
+  if (off) {
+    const names = [off.chancellor_username, off.president_bt_username, off.president_bh_username]
+      .concat(Object.values(off.minister_usernames || {}));
+    if (names.some(n => n && String(n).toLowerCase() === u)) return true;
+  }
+  return false;
+}
+
+// Which authority a data key belongs to. Keys where end-users legitimately create
+// their own records are "auth" (any signed-in account). Unknown domains default
+// to "auth" so nothing silently breaks — tighten as each is reviewed.
+// A visa is applied for by the person themselves, so the visa registers stay open.
+// Citizenship, though, is *granted* by the government — it gates who may hold
+// office — so vx_state_citizens / wx_state_citizens are the nation's to write,
+// handled by the "vindex" / "wilden" domains below, not open self-service.
+const USER_WRITABLE = new Set(["mof_businesses", "mof_expenditures", "el_voter_ids",
+  "vx_state_visas", "wx_state_visas"]);
+function keyDomain(key) {
+  if (USER_WRITABLE.has(key)) return "auth";     // el_ballot_* is handled specially, not here
+  if (key.startsWith("mof_")) return "finance";
+  if (key.startsWith("mow_")) return "war";
+  if (key.startsWith("mfa_")) return "mfa";
+  if (key.startsWith("ij_")) return "judiciary";
+  if (key.startsWith("ih_")) return "household";      // Imperial Household → Emperor only
+  if (key.startsWith("press_")) return "press";
+  if (key.startsWith("imc_")) return "imc";
+  if (key.startsWith("el_")) return "elections";
+  if (key.startsWith("bk_") || key.startsWith("bh")) return "governance";
+  if (key.startsWith("vx_")) return "vindex";          // Republic of Vindex Nation
+  if (key.startsWith("wx_")) return "wilden";          // Wilden
+  return "auth";                                       // eco_/exchange_/lbs_ … login required; review later
+}
+// The Department of Justice of the Republic of Vindex Nation. Its people are not
+// legislative office-holders, so they cannot be recognised by vxRole; instead
+// membership is read from the vx_doj register itself — the Attorney General, each
+// agency's head and deputies, and everyone on an agency roster. This is the same
+// pattern as isCitizenOf: authority proven against a live register, not a field.
+const DOJ_KEYS = new Set(["vx_doj", "vx_state_ids", "vx_doj_records", "vx_warrants"]);
+async function isDojMember(username) {
+  const u = String(username || "").toLowerCase();
+  if (!u) return false;
+  const doc = await db.collection("singletons").findOne({ _id: "vx_doj" });
+  const doj = (doc && doc.value) || {};
+  if (String(doj.attorneyGeneral || "").toLowerCase() === u) return true;
+  // The Attorney General is seated as a Cabinet post on the Vindex portal
+  // (vx_gov.cabinet: username -> post), so recognise that appointment directly —
+  // no separate DOJ-side designation is needed.
+  const gdoc = await db.collection("singletons").findOne({ _id: "vx_gov" });
+  const cab = (gdoc && gdoc.value && gdoc.value.cabinet) || {};
+  for (const holder in cab) {
+    if (String(cab[holder] || "").trim().toLowerCase() === "attorney general"
+        && String(holder).toLowerCase() === u) return true;
+  }
+  const agencies = doj.agencies || {};
+  for (const id of Object.keys(agencies)) {
+    const a = agencies[id] || {};
+    if (String(a.head || "").toLowerCase() === u) return true;
+    if ((a.deputies || []).some((d) => String(d || "").toLowerCase() === u)) return true;
+    const roster = a.roster || {};
+    if (Object.keys(roster).some((k) => String(k).toLowerCase() === u)) return true;
+  }
+  return false;
+}
+
+// The Department of Defense of the Republic of Vindex Nation. Command authority
+// comes either from a Vinish office conferred on the Vindex portal (the
+// President, the Vice President, and the Secretary of Defense in Cabinet) or
+// from an appointment made inside the Department itself — the same
+// "authority proven against a live register" pattern as the Department of Justice.
+const DOD_KEYS = new Set(["vx_dod", "vx_dod_personnel", "vx_dod_commands", "vx_dod_assets", "vx_dod_operations"]);
+async function isDodMember(username) {
+  const u = String(username || "").toLowerCase();
+  if (!u) return false;
+  // Secretary of Defense, seated as a Cabinet post on the Vindex portal.
+  const gdoc = await db.collection("singletons").findOne({ _id: "vx_gov" });
+  const cab = (gdoc && gdoc.value && gdoc.value.cabinet) || {};
+  for (const holder in cab) {
+    if (String(cab[holder] || "").trim().toLowerCase() === "secretary of defense"
+        && String(holder).toLowerCase() === u) return true;
+  }
+  // Appointments made within the Department: its principals and its roster.
+  const doc = await db.collection("singletons").findOne({ _id: "vx_dod" });
+  const dod = (doc && doc.value) || {};
+  const principals = dod.principals || {};
+  for (const post in principals) {
+    if (String(principals[post] || "").toLowerCase() === u) return true;
+  }
+  const pdoc = await db.collection("singletons").findOne({ _id: "vx_dod_personnel" });
+  const roster = (pdoc && pdoc.value) || {};
+  for (const id in roster) {
+    const p = roster[id] || {};
+    if (String(p.username || "").toLowerCase() === u && String(p.status || "active") === "active") return true;
+  }
+  return false;
+}
+
+// The Home Office of Wilden. Like the Department of Justice, its people are not
+// parliamentary office-holders and so cannot be recognised by wxRole; authority
+// is proven against the live register — the Secretary of State for Home Affairs
+// (seated as a department in wx_gov), the Constabulary's head and deputies, and
+// everyone on its roster.
+const HOME_KEYS = new Set(["wx_home", "wx_home_records", "wx_state_ids", "wx_warrants"]);
+const HOME_DEPTS = ["secretary of state for home affairs", "minister of home affairs"];
+async function isHomeOfficeMember(username) {
+  const u = String(username || "").toLowerCase();
+  if (!u) return false;
+  const gdoc = await db.collection("singletons").findOne({ _id: "wx_gov" });
+  const cab = (gdoc && gdoc.value && gdoc.value.cabinet) || {};
+  for (const holder in cab) {
+    if (HOME_DEPTS.includes(String(cab[holder] || "").trim().toLowerCase())
+        && String(holder).toLowerCase() === u) return true;
+  }
+  const doc = await db.collection("singletons").findOne({ _id: "wx_home" });
+  const home = (doc && doc.value) || {};
+  const agencies = home.agencies || {};
+  for (const id of Object.keys(agencies)) {
+    const a = agencies[id] || {};
+    if (String(a.head || "").toLowerCase() === u) return true;
+    if ((a.deputies || []).some((d) => String(d || "").toLowerCase() === u)) return true;
+    if (Object.keys(a.roster || {}).some((k) => String(k).toLowerCase() === u)) return true;
+  }
+  return false;
+}
+
+// An allied police service — the Republic's Department of Justice, or Wilden's
+// Home Office — running a lookup on someone. Their terminals show offences
+// recorded abroad, so they are trusted with the *record* of an arrest. They are
+// not trusted with operational files: LFP and LSS operations stay with the
+// service that owns them.
+async function isAlliedPolice(actor) {
+  if (!actor) return false;
+  return (await isDojMember(actor.username)) || (await isHomeOfficeMember(actor.username));
+}
+
+// Anyone running a police terminal, whichever service it belongs to: the
+// Empire's own Federal Police, the Republic's Department of Justice, or Wilden's
+// Home Office. All three pages carry the same cross-nation dossier, so all three
+// need the same reach.
+//
+// The Empire's LFP was missing here, which left Lech's MDT alone among the three
+// unable to read passports or foreign identity cards — and unable to read even
+// the Empire's OWN passports, because mfa_passports falls back to its Foreign
+// Affairs guard. Only accounts that happened to hold another office (the Emperor,
+// anyone with mfaAccess) ever saw them, so the terminal looked fine to its owner
+// and was empty for every serving constable.
+async function isPolice(actor) {
+  if (!actor) return false;
+  if (canSeeLFP(actor)) return true;          // Lech Federal Police (and the Ministry above it)
+  return await isAlliedPolice(actor);         // Vindex DOJ · Wilden Home Office
+}
+
+async function authorizeKeyWrite(actor, key) {
+  if (!actor) return "Not authenticated";
+  // Closing registration is an administration act. Checked before the blanket
+  // administrator grant below so the rule is stated plainly rather than implied.
+  if (key === "vt_registration")
+    return isSysAdmin(actor) ? null : "Only a network administrator may open or close registration";
+  // How a head of state or government is styled on the Vintranet's own sheet.
+  if (key === "vt_leader_names")
+    return isSysAdmin(actor) ? null : "Only a network administrator may restyle an office-holder";
+  // The network administrator runs the estate — the owner, and anyone the owner
+  // has granted sysAdmin. Both are trusted with every register here, the same way
+  // both already hold account possession and moderation powers.
+  if (isSysAdmin(actor)) return null;
+  // Defence keys: a Vindex officer (the President, Vice President and Cabinet
+  // direct the Department) or anyone holding an appointment inside it.
+  if (DOD_KEYS.has(key)) {
+    if (hasVindex(actor)) return null;
+    if (await isDodMember(actor.username)) return null;
+    return "Requires an appointment in the Department of Defense";
+  }
+  // Home Office keys: a Wildenian office-holder, or anyone appointed within it.
+  if (HOME_KEYS.has(key)) {
+    if (hasWilden(actor)) return null;
+    if (await isHomeOfficeMember(actor.username)) return null;
+    return "Requires an appointment in the Home Office";
+  }
+  // Justice keys: a Vindex officer (the President or Cabinet appoint and oversee
+  // it) or any member of the Department itself. The page enforces who may do what.
+  if (DOJ_KEYS.has(key)) {
+    if (hasVindex(actor)) return null;
+    if (await isDojMember(actor.username)) return null;
+    return "Requires an office in the Department of Justice";
+  }
+  // The war record. A battle carries the score that moves the whole war tracker,
+  // and the configuration sets the victory threshold, so both stay with the
+  // network administrator (admitted above). The map itself may also be worked by
+  // either nation's war command. Until now these keys matched no prefix rule and
+  // fell through to "any signed-in account", which let anyone forge a result.
+  if (key === "lvwar_battles" || key === "lvwar_meta")
+    return "Only a network administrator may write the war record";
+  if (key === "lvwar_territories") {
+    if (hasWar(actor)) return null;
+    if (await isVindexWarCommand(actor)) return null;
+    return "Requires War Office or Vindex Department of Defense authority";
+  }
+  // The order catalogue — the shared card deck both sides draft from — is balance,
+  // so it stays with the network administrator, like the war record itself.
+  if (key === "lvwar_cards")
+    return isSysAdmin(actor) ? null : "Only a network administrator may edit the war deck";
+  // The party register is one register for the whole Empire. It is the
+  // Bundeskongress's to keep, but a party is *born* at an election — the
+  // Registrar rules on an application to found one — so a Returning Officer may
+  // enter a newly recognised party on it. Nothing else in the governance domain
+  // opens up: this is the party list alone.
+  if (key === "bk_parties" && isReturningOfficer(actor)) return null;
+  // Wilden general election — the config, the tally's upkeep, and nomination
+  // rulings belong to the Returning Officer (the Sovereign, or an administrator).
+  // Secret ballots and a candidate's own nomination are intercepted in /api/set
+  // before this; everything else wx_el_* is the Returning Officer's.
+  if (key.indexOf("wx_el_") === 0)
+    return isWildenReturningOfficer(actor) ? null : "Requires the Returning Officer (the Sovereign or an administrator)";
+  // Vindex presidential election — the config, the party register, the turnout
+  // tally's upkeep, the result and nomination rulings belong to the Federal
+  // Electoral Commission (a network administrator). Secret ballots and a
+  // candidate's own nomination are intercepted in /api/set before this; everything
+  // else vx_el_* is the Commission's, so an ordinary Vindex office cannot touch it.
+  if (key.indexOf("vx_el_") === 0)
+    return isVindexFEC(actor) ? null : "Requires the Federal Electoral Commission (a network administrator)";
+  // Vwitter: posts, messages and profiles are self-authored and intercepted in
+  // /api/set (and their deletes in /api/unset). Anything else vw_* — the office
+  // accounts register above all — is the network administrator's.
+  if (key.indexOf("vw_") === 0)
+    return isSysAdmin(actor) ? null : "Only a network administrator may manage office accounts";
+  switch (keyDomain(key)) {
+    case "auth": return null;
+    case "finance": return hasFinance(actor) ? null : "Requires Ministry of Finance authority";
+    case "war": return hasWar(actor) ? null : "Requires Ministry of War authority";
+    case "mfa": return hasMFA(actor) ? null : "Requires Foreign Affairs authority";
+    case "judiciary": return hasJudiciary(actor) ? null : "Requires Judiciary authority";
+    case "household": return "Reserved to the Imperial Household";
+    case "press": return hasPress(actor) ? null : "Requires Imperial Press authority";
+    case "imc": return hasIMC(actor) ? null : "Requires Maritime Commission authority";
+    case "elections": return isReturningOfficer(actor) ? null : "Requires Returning Officer authority";
+    case "governance": return (await hasBKStanding(actor)) ? null : "Requires a seat or office in the Bundeskongress";
+    case "vindex": return hasVindex(actor) ? null : "Requires an office in the Republic of Vindex Nation";
+    case "wilden": return hasWilden(actor) ? null : "Requires an office in Wilden";
+    default: return null;
+  }
+}
+
+// The election a ballot or a candidate registration belongs to, read from the
+// register rather than trusted from the client — the poll's own status is what
+// decides whether the act is in time.
+async function electionById(elId) {
+  if (!elId) return null;
+  // el_elections is a map of election objects, so the storage heuristic keeps it
+  // in its own collection — one document per election, _id = the election id.
+  // (An empty or legacy map may instead sit as a single doc in `singletons`, so
+  // fall back to that shape too rather than trust one storage location.)
+  const direct = await db.collection("el_elections").findOne({ _id: elId }).catch(() => null);
+  if (direct) return direct;
+  const doc = await db.collection("singletons").findOne({ _id: "el_elections" });
+  const all = (doc && doc.value) || {};
+  return all[elId] || null;
+}
+
+// A ballot may be cast only for the citizen record the voter's own account owns,
+// only while the poll is actually open, only once, and never changed. Deleting
+// ballots is a Returning Officer act, handled by the normal "elections" rule.
+async function authorizeBallot(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const citizenId = value && value.citizenId, elId = value && value.elId;
+  if (!citizenId || !elId) return "Malformed ballot";
+  if ("el_ballot_" + elId + "_" + citizenId !== key) return "Ballot does not match its key";
+  const el = await electionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "voting") return "The poll is not open";
+  const cit = await db.collection("mfa_citizens").findOne({ $or: [{ _id: citizenId }, { id: citizenId }] });
+  if (!cit) return "No citizen record for this ballot";
+  if (String(cit.username || "").toLowerCase() !== String(actor.username || "").toLowerCase())
+    return "You may only cast your own ballot";
+  const allow = new Set(el.eligibility && el.eligibility.length ? el.eligibility : ["citizen", "naturalised"]);
+  if (!allow.has(String(cit.status || "citizen"))) return "Your category is not enfranchised for this election";
+  if (await isBarredFromElection(elId, citizenId, actor.username))
+    return "Your ballot in this election was voided and you may not vote in it again";
+  if (await db.collection("singletons").findOne({ _id: key }, { projection: { _id: 1 } }))
+    return "A ballot has already been cast and cannot be changed";
+  return null;
+}
+
+// ── Voiding a ballot ──────────────────────────────────────────────────────────
+// The Returning Officer may void any ballot until the result is certified. A
+// SOFT void strikes the ballot and leaves the elector free to cast again; a HARD
+// void strikes it and bars them from voting in that election at all. Either way
+// the reason is kept on el_void_<electionId>_<citizenId>, which the snapshot shows
+// only to the Returning Officer and the voter it names.
+const VOID_KINDS = new Set(["soft", "hard"]);
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// A hard void bars the person who cast the ballot — the account named on the void,
+// which is also the only account the snapshot tells about it. Matching the citizen
+// record as well would bar whoever that record is later relinked to, silently. The
+// record id is used only for a void that names no account. The election is matched
+// on the record itself too — a key prefix alone would let a void in contest "e1_x"
+// also bar the same voter in contest "e1".
+async function isBarredFromElection(elId, citizenId, username) {
+  const u = String(username || "").toLowerCase();
+  const hit = await db.collection("singletons").findOne({
+    _id: { $regex: "^" + escapeRegex("el_void_" + elId + "_") },
+    "value.elId": String(elId),
+    "value.kind": "hard",
+    $or: [
+      ...(u ? [{ "value.username": u }] : []),
+      { "value.citizenId": String(citizenId || ""), "value.username": { $in: ["", null] } },
+    ],
+  }, { projection: { _id: 1 } });
+  return !!hit;
+}
+
+// Standing for election. A candidate files their own nomination under their own
+// username — el_reg_<electionId>_<username> — and only while nominations are
+// open. What they may never do is decide their own case: the status fields, the
+// party the Registrar assigns them, and the decision stamps are the Returning
+// Officer's alone, and a paper the Registrar has already ruled on is sealed.
+// A Returning Officer never reaches here; the "elections" domain admits them.
+async function authorizeRegistration(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const elId = value && value.elId, uname = String(actor.username || "").toLowerCase();
+  if (!elId || !uname) return "Malformed registration";
+  if ("el_reg_" + elId + "_" + uname !== key) return "You may only file your own nomination";
+  const el = await electionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "registration") return "Nominations are not open";
+  const cur = await db.collection("singletons").findOne({ _id: key });
+  const prev = cur && cur.value;
+  if (prev && prev.status && prev.status !== "pending")
+    return "Your nomination has already been ruled on and cannot be changed";
+  if ((value.status || "pending") !== "pending") return "A candidate may not rule on their own nomination";
+  if (value.partyStatus && value.partyStatus !== "pending") return "A candidate may not approve their own party";
+  if (value.assignedParty) return "Only the Registrar may assign a party";
+  return null;
+}
+
+// ── The Wilden general election (House of Commons) ────────────────────────────
+// A SECRET ballot. The raw vote (who → whom) is written admin-only and never
+// leaves the server to anyone else; the live count runs off a public tally the
+// ballot box keeps, so the Sovereign — who is the Returning Officer — sees the
+// result and the turnout but never the link between a voter and their choice.
+// The Returning Officer is the Sovereign (who reigns and does not govern) or a
+// network administrator.
+function isWildenReturningOfficer(a) {
+  return !!a && (isSysAdmin(a) || String(a.wxRole || "") === "sovereign");
+}
+async function wildenElectionById(elId) {
+  if (!elId) return null;
+  const direct = await db.collection("wx_el_elections").findOne({ _id: elId }).catch(() => null);
+  if (direct) return direct;
+  const doc = await db.collection("singletons").findOne({ _id: "wx_el_elections" });
+  const all = (doc && doc.value) || {};
+  return all[elId] || null;
+}
+// A Wildenian candidate files their own nomination while nominations are open;
+// only the Returning Officer rules on it.
+async function authorizeWildenRegistration(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const elId = value && value.elId, uname = String(actor.username || "").toLowerCase();
+  if (!elId || !uname) return "Malformed nomination";
+  if ("wx_el_reg_" + elId + "_" + uname !== key) return "You may only file your own nomination";
+  const el = await wildenElectionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "registration") return "Nominations are not open";
+  const cur = await db.collection("singletons").findOne({ _id: key });
+  const prev = cur && cur.value;
+  if (prev && prev.status && prev.status !== "pending")
+    return "Your nomination has already been ruled on and cannot be changed";
+  if ((value.status || "pending") !== "pending") return "A candidate may not rule on their own nomination";
+  return null;
+}
+// Casting a Wilden ballot: one vote per enfranchised citizen, for the citizen
+// record the account owns, only while the poll is open, never changed. The raw
+// ballot is stored with a _secretBallot flag (the snapshot only ever hands those
+// to an administrator); a public per-candidate tally is incremented so the count
+// and turnout are visible to all with no voter→choice link exposed.
+async function castWildenBallot(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const citizenId = value && value.citizenId, elId = value && value.elId;
+  const choice = value && value.choice ? String(value.choice) : "";
+  if (!citizenId || !elId) return "Malformed ballot";
+  if ("wx_el_ballot_" + elId + "_" + citizenId !== key) return "Ballot does not match its key";
+  const el = await wildenElectionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "voting") return "The poll is not open";
+  const cit = await db.collection("wx_state_citizens").findOne({ $or: [{ _id: citizenId }, { id: citizenId }] });
+  if (!cit) return "No citizen record for this ballot";
+  if (String(cit.username || "").toLowerCase() !== String(actor.username || "").toLowerCase())
+    return "You may only cast your own ballot";
+  const allow = new Set(el.eligibility && el.eligibility.length ? el.eligibility : ["citizen", "naturalised"]);
+  if (!allow.has(String(cit.status || "citizen"))) return "You are not enfranchised for this election";
+  if (await db.collection("singletons").findOne({ _id: key }, { projection: { _id: 1 } }))
+    return "A ballot has already been cast and cannot be changed";
+  await db.collection("singletons").replaceOne({ _id: key },
+    { _id: key, value: { elId, citizenId, choice, at: Date.now() }, _secretBallot: true, _writtenBy: actor.username, _writtenAt: Date.now() },
+    { upsert: true });
+  const tkey = "wx_el_tally_" + elId;
+  const tdoc = await db.collection("singletons").findOne({ _id: tkey });
+  const tally = (tdoc && tdoc.value && typeof tdoc.value === "object") ? tdoc.value : {};
+  if (!tally.counts || typeof tally.counts !== "object") tally.counts = {};
+  if (!Array.isArray(tally.voted)) tally.voted = [];
+  if (choice) tally.counts[choice] = (tally.counts[choice] || 0) + 1;
+  if (!tally.voted.includes(citizenId)) tally.voted.push(citizenId);
+  tally.total = (tally.total || 0) + 1;
+  await db.collection("singletons").replaceOne({ _id: tkey }, { _id: tkey, value: tally }, { upsert: true });
+  return null;
+}
+
+// ── The Vindex presidential election (Federal Electoral Commission) ───────────
+// Vindex runs its presidential poll as a SECRET, ranked (Schulze) ballot. The raw
+// ranking (who → in what order) is written administrator-only and never leaves the
+// server to anyone else; a public tally keeps only the turnout (who has voted, and
+// how many), so everyone sees participation climb but no one sees a single elector's
+// ranking. The result itself is computed by the Commission at the count and written
+// to a public record (vx_el_result_<elId>), so the Schulze outcome and its pairwise
+// matrix are visible to all without any ballot being exposed. The Federal Electoral
+// Commission is the network administrator (the only authority Vindex vests this in).
+function isVindexFEC(a) { return isSysAdmin(a); }
+async function vindexElectionById(elId) {
+  if (!elId) return null;
+  const direct = await db.collection("vx_el_elections").findOne({ _id: elId }).catch(() => null);
+  if (direct) return direct;
+  const doc = await db.collection("singletons").findOne({ _id: "vx_el_elections" });
+  const all = (doc && doc.value) || {};
+  return all[elId] || null;
+}
+// Standing for President. A candidate files their own nomination under their own
+// username — vx_el_reg_<elId>_<username> — only while nominations are open, and may
+// never rule on their own case: the decision status, the party the Commission
+// assigns, and the recognition of a newly requested party are the Commission's
+// alone, and a paper already ruled on is sealed. The Commission never reaches here;
+// the vx_el_ domain admits it.
+async function authorizeVindexRegistration(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const elId = value && value.elId, uname = String(actor.username || "").toLowerCase();
+  if (!elId || !uname) return "Malformed nomination";
+  if ("vx_el_reg_" + elId + "_" + uname !== key) return "You may only file your own nomination";
+  const el = await vindexElectionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "registration") return "Nominations are not open";
+  const cur = await db.collection("singletons").findOne({ _id: key });
+  const prev = cur && cur.value;
+  if (prev && prev.status && prev.status !== "pending")
+    return "Your nomination has already been ruled on and cannot be changed";
+  if ((value.status || "pending") !== "pending") return "A candidate may not rule on their own nomination";
+  if (value.partyStatus && value.partyStatus !== "pending") return "A candidate may not recognise their own party";
+  if (value.assignedParty) return "Only the Commission may assign a party";
+  return null;
+}
+// A hard void bars the account that cast the struck ballot (the account named on the
+// void, which is also the only one the snapshot tells about it). The election is
+// matched on the record too, so a bar in contest "e1_x" never reaches "e1".
+const vxVoidKeyFor = (elId, username, citizenId) =>
+  "vx_el_void_" + elId + "_" + (username ? "u_" + username : "c_" + citizenId);
+async function isBarredFromVindexElection(elId, citizenId, username) {
+  const u = String(username || "").toLowerCase();
+  const hit = await db.collection("singletons").findOne({
+    _id: { $regex: "^" + escapeRegex("vx_el_void_" + elId + "_") },
+    "value.elId": String(elId),
+    "value.kind": "hard",
+    $or: [
+      ...(u ? [{ "value.username": u }] : []),
+      { "value.citizenId": String(citizenId || ""), "value.username": { $in: ["", null] } },
+    ],
+  }, { projection: { _id: 1 } });
+  return !!hit;
+}
+// Casting a Vindex ballot: one ranking per enfranchised citizen, for the citizen
+// record the account owns, only while the poll is open, never changed, and never
+// from someone a hard void has barred. The raw ranking is stored _secretBallot so
+// the snapshot hands it only to the Commission; a public turnout tally is bumped so
+// participation shows with no voter→ranking link exposed.
+async function castVindexBallot(actor, key, value) {
+  if (!actor) return "Not authenticated";
+  const citizenId = value && value.citizenId, elId = value && value.elId;
+  const ranking = Array.isArray(value && value.ranking) ? value.ranking.map(String) : [];
+  if (!citizenId || !elId) return "Malformed ballot";
+  if ("vx_el_ballot_" + elId + "_" + citizenId !== key) return "Ballot does not match its key";
+  const el = await vindexElectionById(elId);
+  if (!el) return "No such election";
+  if (el.status !== "voting") return "The poll is not open";
+  const cit = await db.collection("vx_state_citizens").findOne({ $or: [{ _id: citizenId }, { id: citizenId }] });
+  if (!cit) return "No citizen record for this ballot";
+  const uname = String(actor.username || "").toLowerCase();
+  if (String(cit.username || "").toLowerCase() !== uname) return "You may only cast your own ballot";
+  const allow = new Set(el.eligibility && el.eligibility.length ? el.eligibility : ["citizen", "naturalised"]);
+  if (!allow.has(String(cit.status || "citizen"))) return "You are not enfranchised for this election";
+  if (await isBarredFromVindexElection(elId, citizenId, uname))
+    return "Your ballot in this election was voided and you may not vote in it again";
+  if (await db.collection("singletons").findOne({ _id: key }, { projection: { _id: 1 } }))
+    return "A ballot has already been cast and cannot be changed";
+  const now = Date.now();
+  await db.collection("singletons").replaceOne({ _id: key },
+    { _id: key, value: { elId, citizenId, ranking, at: now, castBy: uname }, _secretBallot: true, _writtenBy: actor.username, _writtenAt: now },
+    { upsert: true });
+  const tkey = "vx_el_tally_" + elId;
+  const tdoc = await db.collection("singletons").findOne({ _id: tkey });
+  const tally = (tdoc && tdoc.value && typeof tdoc.value === "object") ? tdoc.value : {};
+  if (!Array.isArray(tally.voted)) tally.voted = [];
+  if (!tally.voted.includes(citizenId)) tally.voted.push(citizenId);
+  tally.total = (tally.voted || []).length;
+  await db.collection("singletons").replaceOne({ _id: tkey }, { _id: tkey, value: tally }, { upsert: true });
+  return null;
+}
+
+// ── Vwitter — the network's social service ────────────────────────────────────
+// Every account is automatically its own handle (@username) and may post, reply,
+// repost and message only AS ITSELF. Some accounts belong to an OFFICE rather than
+// a person: any account currently holding one of the offices the administrator
+// attached to an office account may post as it. The office accounts, and which
+// offices reach them, are the administrator's alone. Direct messages are private
+// to their two participants (redacted from everyone else in the snapshot).
+// Fixed single-holder head-of-state / head-of-government offices, matched on the
+// role field of the shared account. Cabinet and ministerial offices are NOT fixed
+// here: they are individually held and read LIVE from each nation's register, so
+// an office account maps to ONE post, never a whole group. Keep in sync with the
+// copy in vwitter.html.
+const VW_FIXED_OFFICES = [
+  { id: "lech_emperor", label: "Emperor of Lech",          group: "Empire of Lech",     field: "role",   values: ["emperor"] },
+  { id: "vx_president", label: "President of Vindex",       group: "Republic of Vindex", field: "vxRole", values: ["president"] },
+  { id: "vx_vp",        label: "Vice-President of Vindex",  group: "Republic of Vindex", field: "vxRole", values: ["vice_president"] },
+  { id: "vx_speaker",   label: "Speaker of Vindex",        group: "Republic of Vindex", field: "vxRole", values: ["speaker"] },
+  { id: "wx_sovereign", label: "Sovereign of Wilden",      group: "Wilden",             field: "wxRole", values: ["sovereign"] },
+  { id: "wx_pm",        label: "Prime Minister of Wilden", group: "Wilden",             field: "wxRole", values: ["pm"] },
+  { id: "wx_speaker",   label: "Speaker of the Commons",   group: "Wilden",             field: "wxRole", values: ["speaker"] },
+];
+// The registers an office match reads: Lech's officials, and each nation's cabinet.
+async function vwLoadOfficeData() {
+  const g = async id => { const d = await db.collection("singletons").findOne({ _id: id }); return (d && d.value) || {}; };
+  const [bo, vg, wg] = await Promise.all([g("bk_officials"), g("vx_gov"), g("wx_gov")]);
+  return { bk_officials: bo, vx_gov: vg, wx_gov: wg };
+}
+// Does `account` hold the office identified by `id`? Fixed ids match a role field;
+// "lech:chancellor" / "lechmin:<portfolio>" / "cab:<gov>:<post>" match a register.
+function vwOfficeMatches(id, account, data) {
+  if (!account) return false;
+  const u = String(account.username || "").toLowerCase();
+  const f = VW_FIXED_OFFICES.find(o => o.id === id);
+  if (f) return f.values.map(String).includes(String(account[f.field] || ""));
+  if (id === "lech:chancellor") return String(((data && data.bk_officials) || {}).chancellor_username || "").toLowerCase() === u;
+  if (id.indexOf("lechmin:") === 0) {
+    const m = ((data && data.bk_officials) || {}).minister_usernames || {};
+    return String(m[id.slice(8)] || "").toLowerCase() === u;
+  }
+  if (id.indexOf("cab:") === 0) {
+    const p = id.split(":"), gov = p[1], post = p.slice(2).join(":");
+    const cab = ((data && data[gov]) || {}).cabinet || {};
+    return String(cab[u] || "").toLowerCase() === String(post).toLowerCase();
+  }
+  return false;
+}
+async function vwOfficeAccountById(id) {
+  const doc = await db.collection("singletons").findOne({ _id: "vw_office_accounts" });
+  const all = (doc && doc.value) || {};
+  return all[id] || null;
+}
+function vwUserControls(actor, oa, data) {
+  if (!actor || !oa) return false;
+  if (isSysAdmin(actor)) return true;
+  return (oa.offices || []).some(id => vwOfficeMatches(id, actor, data));
+}
+// Words the administrator has banned from posts (whole-word, case-insensitive).
+async function vwBannedWords() {
+  const d = await db.collection("singletons").findOne({ _id: "vw_profanity" });
+  const w = d && d.value && Array.isArray(d.value.words) ? d.value.words : [];
+  return new Set(w.map(x => String(x).toLowerCase().trim()).filter(Boolean));
+}
+function vwHasBanned(text, banned) {
+  if (!banned.size) return false;
+  return String(text || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).some(t => banned.has(t));
+}
+// A post is authentic only if the account signing the request is the one named on
+// it, and (under an office account) only if it holds a reaching office. It must
+// also clear the word filter, the one-a-minute rate limit (posts and reposts, not
+// replies), and it may never repost a repost.
+async function authorizeVwPost(actor, value) {
+  if (!actor) return "Not authenticated";
+  const author = String((value && value.author) || "").toLowerCase();
+  if (!author) return "A post must name its author";
+  if (author !== String(actor.username || "").toLowerCase()) return "You may only post as yourself";
+  if (value && value.asOffice) {
+    const oa = await vwOfficeAccountById(String(value.asOffice));
+    if (!oa) return "That office account does not exist";
+    if (!vwUserControls(actor, oa, await vwLoadOfficeData())) return "You do not hold an office that reaches that account";
+  }
+  if (value && value.repostOf) {
+    const tgt = await db.collection("singletons").findOne({ _id: "vw_post_" + value.repostOf });
+    const t = tgt && tgt.value;
+    if (t && t.repostOf && !String(t.text || "").trim()) return "You can't repost a repost.";
+  }
+  if (value && String(value.text || "").trim() && vwHasBanned(value.text, await vwBannedWords()))
+    return "Your post contains a word that isn't allowed here.";
+  if (value && !value.replyTo) {                                    // rate limit posts + reposts, not replies
+    const rd = await db.collection("singletons").findOne({ _id: "vw_rate_" + author });
+    const last = (rd && rd.value && rd.value.at) || 0;
+    if (Date.now() - last < 60000) return "You're posting too fast — you can post once a minute.";
+  }
+  return null;
+}
+async function authorizeVwDM(actor, value) {
+  if (!actor) return "Not authenticated";
+  const from = String((value && value.from) || "").toLowerCase();
+  if (from !== String(actor.username || "").toLowerCase()) return "You may only send messages as yourself";
+  if (value && value.fromOffice) {
+    const oa = await vwOfficeAccountById(String(value.fromOffice));
+    if (!oa) return "That office account does not exist";
+    if (!vwUserControls(actor, oa, await vwLoadOfficeData())) return "You do not hold an office that reaches that account";
+  }
+  if (!value || !value.to) return "A message needs a recipient";
+  return null;
+}
+
+// ── The Lech–Vindex war record ────────────────────────────────────────────────
+// War command on either side: the people who may appoint a battle's Strategy
+// Officer and who may work their own nation's roster. Proven against the live
+// registers, never against a claim from the browser.
+async function isVindexWarCommand(actor) {
+  if (!actor) return false;
+  if (isSysAdmin(actor)) return true;
+  const r = String(actor.vxRole || "");
+  if (r === "president" || r === "vice_president") return true;
+  if (r === "cabinet") {
+    const g = await db.collection("singletons").findOne({ _id: "vx_gov" });
+    const cab = (g && g.value && g.value.cabinet) || {};
+    const post = cab[String(actor.username || "").toLowerCase()];
+    if (/^secretary of defen[cs]e$/i.test(String(post || "").trim())) return true;
+  }
+  return false;
+}
+async function isLechWarCommand(actor) {
+  if (!actor) return false;
+  if (isSysAdmin(actor)) return true;
+  if (hasWar(actor)) return true;                          // Minister of War, or a commander
+  return await holdsNamedOffice(actor, "Chancellor");
+}
+async function isWarCommand(actor, side) {
+  return side === "vindex" ? await isVindexWarCommand(actor) : await isLechWarCommand(actor);
+}
+
+// A nation's service record, wherever it happens to live — some registers were
+// imported as singletons holding a map, others as collections of documents.
+async function serviceRoll(key) {
+  const s = await db.collection("singletons").findOne({ _id: key });
+  if (s && s.value && typeof s.value === "object") return Object.values(s.value);
+  return await db.collection(key).find({}).toArray();
+}
+// "O-3" and "OF-3" are commissions; "E-3" and "OR-3" are not. Vindex commissions
+// at O-1, Lech at OF-1 — everything below is enlisted or non-commissioned.
+const isCommissioned = (g) => /^(O|OF)-\d+$/i.test(String(g || "").trim());
+async function holdsCommission(username, side) {
+  const u = String(username || "").trim().toLowerCase();
+  if (!u) return false;
+  const roll = await serviceRoll(side === "vindex" ? "vx_dod_personnel" : "mow_personnel");
+  return roll.some((p) => p && String(p.username || "").toLowerCase() === u
+    && String(p.status || "active") === "active" && isCommissioned(p.grade));
+}
+
+// A battle roster — one per side per battle. The Strategy Officer works the
+// bench; only that nation's war command may appoint them. Neither side may ever
+// touch the other's roster: the enemy's headcount is precisely what sets your
+// own legal maximum, so writing theirs would be writing your own cap.
+async function authorizeRoster(actor, record) {
+  if (!actor) return "Not authenticated";
+  const side = String((record && record.side) || "").toLowerCase();
+  if (side !== "lech" && side !== "vindex") return "A roster must name its side";
+  if (!record.battleId) return "A roster must name its battle";
+  if (record.id !== "roster_" + record.battleId + "_" + side)
+    return "Roster does not match its battle and side";
+  const command = await isWarCommand(actor, side);
+  const prev = await db.collection("lvwar_rosters").findOne({ _id: record.id });
+  const soPrev = String((prev && prev.strategyOfficer) || "").toLowerCase();
+  const soNext = String(record.strategyOfficer || "").toLowerCase();
+  // Appointing or replacing the Strategy Officer is war command's act alone — a
+  // sitting officer cannot hand the post on, nor keep themselves in it.
+  if (soNext !== soPrev && !command)
+    return "Only this nation's war command may appoint a Strategy Officer";
+  // The post goes to a commissioned officer of that nation's own service, and to
+  // nobody else — the page offers only those names, and this is what makes it so.
+  if (soNext && soNext !== soPrev && !(await holdsCommission(soNext, side)))
+    return "A Strategy Officer must hold a commission in that nation's service";
+  if (command) return null;
+  if (soPrev && soPrev === String(actor.username || "").toLowerCase()) return null;
+  return "Requires this nation's war command, or its appointed Strategy Officer";
+}
+
+// Does this account currently hold the named executive office? Verified against
+// the live officials register — used to authorise office communiqués.
+async function holdsNamedOffice(actor, office) {
+  if (!actor || !office) return false;
+  if (actor.role === "emperor") return true;
+  const u = String(actor.username || "").toLowerCase();
+  const d = String(actor.displayName || "").toLowerCase();
+  const offDoc = await db.collection("singletons").findOne({ _id: "bk_officials" });
+  const off = offDoc ? offDoc.value : null;
+  if (!off) return false;
+  const match = (stored, bare) => {
+    stored = String(stored || "").toLowerCase();
+    if (stored) return stored === u;
+    bare = String(bare || "").toLowerCase();
+    return !!bare && bare !== "vacant" && (bare === u || bare === d);
+  };
+  if (office === "Chancellor") return match(off.chancellor_username, off.chancellor);
+  return match((off.minister_usernames || {})[office], (off.ministers || {})[office]);
+}
+
+// ── Account authority, by slice ────────────────────────────────────────────────
+// The account record is shared across the whole server, but each authority owns
+// only its own slice of it. Identity and possession — the name shown, the linked
+// Minecraft account, the picture lock, and the administrator flag itself — belong
+// to the network administrator (the owner, or anyone granted sysAdmin), who runs
+// the Vintranet admin panel. Each nation owns only its own office fields. This is
+// the reform that unbinds "who runs the server" from "who runs Lech".
+const isSysAdmin = (a) => !!a && (a.role === "emperor" || a.sysAdmin === true);
+// A system moderator polices the network without running it: they may admit an
+// account awaiting review and suspend one that misbehaves, and nothing else.
+// Every administrator is also a moderator.
+const isSysMod = (a) => isSysAdmin(a) || (!!a && a.sysMod === true);
+const isLechInterior = (a) => !!a && (a.role === "emperor" || a.role === "minister");
+
+// Fields nobody edits through this path: the id, the write-stamps, and the
+// secret, which has its own endpoints (/api/register, /api/change-password).
+const ACCT_META = new Set(["_id", "_writtenBy", "_writtenAt", "passwordHash", "salt", "username"]);
+// Identity & possession — the administrator's slice.
+const ACCT_IDENTITY = new Set(["displayName", "mcName", "mcUuid", "pfpLocked", "notes"]);
+// Lech permissions — the Interior Ministry's slice.
+// citizenshipStatus is retired: citizenship lives solely on the mfa_citizens
+// register, granted by the Ministry of Foreign Affairs — never as an account field.
+const ACCT_LECH = new Set(["role", "clearance", "ministry", "isContractor", "lssRole", "lfpRole",
+  "agentAssigned", "officerAssigned", "mdtRestricted", "mdtClearance", "mowRole", "mowAccess",
+  "canSetAlert", "mofRole", "mofAccess", "pressRole", "pressAccess", "ijAccess", "mfaAccess",
+  "imcRole", "stateOfResidency"]);
+
+// Conferring a Vinish office (vxRole). Owner may set any; the President may set any
+// but the presidency (the Emperor's to confer, TEA 4(1)(a)); the Speaker may only
+// seat Representatives (the election they run, TEA 6(1)(b)).
+function vxRoleGrant(actor, prev, next) {
+  if (actor.role === "emperor") return null;
+  const mine = String(actor.vxRole || "");
+  if (mine === "president") {
+    if (next === "president" || prev === "president") return "Only the Emperor may appoint or remove the President";
+    return null;
+  }
+  if (mine === "speaker") {
+    const ok = (v) => ["", "citizen", "representative"].includes(v);
+    return (ok(next) && ok(prev)) ? null : "The Speaker may only seat Representatives";
+  }
+  return "You are not permitted to confer a Vinish office";
+}
+// Conferring a Wildenian office (wxRole). Owner may set any; the Sovereign every
+// office but His own; the Prime Minister the Lords, Ministry and members (s23/s29);
+// the Speaker only members of the Commons (s20).
+function wxRoleGrant(actor, prev, next) {
+  if (actor.role === "emperor") return null;
+  const mine = String(actor.wxRole || "");
+  if (mine === "sovereign") {
+    if (next === "sovereign" || prev === "sovereign") return "The Sovereign's own office is not conferred here";
+    return null;
+  }
+  if (mine === "pm") {
+    const ok = (v) => ["", "citizen", "mp", "lord", "appointed"].includes(v);
+    return (ok(next) && ok(prev)) ? null : "The Prime Minister may advise only on the Lords, the Ministry and the seating of members";
+  }
+  if (mine === "speaker") {
+    const ok = (v) => ["", "citizen", "mp"].includes(v);
+    return (ok(next) && ok(prev)) ? null : "The Speaker may only seat members of the House of Commons";
+  }
+  return "You are not permitted to confer a Wildenian office";
+}
+
+// Offices that only a citizen of the nation may hold. "citizen" and "" are exempt:
+// they are not offices, only recognition or its absence. Citizenship is granted by
+// each nation's foreign ministry and is what makes a person eligible for office.
+const VX_CITIZEN_OFFICES = new Set(["representative", "speaker", "cabinet", "vice_president", "president"]);
+const WX_CITIZEN_OFFICES = new Set(["mp", "speaker", "pm", "lord", "appointed", "justice", "chief_justice"]);
+const CITIZEN_STATUS = new Set(["citizen", "naturalised"]);
+async function isCitizenOf(collection, username) {
+  const u = String(username || "").toLowerCase();
+  if (!u) return false;
+  const docs = await db.collection(collection).find({}).toArray();
+  return docs.some(c => String(c.username || "").toLowerCase() === u && CITIZEN_STATUS.has(String(c.status || "")));
+}
+
+// Who answers a citizenship request, by the nation it names. Each nation's foreign
+// ministry, and no one else — the same authorities that keep the three registers.
+const CIT_REQUEST_AUTH = { lech: hasMFA, vindex: hasVindex, wilden: hasWilden };
+const CIT_REQUEST_DENIAL = {
+  lech: "Requires Foreign Affairs authority in the Empire of Lech",
+  vindex: "Requires an office in the Republic of Vindex Nation",
+  wilden: "Requires an office in Wilden",
+};
+
+// One changed field, with its old and new value: does this actor hold the
+// authority that owns it? Returns an error string, or null if permitted.
+function fieldAuth(actor, field, prev, next) {
+  if (ACCT_IDENTITY.has(field))
+    return isSysAdmin(actor) ? null : "Only a network administrator may change account identity";
+  if (field === "sysAdmin")
+    return actor.role === "emperor" ? null : "Only the owner may grant or revoke administrator rights";
+  // Moderators are appointed by the administration, not by one another.
+  if (field === "sysMod")
+    return isSysAdmin(actor) ? null : "Only a network administrator may appoint a moderator";
+  // Suspension and admission are the moderator's two powers, shared with the
+  // administration. A moderator may not ban the owner, nor themselves.
+  if (field === "banned" || field === "banReason" || field === "bannedAt" || field === "bannedBy")
+    return isSysMod(actor) ? null : "Only a network administrator or moderator may suspend an account";
+  if (field === "approved" || field === "approvedAt" || field === "approvedBy" || field === "registeredAt")
+    return isSysMod(actor) ? null : "Only a network administrator or moderator may admit an account";
+  if (ACCT_LECH.has(field)) {
+    if (field === "role") {
+      if (roleRank(next) === 2 || roleRank(prev) === 2)
+        return actor.role === "emperor" ? null : "Only the Emperor may grant or remove the Imperial role";
+      if (roleRank(next) === 1 || roleRank(prev) === 1)
+        return isLechInterior(actor) ? null : "Only the Emperor or Interior Minister may appoint or remove a Minister";
+      return isLechInterior(actor) ? null : "Requires Interior authority";
+    }
+    // A ministry head may flip ONLY their own agency's flags — the War Office's here.
+    if (["mowRole", "mowAccess", "canSetAlert"].includes(field) && actor.mowRole === "minister") return null;
+    return isLechInterior(actor) ? null : "Requires Interior authority to change Lech permissions";
+  }
+  // The citizenship a new account asked for. The nation named on the request is the
+  // one that answers it: Lech's Ministry of Foreign Affairs, the Republic's
+  // Department of State, or Wilden's Ministry of Foreign Affairs — each rules on its
+  // own and on nothing else. Granting the citizenship itself is a separate act on
+  // that nation's register; this field only records how the request was answered.
+  if (field === "citizenshipRequest") {
+    if (isSysAdmin(actor)) return null;
+    const pc = String((prev && prev.country) || ""), nc = String((next && next.country) || "");
+    if (pc && nc && pc !== nc) return "A citizenship request cannot be moved to another nation";
+    const guard = CIT_REQUEST_AUTH[pc || nc];
+    if (!guard) return "There is no such nation to rule on a citizenship request";
+    return guard(actor) ? null : CIT_REQUEST_DENIAL[pc || nc];
+  }
+  if (field === "vxRole") return vxRoleGrant(actor, String(prev || ""), String(next || ""));
+  if (field === "wxRole") return wxRoleGrant(actor, String(prev || ""), String(next || ""));
+  return "You are not permitted to change this account's permissions";
+}
+
+async function authorizeAccountWrite(actor, incoming) {
+  if (!actor) return "Not authenticated";
+  const existing = await db.collection("accounts").findOne({ _id: recordId("accounts", incoming) });
+  // Creating an account is an act of identity, so only an administrator may. A new
+  // account carries identity and a neutral baseline; every privilege is conferred
+  // afterward, by the authority that owns it.
+  if (!existing) {
+    if (!isSysAdmin(actor)) return "Only a network administrator may create an account";
+    if (roleRank(incoming.role) >= 1) return "Grant a Minister or Imperial role after the account exists";
+    if (incoming.sysAdmin && actor.role !== "emperor") return "Only the owner may grant administrator rights";
+    if (incoming.vxRole) return "Confer a Vinish office from the Vindex portal";
+    if (incoming.wxRole) return "Confer a Wildenian office from the Wilden service";
+    return null;
+  }
+  // Setting a password hash directly is possession, and self-service goes through
+  // /api/change-password (which checks the old password). Guard it explicitly:
+  // otherwise a write changing only the hash would pass the loop below, since the
+  // hash is a meta field the loop skips — an account-takeover hole.
+  if (incoming.passwordHash !== undefined && !isSysAdmin(actor))
+    return "Only a network administrator may set an account's password";
+  // A suspension has people it can never reach: the owner, who answers to no
+  // administrator; the actor themselves — nobody locks themselves out; and, for a
+  // mere moderator, anyone in the administration above them.
+  if (!!incoming.banned !== !!existing.banned) {
+    if (existing.role === "emperor") return "The owner's account cannot be suspended";
+    if (String(existing._id) === String(actor._id)) return "You cannot suspend your own account";
+    if (!isSysAdmin(actor) && isSysAdmin(existing)) return "A moderator may not suspend an administrator";
+  }
+  // An existing account: every field that actually changed must be one the actor
+  // is entitled to change. Meta fields are handled elsewhere and never counted.
+  const keys = new Set([...Object.keys(existing), ...Object.keys(incoming)]);
+  for (const f of keys) {
+    if (ACCT_META.has(f)) continue;
+    if (JSON.stringify(incoming[f]) === JSON.stringify(existing[f])) continue;
+    const err = fieldAuth(actor, f, existing[f], incoming[f]);
+    if (err) return err;
+  }
+  // An office may be conferred only on a citizen of that nation. The loop above
+  // confirmed the actor may confer it; this confirms the person is eligible to hold
+  // it. Removing an office, or setting mere "citizen"/none, needs no citizenship.
+  const u = String(existing.username || incoming.username || "");
+  if (String(incoming.vxRole || "") !== String(existing.vxRole || "")
+    && VX_CITIZEN_OFFICES.has(String(incoming.vxRole || ""))
+    && !(await isCitizenOf("vx_state_citizens", u)))
+    return "Only a citizen of Vindex Nation may hold office — grant citizenship in the Department of State first";
+  if (String(incoming.wxRole || "") !== String(existing.wxRole || "")
+    && WX_CITIZEN_OFFICES.has(String(incoming.wxRole || ""))
+    && !(await isCitizenOf("wx_state_citizens", u)))
+    return "Only a citizen of Wilden may hold office — grant citizenship in the Ministry of Foreign Affairs first";
+  return null;
+}
+function recordId(collection, record) {
+  if (collection === "accounts") return String(record.username || record._id || "").toLowerCase();
+  return String(record.id || record._id || "");
+}
+// A Representative casts one vote, under their own name, on a bill that is actually
+// before the House. The record's id ties the vote to the voter, so a vote can be
+// neither cast for someone else nor duplicated to pad a count; re-voting while the
+// floor is open simply replaces it, which is what changing your mind looks like.
+async function authorizeVxVote(actor, record) {
+  const u = String(actor.username || "").toLowerCase();
+  if (String(actor.vxRole || "") !== "representative")
+    return "Only sitting Representatives of Vindex Nation may vote";
+  if (String(record.username || "").toLowerCase() !== u)
+    return "You may only cast your own vote";
+  if (String(record.id || "") !== String(record.billId || "") + "__" + u)
+    return "Vote does not match its record";
+  const bill = await db.collection("vx_bills").findOne({ _id: String(record.billId || "") });
+  if (!bill) return "No such bill";
+  if (bill.status !== "floor" && bill.status !== "override")
+    return "This bill is not before the House";
+  return null;
+}
+
+// Who may move a measure through the House. A Representative introduces one onto
+// the docket and may revise their own while it sits there; calling it to the floor
+// and closing the vote are the Speaker's (or, in the Speaker's absence, the
+// President's) under TEA 6(1), and signing or vetoing is the President's alone
+// under TEA 4(2)(a). Judged against the stored bill, so a client cannot simply
+// declare its own measure passed.
+function vxPresides(actor) {
+  const r = String(actor.vxRole || "");
+  return actor.role === "emperor" || r === "speaker" || r === "president";
+}
+async function authorizeVxBill(actor, record) {
+  const u = String(actor.username || "").toLowerCase();
+  const role = String(actor.vxRole || "");
+  const isPres = role === "president" || actor.role === "emperor";
+  const existing = await db.collection("vx_bills").findOne({ _id: String(record.id || "") });
+  const next = String(record.status || "");
+  if (!existing) {
+    if (next !== "docket") return "A new measure is introduced onto the docket";
+    if (!vxPresides(actor) && role !== "representative")
+      return "Only a Representative or the Speaker may introduce a measure";
+    return null;
+  }
+  if (next === existing.status) {                      // revising the text, not moving it
+    if (existing.status !== "docket") return "A measure before the House can no longer be revised";
+    if (!vxPresides(actor) && String(existing.sponsor || "").toLowerCase() !== u)
+      return "Only the sponsor may revise this measure";
+    return null;
+  }
+  if (existing.status === "passed" && next === "law")
+    return isPres ? null : "Only the President may sign a bill into law";
+  if (next === "vetoed")
+    return isPres ? null : "Only the President may veto a bill";
+  return vxPresides(actor) ? null : "Only the Speaker or the President may move a measure through the House";
+}
+
+// A member votes in the House they actually sit in, under their own name, on a
+// bill actually before that House. The record's id ties the vote to the voter, the
+// House and the round, so a second passage under s25(3) is a fresh division and a
+// vote can be neither cast for someone else nor duplicated to pad a division.
+async function authorizeWxVote(actor, record) {
+  const u = String(actor.username || "").toLowerCase();
+  const role = String(actor.wxRole || "");
+  const house = String(record.house || "");
+  if (house === "commons" && !WX_COMMONS.has(role)) return "Only members of the House of Commons may vote in its divisions";
+  if (house === "lords" && role !== "lord") return "Only Lords may vote in divisions of the House of Lords";
+  if (house !== "commons" && house !== "lords") return "Unknown House";
+  if (String(record.username || "").toLowerCase() !== u) return "You may only cast your own vote";
+  const bill = await db.collection("wx_bills").findOne({ _id: String(record.billId || "") });
+  if (!bill) return "No such bill";
+  const round = Number(bill.round || 1);
+  if (String(record.id || "") !== String(record.billId || "") + "__" + house + "__" + round + "__" + u)
+    return "Vote does not match its record";
+  const open = { commons: ["commons", "reconsider"], lords: ["lords"] }[house];
+  if (!open.includes(String(bill.stage || ""))) return "This bill is not before that House";
+  return null;
+}
+
+// Introducing a bill is open to anyone with a seat; moving it between stages is
+// the Speaker's or the Prime Minister's, and the Royal Assent is the Sovereign's
+// alone (s10). Judged against the stored bill, so a client cannot declare its own
+// bill passed, nor assent to it.
+async function authorizeWxBill(actor, record) {
+  const u = String(actor.username || "").toLowerCase();
+  const role = String(actor.wxRole || "");
+  const seated = WX_COMMONS.has(role) || role === "lord";
+  const existing = await db.collection("wx_bills").findOne({ _id: String(record.id || "") });
+  const next = String(record.stage || "");
+  if (!existing) {
+    if (next !== "draft") return "A bill is introduced before it goes before a House";
+    if (!seated && !wxPresides(actor)) return "Only a member of either House may introduce a bill";
+    return null;
+  }
+  if (next === existing.stage) {
+    if (existing.stage !== "draft") return "A bill before a House can no longer be revised";
+    if (!wxPresides(actor) && String(existing.sponsor || "").toLowerCase() !== u)
+      return "Only the member who introduced this bill may revise it";
+    return null;
+  }
+  if (next === "act")
+    return (role === "sovereign" || actor.role === "emperor") ? null : "Only the Sovereign may signify the Royal Assent";
+  return wxPresides(actor) ? null : "Only the Speaker, the Prime Minister or the Sovereign may move a bill through Parliament";
+}
+
+async function writeRule(collection, actor, record) {
+  if (!actor) return "Not authenticated";
+  // Sessions and the singletons store are written only by the server's own
+  // endpoints, each with its own rules (login, ballots, voids, nominations …).
+  // Through here, a session could be forged for any account, and any singleton —
+  // a ballot, a voided-ballot record, a government register — overwritten.
+  if (collection === "sessions" || collection === "singletons") return "Forbidden";
+  if (collection === "wx_votes") return await authorizeWxVote(actor, record);
+  if (collection === "wx_bills") return await authorizeWxBill(actor, record);
+  if (collection === "vx_votes") return await authorizeVxVote(actor, record);
+  if (collection === "vx_bills") return await authorizeVxBill(actor, record);
+  // An executive order is the President's own instrument — TEA Sec. 4(3)(a).
+  if (collection === "vx_orders")
+    return (actor.role === "emperor" || String(actor.vxRole || "") === "president")
+      ? null : "Only the President of Vindex Nation may issue an executive order";
+  // The master-password store is written only through /api/master-password (Emperor).
+  if (collection === "secrets") return "Forbidden";
+  // Profile pictures are written only through /api/profile-picture.
+  if (collection === "mi_pfp") return "Use /api/profile-picture";
+  if (collection === "accounts") return await authorizeAccountWrite(actor, record);
+  if (collection === "mi_lss_ops" || collection === "mi_lss_docs") {
+    if (!canSeeLSS(actor)) return "Not authorised (LSS)";
+    if ((record.clearance || 0) > (actor.clearance || 0)) return "Cannot create above your clearance";
+    return null;
+  }
+  if (collection === "mi_lfp_ops" || collection === "mi_arrests") { if (!canSeeLFP(actor)) return "Not authorised (LFP)"; return null; }
+  if (collection === "lvwar_rosters") return await authorizeRoster(actor, record);
+  return await authorizeKeyWrite(actor, collection);
+}
+async function deleteRule(collection, actor) {
+  if (!actor) return "Not authenticated";
+  if (collection === "secrets" || collection === "sessions" || collection === "singletons") return "Forbidden";
+  // The network administrator may expunge a measure outright — record, votes and
+  // all — leaving no trace. This is deliberately outside every national office:
+  // it is a moderation power over the estate, not an act of any government.
+  if (isSysAdmin(actor) &&
+      ["vx_bills", "vx_orders", "vx_votes", "wx_bills", "wx_votes"].includes(collection)) return null;
+  // Striking a measure or an order from the record is an act of office.
+  if (collection === "vx_bills" || collection === "vx_orders")
+    return vxPresides(actor) ? null : "Only the Speaker or the President may strike this from the record";
+  if (collection === "vx_votes") return "A vote once cast stands on the record";
+  if (collection === "wx_bills")
+    return wxPresides(actor) ? null : "Only the Speaker, the Prime Minister or the Sovereign may withdraw a bill";
+  if (collection === "wx_votes") return "A vote once cast stands on the record";
+  if (collection === "mi_pfp") return "Use /api/profile-picture";
+  if (collection === "accounts") return isSysAdmin(actor) ? null : "Only a network administrator may delete an account";
+  if (collection === "mi_lss_ops" || collection === "mi_lss_docs") return canSeeLSS(actor) ? null : "Not authorised (LSS)";
+  if (collection === "mi_lfp_ops" || collection === "mi_arrests") return canSeeLFP(actor) ? null : "Not authorised (LFP)";
+  return await authorizeKeyWrite(actor, collection);
+}
+async function applyAccountSecret(record) {
+  if (record.passwordHash) return;   // client supplied a new hash (password change)
+  const existing = await db.collection("accounts").findOne({ _id: recordId("accounts", record) });
+  if (existing) {
+    if (existing.passwordHash !== undefined) record.passwordHash = existing.passwordHash;
+    if (existing.salt !== undefined) record.salt = existing.salt;
+  }
+}
+
+app.post("/api/write", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    const { collection, record } = req.body || {};
+    if (!collection || !record) return res.status(400).json({ ok: false, error: "Missing collection/record" });
+    const err = await writeRule(collection, actor, record);
+    if (err) return res.status(403).json({ ok: false, error: err });
+    const id = recordId(collection, record);
+    if (!id) return res.status(400).json({ ok: false, error: "Record has no id" });
+    const doc = { ...record, _id: id, _writtenBy: actor.username, _writtenAt: Date.now() };
+    if (collection === "accounts") {
+      doc.username = String(record.username || id).toLowerCase();
+      await applyAccountSecret(doc);
+      // An account made here was made by an administrator, so it is admitted on
+      // creation — only a self-registration waits for review.
+      if (doc.approved === undefined) doc.approved = true;
+    }
+    await db.collection(collection).replaceOne({ _id: id }, doc, { upsert: true });
+    // A suspension takes hold immediately: every session this account holds is
+    // destroyed the moment the ban is written, signing them out everywhere.
+    if (collection === "accounts" && doc.banned) await db.collection("sessions").deleteMany({ username: id });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post("/api/delete", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    const { collection, id } = req.body || {};
+    if (!collection || !id) return res.status(400).json({ ok: false, error: "Missing collection/id" });
+    const err = await deleteRule(collection, actor);
+    if (err) return res.status(403).json({ ok: false, error: err });
+    await db.collection(collection).deleteOne({ _id: id });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── GENERIC KEY WRITES ─────────────────────────────────────────────────────────
+// Preserves the old sset(key, value) / sdel(key) shape so a page can move over by
+// swapping only its data layer. Any signed-in account may write these (parity
+// with the old hardened backend — anonymous writes are refused); accounts and
+// classified records are refused here and must go through /api/write, which
+// enforces the per-record rules. Classification mirrors how the data was
+// imported, so writes round-trip with /api/data.
+// The server's own stores are never a "key". Without this, the generic path would
+// read /api/set "sessions" or "accounts" as a record map and replace the whole
+// collection (minting a login as anyone, or a new owner), and /api/set or unset of
+// "singletons" would overwrite or drop every singleton on the network at once.
+const INTERNAL_STORES = new Set(["sessions", "secrets", "singletons", "accounts"]);
+const NON_KV = (key) => INTERNAL_STORES.has(key) || key === "mi_accounts" || key === "mi_pfp" || key.indexOf("mi_acc_") === 0 || !!PROTECTED[key];
+async function classifyKey(key, value) {
+  if (SINGLETON_KEYS.has(key)) return "singleton";
+  if (await db.collection("singletons").findOne({ _id: key }, { projection: { _id: 1 } })) return "singleton";
+  const cn = collName(key);
+  if ((await db.listCollections({ name: cn }).toArray()).length) return "collection";
+  const vals = value && typeof value === "object" && !Array.isArray(value) ? Object.values(value) : null;
+  if (vals && vals.length > 0 && vals.every(v => v && typeof v === "object" && !Array.isArray(v))) return "collection";
+  return "singleton";
+}
+
+app.post("/api/set", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    const { key, value } = req.body || {};
+    if (!key) return res.status(400).json({ ok: false, error: "Missing key" });
+    if (NON_KV(key)) return res.status(403).json({ ok: false, error: "Use /api/write for accounts and classified records" });
+    // Casting a ballot has its own ownership + one-vote rule.
+    if (key.indexOf("el_ballot_") === 0) {
+      const berr = await authorizeBallot(actor, key, req.body.value);
+      if (berr) return res.status(403).json({ ok: false, error: berr });
+      // Who cast it and when, stamped by the server inside the ballot itself — not
+      // trusted from the browser. A voided ballot is attributed to castBy, and a
+      // soft void counts as answered only by a ballot the same person cast after it
+      // (both times on the server's clock).
+      const now = Date.now();
+      const ballot = { ...req.body.value, castBy: String(actor.username || "").toLowerCase(), castAt: now };
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value: ballot, _writtenBy: actor.username, _writtenAt: now }, { upsert: true });
+      return res.json({ ok: true, ballot });
+    }
+    // Filing to stand for election: the candidate's own nomination paper, subject
+    // to its own ownership + timing rules. A Returning Officer skips this and is
+    // admitted by the "elections" domain below, so they can rule on the paper.
+    if (key.indexOf("el_reg_") === 0 && !isReturningOfficer(actor)) {
+      const rerr = await authorizeRegistration(actor, key, value);
+      if (rerr) return res.status(403).json({ ok: false, error: rerr });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    // Wilden secret ballot: the ballot box stores the vote admin-only and updates
+    // the public tally itself — never the raw choice through the open snapshot.
+    if (key.indexOf("wx_el_ballot_") === 0) {
+      const berr = await castWildenBallot(actor, key, req.body.value);
+      if (berr) return res.status(403).json({ ok: false, error: berr });
+      return res.json({ ok: true });
+    }
+    // A Wildenian candidate's own nomination (the Returning Officer skips this and
+    // is admitted by the wx_el_ rule to rule on any paper).
+    if (key.indexOf("wx_el_reg_") === 0 && !isWildenReturningOfficer(actor)) {
+      const rerr = await authorizeWildenRegistration(actor, key, value);
+      if (rerr) return res.status(403).json({ ok: false, error: rerr });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    // Vindex secret presidential ballot: the box stores the ranking administrator-
+    // only and bumps the public turnout tally itself — never the raw ranking
+    // through the open snapshot.
+    if (key.indexOf("vx_el_ballot_") === 0) {
+      const berr = await castVindexBallot(actor, key, req.body.value);
+      if (berr) return res.status(403).json({ ok: false, error: berr });
+      return res.json({ ok: true });
+    }
+    // A Vindex candidate's own nomination (the Commission skips this and is admitted
+    // by the vx_el_ rule to rule on any paper).
+    if (key.indexOf("vx_el_reg_") === 0 && !isVindexFEC(actor)) {
+      const rerr = await authorizeVindexRegistration(actor, key, value);
+      if (rerr) return res.status(403).json({ ok: false, error: rerr });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    // Vwitter — a post/repost/reply, signed by the account that made it (and, under
+    // an office account, only by someone who holds a reaching office).
+    if (key.indexOf("vw_post_") === 0) {
+      const e = await authorizeVwPost(actor, value);
+      if (e) return res.status(403).json({ ok: false, error: e });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      if (value && !value.replyTo) {   // remember when they last posted, for the rate limit
+        const rk = "vw_rate_" + String(actor.username || "").toLowerCase();
+        await db.collection("singletons").replaceOne({ _id: rk }, { _id: rk, value: { at: Date.now() } }, { upsert: true });
+      }
+      return res.json({ ok: true });
+    }
+    // Vwitter — a direct message, kept private to its two participants by the
+    // snapshot redaction; here we only check it is genuinely from the sender.
+    if (key.indexOf("vw_dm_") === 0) {
+      const e = await authorizeVwDM(actor, value);
+      if (e) return res.status(403).json({ ok: false, error: e });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    // Vwitter — a person's own profile: their bio and their (approval-gated)
+    // banner image. Keyed by their username. The banner is a compressed data URL
+    // (~360 KB from the page); a generous ceiling here backstops a client that
+    // bypasses that compression, since every profile ships in the open snapshot.
+    if (key.indexOf("vw_profile_") === 0) {
+      const owner = key.slice("vw_profile_".length).toLowerCase();
+      if (owner !== String(actor.username || "").toLowerCase())
+        return res.status(403).json({ ok: false, error: "You may only edit your own profile" });
+      if (JSON.stringify(value || {}).length > 1200000)
+        return res.status(413).json({ ok: false, error: "That image is too large — please use a smaller one." });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    // An office communiqué may be published by the officeholder it names (a normal
+    // press article still needs Press authority, handled below).
+    if (key.indexOf("press_article_") === 0 && value && value.pressRelease) {
+      if (!(await holdsNamedOffice(actor, value.office)))
+        return res.status(403).json({ ok: false, error: "You do not hold the office this communiqué is issued under" });
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: actor.username, _writtenAt: Date.now() }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    const err = await authorizeKeyWrite(actor, key);
+    if (err) return res.status(403).json({ ok: false, error: err });
+    const by = actor.username, at = Date.now();
+    // Bills were grouped into bk_bills on import; keep new ones there too so a
+    // new bk_bill_* lands alongside the rest instead of in singletons.
+    if (key.indexOf("bk_bill_") === 0) {
+      await db.collection("bk_bills").replaceOne({ _id: key }, { ...value, _id: key, _writtenBy: by, _writtenAt: at }, { upsert: true });
+      return res.json({ ok: true });
+    }
+    if (await classifyKey(key, value) === "collection") {
+      const cn = collName(key);
+      const docs = Object.entries(value || {}).map(([id, rec]) => ({ ...rec, _id: id, _writtenBy: by, _writtenAt: at }));
+      await db.collection(cn).deleteMany({});
+      if (docs.length) await db.collection(cn).insertMany(docs, { ordered: false });
+    } else {
+      await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value, _writtenBy: by, _writtenAt: at }, { upsert: true });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post("/api/unset", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    const { key } = req.body || {};
+    if (!key) return res.status(400).json({ ok: false, error: "Missing key" });
+    if (NON_KV(key)) return res.status(403).json({ ok: false, error: "Use /api/delete" });
+    // Redacting an office communiqué: the office that issued it may withdraw it,
+    // which removes it outright. Verified against the live officials register,
+    // the same way issuing one is.
+    if (key.indexOf("press_article_") === 0) {
+      const cur = await db.collection("singletons").findOne({ _id: key });
+      const art = cur && cur.value;
+      if (art && art.pressRelease) {
+        if (!(await holdsNamedOffice(actor, art.office)) && !hasPress(actor))
+          return res.status(403).json({ ok: false, error: "You do not hold the office this communiqué was issued under" });
+        await db.collection("singletons").deleteOne({ _id: key });
+        return res.json({ ok: true });
+      }
+    }
+    // Vwitter — the author may delete their own post or message; an administrator
+    // may delete any. Profiles are their owner's (or an administrator's) to clear.
+    if (key.indexOf("vw_post_") === 0 || key.indexOf("vw_dm_") === 0) {
+      const cur = await db.collection("singletons").findOne({ _id: key });
+      const rec = cur && cur.value;
+      const owner = String((rec && (rec.author || rec.from)) || "").toLowerCase();
+      if (!isSysAdmin(actor) && owner && owner !== String(actor.username || "").toLowerCase())
+        return res.status(403).json({ ok: false, error: "You may only delete your own posts" });
+      await db.collection("singletons").deleteOne({ _id: key });
+      return res.json({ ok: true });
+    }
+    if (key.indexOf("vw_profile_") === 0) {
+      const owner = key.slice("vw_profile_".length).toLowerCase();
+      if (!isSysAdmin(actor) && owner !== String(actor.username || "").toLowerCase())
+        return res.status(403).json({ ok: false, error: "You may only edit your own profile" });
+      await db.collection("singletons").deleteOne({ _id: key });
+      return res.json({ ok: true });
+    }
+    const err = await authorizeKeyWrite(actor, key);
+    if (err) return res.status(403).json({ ok: false, error: err });
+    if (key.indexOf("bk_bill_") === 0) { await db.collection("bk_bills").deleteOne({ _id: key }); return res.json({ ok: true }); }
+    await db.collection("singletons").deleteOne({ _id: key });
+    const cn = collName(key);
+    if ((await db.listCollections({ name: cn }).toArray()).length) await db.collection(cn).drop().catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Void one ballot, in a single step on the server so the notice and the strike can
+// never come apart: the void record is written first, then the ballot removed.
+// A void belongs to the PERSON who cast the ballot, not to the citizen record it was
+// cast on: it is attributed to the ballot's server-stamped caster and keyed by that
+// account, so two people's voids can never share a key (a record relinked between
+// accounts cannot make one void overwrite another), and the ban, the notice and the
+// "have they recast?" check all follow the same person.
+const voidKeyFor = (elId, username, citizenId) =>
+  "el_void_" + elId + "_" + (username ? "u_" + username : "c_" + citizenId);
+app.post("/api/election/void-ballot", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!isReturningOfficer(actor)) return res.status(403).json({ ok: false, error: "Only the Returning Officer may void a ballot" });
+    const b = req.body || {};
+    const elId = String(b.elId || ""), citizenId = String(b.citizenId || "");
+    const kind = String(b.kind || ""), reason = String(b.reason || "").trim();
+    if (!elId || !citizenId) return res.status(400).json({ ok: false, error: "Which ballot?" });
+    if (!VOID_KINDS.has(kind)) return res.status(400).json({ ok: false, error: "A void is either soft or hard" });
+    if (!reason) return res.status(400).json({ ok: false, error: "Give the reason — the voter is shown it" });
+    if (reason.length > 1000) return res.status(400).json({ ok: false, error: "Keep the reason under 1,000 characters" });
+    const el = await electionById(elId);
+    if (!el) return res.status(404).json({ ok: false, error: "No such election" });
+    if (el.status === "certified") return res.status(409).json({ ok: false, error: "The result is certified; its ballots can no longer be voided" });
+    const ballotKey = "el_ballot_" + elId + "_" + citizenId;
+    const cur = await db.collection("singletons").findOne({ _id: ballotKey });
+    if (!cur) return res.status(404).json({ ok: false, error: "That ballot is no longer in the box" });
+    const cit = await db.collection("mfa_citizens").findOne({ $or: [{ _id: citizenId }, { id: citizenId }] });
+    const ballot = cur.value || {};
+    const username = String(ballot.castBy || cur._writtenBy || (cit && cit.username) || "").trim().toLowerCase();
+    const voidKey = voidKeyFor(elId, username, citizenId);
+    // Voiding never lifts a ban. A barred person cannot cast again, so this only
+    // arises from a ballot on a second record cast before the ban; the ban stands
+    // until the Registrar lifts it deliberately.
+    const prev = await db.collection("singletons").findOne({ _id: voidKey });
+    if (prev && prev.value && prev.value.kind === "hard" && kind !== "hard")
+      return res.status(409).json({ ok: false, error: "This elector is already barred from this election — lift the ban first" });
+    const now = Date.now();
+    const record = {
+      elId, citizenId, kind, reason, username,
+      citizenName: String((cit && cit.name) || ballot.citizenName || ""),
+      at: now, by: actor.username, byName: actor.displayName || actor.username,
+      ballot,
+    };
+    await db.collection("singletons").replaceOne({ _id: voidKey },
+      { _id: voidKey, value: record, _writtenBy: actor.username, _writtenAt: now }, { upsert: true });
+    await db.collection("singletons").deleteOne({ _id: ballotKey });
+    res.json({ ok: true, key: voidKey, record });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Lift a ban. The ballot stays struck and the reason stays on record, but the void
+// turns soft, so the elector is told in yellow that they may now vote again —
+// lifting never leaves someone silently without a vote. Applied only to the exact
+// void the Registrar was looking at (matched on its timestamp): a Registrar working
+// from a stale page cannot overwrite a newer void, and nothing moves once the result
+// is certified.
+app.post("/api/election/lift-ban", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!isReturningOfficer(actor)) return res.status(403).json({ ok: false, error: "Only the Returning Officer may lift a ban" });
+    const key = String((req.body && req.body.key) || ""), at = Number(req.body && req.body.at);
+    if (key.indexOf("el_void_") !== 0 || !at) return res.status(400).json({ ok: false, error: "Which ban?" });
+    const cur = await db.collection("singletons").findOne({ _id: key });
+    const rec = cur && cur.value;
+    if (!rec || rec.kind !== "hard") return res.status(404).json({ ok: false, error: "There is no ban on record to lift" });
+    if (rec.at !== at) return res.status(409).json({ ok: false, error: "This void has changed since you loaded it — refresh and try again" });
+    const el = await electionById(rec.elId);
+    if (!el) return res.status(404).json({ ok: false, error: "No such election" });
+    if (el.status === "certified") return res.status(409).json({ ok: false, error: "The result is certified; its voids can no longer be changed" });
+    const now = Date.now();
+    const next = { ...rec, kind: "soft", liftedAt: now, liftedBy: actor.username };
+    const r = await db.collection("singletons").replaceOne(
+      { _id: key, "value.at": at, "value.kind": "hard" },
+      { _id: key, value: next, _writtenBy: actor.username, _writtenAt: now });
+    if (r && r.matchedCount === 0)
+      return res.status(409).json({ ok: false, error: "This void has changed since you loaded it — refresh and try again" });
+    res.json({ ok: true, key, record: next });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Voiding a Vindex presidential ballot ──────────────────────────────────────
+// The Federal Electoral Commission may void any ballot until the result is
+// certified. A SOFT void strikes the ballot and leaves the elector free to cast
+// again; a HARD void strikes it and bars them from voting in that election. Because
+// the ballot is secret, only the Commission (an administrator) ever reaches here —
+// it already holds the raw ranking. Striking a ballot also removes the elector from
+// the public turnout tally, so participation stays honest. The reason is kept on
+// vx_el_void_<elId>_u_<username>, shown only to the Commission and the elector named.
+app.post("/api/election/vx-void-ballot", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!isVindexFEC(actor)) return res.status(403).json({ ok: false, error: "Only the Federal Electoral Commission may void a ballot" });
+    const b = req.body || {};
+    const elId = String(b.elId || ""), citizenId = String(b.citizenId || "");
+    const kind = String(b.kind || ""), reason = String(b.reason || "").trim();
+    if (!elId || !citizenId) return res.status(400).json({ ok: false, error: "Which ballot?" });
+    if (!VOID_KINDS.has(kind)) return res.status(400).json({ ok: false, error: "A void is either soft or hard" });
+    if (!reason) return res.status(400).json({ ok: false, error: "Give the reason — the voter is shown it" });
+    if (reason.length > 1000) return res.status(400).json({ ok: false, error: "Keep the reason under 1,000 characters" });
+    const el = await vindexElectionById(elId);
+    if (!el) return res.status(404).json({ ok: false, error: "No such election" });
+    if (el.status === "certified") return res.status(409).json({ ok: false, error: "The result is certified; its ballots can no longer be voided" });
+    const ballotKey = "vx_el_ballot_" + elId + "_" + citizenId;
+    const cur = await db.collection("singletons").findOne({ _id: ballotKey });
+    if (!cur) return res.status(404).json({ ok: false, error: "That ballot is no longer in the box" });
+    const cit = await db.collection("vx_state_citizens").findOne({ $or: [{ _id: citizenId }, { id: citizenId }] });
+    const ballot = cur.value || {};
+    const username = String(ballot.castBy || cur._writtenBy || (cit && cit.username) || "").trim().toLowerCase();
+    const voidKey = vxVoidKeyFor(elId, username, citizenId);
+    const prev = await db.collection("singletons").findOne({ _id: voidKey });
+    if (prev && prev.value && prev.value.kind === "hard" && kind !== "hard")
+      return res.status(409).json({ ok: false, error: "This elector is already barred from this election — lift the ban first" });
+    const now = Date.now();
+    const record = {
+      elId, citizenId, kind, reason, username,
+      citizenName: String((cit && cit.name) || ballot.citizenName || ""),
+      at: now, by: actor.username, byName: actor.displayName || actor.username,
+      ballot,
+    };
+    await db.collection("singletons").replaceOne({ _id: voidKey },
+      { _id: voidKey, value: record, _writtenBy: actor.username, _writtenAt: now }, { upsert: true });
+    await db.collection("singletons").deleteOne({ _id: ballotKey });
+    // Remove the struck elector from the public turnout tally.
+    const tkey = "vx_el_tally_" + elId;
+    const tdoc = await db.collection("singletons").findOne({ _id: tkey });
+    if (tdoc && tdoc.value && Array.isArray(tdoc.value.voted)) {
+      const tally = tdoc.value;
+      tally.voted = tally.voted.filter(c => String(c) !== String(citizenId));
+      tally.total = tally.voted.length;
+      await db.collection("singletons").replaceOne({ _id: tkey }, { _id: tkey, value: tally }, { upsert: true });
+    }
+    res.json({ ok: true, key: voidKey, record });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Lift a Vindex ban. The ballot stays struck and the reason stays on record, but the
+// void turns soft, so the elector may vote again (lifting never leaves someone
+// silently without a vote). Applied only to the exact void the Commission was looking
+// at (matched on its timestamp); nothing moves once the result is certified.
+app.post("/api/election/vx-lift-ban", async (req, res) => {
+  try {
+    const actor = await actorFromReq(req);
+    if (!actor) return res.status(401).json({ ok: false, error: "Not authenticated" });
+    if (!isVindexFEC(actor)) return res.status(403).json({ ok: false, error: "Only the Federal Electoral Commission may lift a ban" });
+    const key = String((req.body && req.body.key) || ""), at = Number(req.body && req.body.at);
+    if (key.indexOf("vx_el_void_") !== 0 || !at) return res.status(400).json({ ok: false, error: "Which ban?" });
+    const cur = await db.collection("singletons").findOne({ _id: key });
+    const rec = cur && cur.value;
+    if (!rec || rec.kind !== "hard") return res.status(404).json({ ok: false, error: "There is no ban on record to lift" });
+    if (rec.at !== at) return res.status(409).json({ ok: false, error: "This void has changed since you loaded it — refresh and try again" });
+    const el = await vindexElectionById(rec.elId);
+    if (!el) return res.status(404).json({ ok: false, error: "No such election" });
+    if (el.status === "certified") return res.status(409).json({ ok: false, error: "The result is certified; its voids can no longer be changed" });
+    const now = Date.now();
+    const next = { ...rec, kind: "soft", liftedAt: now, liftedBy: actor.username };
+    const r = await db.collection("singletons").replaceOne(
+      { _id: key, "value.at": at, "value.kind": "hard" },
+      { _id: key, value: next, _writtenBy: actor.username, _writtenAt: now });
+    if (r && r.matchedCount === 0)
+      return res.status(409).json({ ok: false, error: "This void has changed since you loaded it — refresh and try again" });
+    res.json({ ok: true, key, record: next });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── ONE-TIME DATA IMPORT ───────────────────────────────────────────────────────
+// Copies everything from both Sheets backends into MongoDB. Safe to re-run (it
+// replaces the Mongo copy each time). Reads only — your Sheets are untouched.
+// Guarded by ADMIN_KEY. Run MOI in compat mode (SECURE_MODE=false) first so the
+// export still includes password hashes; flip it back to true afterwards.
+// This whole block gets removed once the migration is done.
+async function fetchAll(url) {
+  const r = await fetch(url + "?action=getall");
+  const d = await r.json();
+  return (d && d.success) ? (d.data || {}) : {};
+}
+function collName(key) { return String(key).replace(/[^a-zA-Z0-9_]/g, "_"); }
+// Settings objects whose values happen to all be objects, so the "looks like a
+// record map" heuristic would wrongly explode them into a collection. These are
+// always stored as a single document.
+// vx_gov is one such: its only member is the cabinet map, so the heuristic would
+// flip it between singleton and collection depending on whether a post happens to
+// be assigned.
+const SINGLETON_KEYS = new Set(["bk_orgchart", "vx_gov", "wx_gov", "vx_el_parties"]);
+async function replaceCollection(name, docs) {
+  const c = db.collection(name);
+  await c.deleteMany({});
+  if (docs.length) await c.insertMany(docs, { ordered: false });
+  return docs.length;
+}
+
+app.get("/admin/import", async (req, res) => {
+  // Turn this off for good once your final re-import is done: set IMPORT_ENABLED=false
+  // in Render (or delete this endpoint). It rebuilds collections, so it must not
+  // stay reachable in production.
+  if (process.env.IMPORT_ENABLED === "false") return res.status(404).json({ error: "Not found" });
+  if (!ADMIN_KEY || req.query.key !== ADMIN_KEY) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const summary = {};
+    const accounts = {};   // username(lower) -> account (deduped across both stores)
+    const bills = [];
+
+    for (const src of Object.keys(SOURCES)) {
+      const data = await fetchAll(SOURCES[src]);
+      for (const [key, rawVal] of Object.entries(data)) {
+        if (!rawVal) continue;
+        let val; try { val = JSON.parse(rawVal); } catch { val = rawVal; }
+
+        // Accounts — merge the per-row keys and the legacy blob into one set.
+        if (key.startsWith("mi_acc_")) {
+          if (val && val.username) { const u = String(val.username).toLowerCase(); if (!accounts[u]) accounts[u] = val; }
+          continue;
+        }
+        if (key === "mi_accounts") {
+          if (val && typeof val === "object") for (const a of Object.values(val)) {
+            if (a && a.username) { const u = String(a.username).toLowerCase(); if (!accounts[u]) accounts[u] = a; }
+          }
+          continue;
+        }
+        // Bundeskongress bills — one key each — gather into a bills collection.
+        if (key.startsWith("bk_bill_")) { if (val && typeof val === "object") bills.push({ _id: key, ...val }); continue; }
+
+        // An id-keyed map becomes a collection; anything else is a single setting.
+        const looksLikeCollection = val && typeof val === "object" && !Array.isArray(val)
+          && Object.values(val).length > 0 && Object.values(val).every(v => v && typeof v === "object" && !Array.isArray(v));
+        if (looksLikeCollection && !SINGLETON_KEYS.has(key)) {
+          const docs = Object.entries(val).map(([id, rec]) => ({ _id: id, ...rec }));
+          summary[collName(key)] = await replaceCollection(collName(key), docs);
+        } else {
+          await db.collection("singletons").replaceOne({ _id: key }, { _id: key, value: val }, { upsert: true });
+          // Drop a stale same-named collection left by an earlier misclassified import.
+          const cn = collName(key);
+          if ((await db.listCollections({ name: cn }).toArray()).length) await db.collection(cn).drop().catch(() => {});
+          summary["singleton:" + key] = 1;
+        }
+      }
+    }
+
+    const accDocs = Object.values(accounts).map(a => ({ _id: String(a.username).toLowerCase(), ...a }));
+    summary["accounts"] = await replaceCollection("accounts", accDocs);
+    if (bills.length) { summary["bk_bills"] = await replaceCollection("bk_bills", bills); }
+
+    res.json({ ok: true, summary });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+async function start() {
+  await client.connect();
+  db = client.db("lech");
+  console.log("Connected to MongoDB.");
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log("Server listening on port " + port));
+}
+start().catch((e) => { console.error("Startup failed:", e.message); process.exit(1); });

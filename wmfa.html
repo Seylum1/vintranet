@@ -411,6 +411,8 @@ function CitizenshipTab({citizens,accounts,user,gov,onAction,notify,setBusy}){
 
     {manage&&<NewAccountRequests accounts={accounts} citizens={citizens} onAction={onAction} notify={notify} setBusy={setBusy}/>}
 
+    {manage&&<AdminGrantNotices citizens={citizens} onAction={onAction} notify={notify} setBusy={setBusy}/>}
+
     {manage&&<GrantCitizen accounts={accounts} onAction={onAction} notify={notify} setBusy={setBusy}/>}
 
     <h2>The register</h2>
@@ -422,6 +424,32 @@ function CitizenshipTab({citizens,accounts,user,gov,onAction,notify,setBusy}){
           return <CitizenRow key={c.id} citizen={c} st={st} account={a} manage={manage}
             onAction={onAction} notify={notify} setBusy={setBusy}/>;})}</tbody>
       </table>}
+  </div>;
+}
+// Citizenships the network administrator granted directly on admission, bypassing
+// the Ministry's queue. The record is already on the register; this is only a
+// notice the Government must acknowledge so the grant does not pass unseen.
+function AdminGrantNotices({citizens,onAction,notify,setBusy}){
+  const pending=Object.values(citizens||{}).filter(c=>c&&c.adminGranted&&!c.acknowledged)
+    .sort((a,b)=>(a.grantedAt||0)-(b.grantedAt||0));
+  const [working,setWorking]=useState("");
+  if(pending.length===0)return null;
+  const ack=async(c)=>{setWorking(c.id);setBusy("Acknowledging");const res=await onAction("acknowledge",{id:c.id});
+    setWorking("");setBusy(null);notify(res.ok?("Acknowledged "+(c.name||c.username)+"."):res.error,res.ok);};
+  return <div className="notif" style={{borderColor:"#00703c"}}>
+    <div className="head" style={{background:"#00703c",color:"#fff"}}>Administrator-granted citizenship — acknowledge ({pending.length})</div>
+    <div className="body" style={{padding:"14px 16px"}}>
+      <p className="hint" style={{marginBottom:12}}>The network administrator granted these citizenships directly on
+        admission. They are already on the register below — acknowledge each so the Government has seen it.</p>
+      <table style={{marginBottom:0}}>
+        <thead><tr><th>Person</th><th>Granted</th><th className="num">Action</th></tr></thead>
+        <tbody>{pending.map(c=><tr key={c.id}>
+          <td><span className="nm">{c.name||c.username}</span>{c.username?<span style={{color:"#505a5f",marginLeft:6,fontSize:13}}>@{c.username}</span>:null}</td>
+          <td>{c.grantedAt?fmtDate(c.grantedAt):"—"}{c.grantedBy?" · "+c.grantedBy:""}</td>
+          <td className="num"><Btn small disabled={working===c.id} onClick={()=>ack(c)}>Acknowledge</Btn></td>
+        </tr>)}</tbody>
+      </table>
+    </div>
   </div>;
 }
 // The queue of newcomers who named Wilden at registration. It heads the
@@ -1051,6 +1079,7 @@ function App(){
       return await put("wx_state_citizens",cur);
     }
     if(type==="update"){const cur={...citizens};if(cur[p.id])cur[p.id]={...cur[p.id],status:p.status};return await put("wx_state_citizens",cur);}
+    if(type==="acknowledge"){const cur={...citizens};if(cur[p.id])cur[p.id]={...cur[p.id],acknowledged:true,acknowledgedAt:Date.now()};return await put("wx_state_citizens",cur);}
     if(type==="remove"){const cur={...citizens};delete cur[p.id];return await put("wx_state_citizens",cur);}
     if(type==="issue"){const id="wpp_"+uid();const cur={...passports,[id]:{id,...p,issuedAt:Date.now()}};return await put("wx_state_passports",cur);}
     if(type==="ppUpdate"){const cur={...passports};if(cur[p.id])cur[p.id]={...cur[p.id],status:p.status};return await put("wx_state_passports",cur);}
